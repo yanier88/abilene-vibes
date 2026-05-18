@@ -3,7 +3,7 @@ import "./App.css";
 
 const events = [
   {
-    title: "Live Music Friday",
+    title: "Live Music Friday test",
     place: "The Paramount Theatre",
     date: "May 24, 2026 - 8:00 PM",
     type: "Live music",
