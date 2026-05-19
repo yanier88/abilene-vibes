@@ -22,7 +22,7 @@
   border-radius: 24px;
   background:
     linear-gradient(90deg, rgba(5, 0, 8, 0) 0 62%, rgba(5, 0, 8, 0.2) 100%),
-    url("/home-banner.png") center / cover no-repeat;
+    url("/home-new.jpg") center center / contain no-repeat;
   box-shadow:
     0 0 34px rgba(255, 0, 204, 0.28),
     0 28px 70px rgba(0, 0, 0, 0.45);
@@ -206,7 +206,9 @@
 
   .home-hero {
     width: 100%;
-    min-height: 100svh;
+    height: 100vh;
+    background-color: black;
+    background-position: center top;
     border: 0;
     border-radius: 0;
     background-position: 46% center;
