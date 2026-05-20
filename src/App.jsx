@@ -39,6 +39,93 @@ const events = [
   },
 ];
 
+const calendarDays = [
+  {
+    day: "Mon",
+    date: "May 20",
+    title: "Downtown Open Mic",
+    time: "7:00 PM",
+    place: "Grain Theory",
+  },
+  {
+    day: "Tue",
+    date: "May 21",
+    title: "Taco Tuesday",
+    time: "5:00 PM",
+    place: "Downtown Abilene",
+  },
+  {
+    day: "Wed",
+    date: "May 22",
+    title: "Trivia Night",
+    time: "7:30 PM",
+    place: "The Station Lounge",
+  },
+  {
+    day: "Thu",
+    date: "May 23",
+    title: "College Nights",
+    time: "9:00 PM",
+    place: "Guitars Cadillacs Club",
+  },
+  {
+    day: "Fri",
+    date: "May 24",
+    title: "Live Music Friday",
+    time: "8:00 PM",
+    place: "The Paramount Theatre",
+  },
+  {
+    day: "Sat",
+    date: "May 25",
+    title: "Taco & Tequila Fest",
+    time: "5:00 PM",
+    place: "Frontier Texas! Courtyard",
+  },
+  {
+    day: "Sun",
+    date: "May 26",
+    title: "Country Night",
+    time: "9:00 PM",
+    place: "Potosi Live",
+  },
+];
+
+const nightlifePlaces = [
+  {
+    name: "Guitars and Cadillacs",
+    image: "/nightlife-guitars.jpg",
+  },
+  {
+    name: "Oggly Lime",
+    image: "/nightlife-ugly-lime.jpg",
+  },
+  {
+    name: "Mi Gente Club",
+    image: "/nightlife-suite.jpg",
+  },
+  {
+    name: "The Station",
+    image: "/nightlife-station.jpg",
+  },
+  {
+    name: "Club Rodeo",
+    image: "/nightlife-guitars.jpg",
+  },
+  {
+    name: "Suite",
+    image: "/nightlife-suite.jpg",
+  },
+  {
+    name: "Paramount Cine",
+    image: "/nightlife-paramount.jpg",
+  },
+  {
+    name: "Cinemark",
+    image: "/nightlife-cinemark.jpg",
+  },
+];
+
 function App() {
   const [page, setPage] = useState("home");
 
@@ -49,19 +136,19 @@ function App() {
           <img className="photo-feature-image" src="/lobby-bg.png" alt="" />
 
           <div className="photo-feature-content">
-            <button className="back-button" onClick={() => setPage("home")}>
-              Back home
+            <button className="primary-button lobby-home-button" onClick={() => setPage("home")}>
+              Home
             </button>
 
             <button className="primary-button photo-next-button" onClick={() => setPage("events")}>
               Events
             </button>
 
-            <button className="primary-button lobby-calendar-button" type="button">
+            <button className="primary-button lobby-calendar-button" onClick={() => setPage("calendar")}>
               Calendar
             </button>
 
-            <button className="primary-button lobby-nightlife-button" type="button">
+            <button className="primary-button lobby-nightlife-button" onClick={() => setPage("nightlife")}>
               Nightlife
             </button>
 
@@ -105,6 +192,67 @@ function App() {
                   <p className="event-detail">{event.place}</p>
                   <p className="event-detail">{event.date}</p>
                 </div>
+              </article>
+            ))}
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (page === "calendar") {
+    return (
+      <main className="app calendar-page">
+        <div className="calendar-shell">
+          <button className="back-button" onClick={() => setPage("lobby")}>
+            Back to lobby
+          </button>
+
+          <section className="calendar-header" aria-labelledby="calendar-title">
+            <p className="eyebrow">Plan the week</p>
+            <h1 id="calendar-title">Calendar</h1>
+          </section>
+
+          <section className="calendar-list" aria-label="Abilene Vibes calendar">
+            {calendarDays.map((item) => (
+              <article className="calendar-card" key={`${item.date}-${item.title}`}>
+                <div className="calendar-date">
+                  <span>{item.day}</span>
+                  <strong>{item.date}</strong>
+                </div>
+
+                <div className="calendar-copy">
+                  <h2>{item.title}</h2>
+                  <p>{item.place}</p>
+                  <p>{item.time}</p>
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (page === "nightlife") {
+    return (
+      <main className="app nightlife-page">
+        <div className="nightlife-shell">
+          <button className="back-button" onClick={() => setPage("lobby")}>
+            Back to lobby
+          </button>
+
+          <section className="nightlife-header" aria-labelledby="nightlife-title">
+            <p className="eyebrow">After dark</p>
+            <h1 id="nightlife-title">Nightlife</h1>
+          </section>
+
+          <section className="nightlife-grid" aria-label="Abilene nightlife places">
+            {nightlifePlaces.map((place) => (
+              <article className="nightlife-card" key={place.name}>
+                <img className="nightlife-image" src={place.image} alt="" loading="lazy" />
+                <span className="event-type">Night spot</span>
+                <h2>{place.name}</h2>
               </article>
             ))}
           </section>
