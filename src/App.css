@@ -9,23 +9,21 @@
 
 .home-page {
   display: grid;
-  place-items: center;
-  padding: clamp(14px, 3vw, 30px);
+  place-items: start center;
+  padding: 0;
 }
 
 .home-hero {
   position: relative;
-  width: min(100%, 1100px);
-  min-height: min(92svh, 780px);
+  width: 100%;
+  min-height: 100svh;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 24px;
+  border: 0;
+  border-radius: 0;
   background:
     linear-gradient(90deg, rgba(5, 0, 8, 0) 0 62%, rgba(5, 0, 8, 0.2) 100%),
-    url("/home-new.jpg") center center / contain no-repeat;
-  box-shadow:
-    0 0 34px rgba(255, 0, 204, 0.28),
-    0 28px 70px rgba(0, 0, 0, 0.45);
+    url("/home-new-hd.png") center bottom / auto 108% no-repeat;
+  box-shadow: none;
 }
 
 .home-hero::after {
@@ -41,8 +39,9 @@
 .home-cta {
   position: absolute;
   z-index: 1;
-  left: clamp(44px, 12vw, 154px);
-  bottom: clamp(64px, 11vh, 118px);
+  left: 50%;
+  bottom: 11%;
+  transform: translateX(-50%);
 }
 
 .primary-button,
@@ -63,10 +62,16 @@
 }
 
 .primary-button {
-  min-width: 170px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(240px, 39svh, 430px);
+  min-width: 220px;
+  min-height: 78px;
   padding: 16px 30px;
   border-radius: 16px;
   font-size: clamp(1rem, 2vw, 1.18rem);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 
@@ -206,22 +211,20 @@
 
   .home-hero {
     width: 100%;
-    height: 100vh;
     background-color: black;
     background-position: center top;
     border: 0;
     border-radius: 0;
-    background-position: 46% center;
   }
 
   .home-cta {
     left: 50%;
-    bottom: 28px;
+    bottom: 11%;
     transform: translateX(-50%);
   }
 
   .primary-button {
-    width: min(78vw, 280px);
+    width: clamp(230px, 39svh, 360px);
   }
 
   .event-card {
