@@ -97,6 +97,56 @@
   outline-offset: 4px;
 }
 
+.photo-page {
+  display: grid;
+  place-items: start center;
+  overflow: hidden;
+}
+
+.photo-feature {
+  position: relative;
+  width: min(100vw, 1179px);
+  aspect-ratio: 1179 / 2048;
+  overflow: hidden;
+  background: #000;
+}
+
+.photo-feature-image {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: auto;
+}
+
+.photo-feature-content {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: clamp(14px, 3vw, 28px);
+}
+
+.photo-next-button,
+.lobby-calendar-button {
+  position: absolute;
+  right: 8.4%;
+  width: 15%;
+  min-width: 0;
+  min-height: 0;
+  height: 2.3%;
+  padding: 0;
+  border-radius: 26px;
+  font-size: clamp(0.72rem, 1.85vw, 1.65rem);
+  letter-spacing: 0.24em;
+}
+
+.photo-next-button {
+  top: 23.8%;
+}
+
+.lobby-calendar-button {
+  top: 34.1%;
+}
+
 .events-page {
   padding: clamp(22px, 4vw, 46px);
 }

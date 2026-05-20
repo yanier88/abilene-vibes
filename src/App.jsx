@@ -42,12 +42,36 @@ const events = [
 function App() {
   const [page, setPage] = useState("home");
 
+  if (page === "lobby") {
+    return (
+      <main className="app photo-page">
+        <section className="photo-feature" aria-label="Abilene Vibes lobby">
+          <img className="photo-feature-image" src="/lobby-bg.png" alt="" />
+
+          <div className="photo-feature-content">
+            <button className="back-button" onClick={() => setPage("home")}>
+              Back home
+            </button>
+
+            <button className="primary-button photo-next-button" onClick={() => setPage("events")}>
+              Events
+            </button>
+
+            <button className="primary-button lobby-calendar-button" type="button">
+              Calendar
+            </button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   if (page === "events") {
     return (
       <main className="app events-page">
         <div className="events-shell">
-          <button className="back-button" onClick={() => setPage("home")}>
-            Back home
+          <button className="back-button" onClick={() => setPage("lobby")}>
+            Back to lobby
           </button>
 
           <section className="events-header" aria-labelledby="events-title">
@@ -81,7 +105,7 @@ function App() {
     <main className="app home-page">
       <section className="home-hero" aria-label="Abilene Vibes">
         <div className="home-cta">
-          <button className="primary-button" onClick={() => setPage("events")}>
+          <button className="primary-button" onClick={() => setPage("lobby")}>
             Explore events
           </button>
         </div>
