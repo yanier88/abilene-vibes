@@ -65,6 +65,10 @@ function App() {
               Nightlife
             </button>
 
+            <button className="primary-button lobby-eats-button" type="button">
+              Eats
+            </button>
+
             <button className="primary-button lobby-gallery-button" type="button">
               Gallery
             </button>

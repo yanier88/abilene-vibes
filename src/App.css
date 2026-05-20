@@ -105,8 +105,8 @@
 
 .photo-feature {
   position: relative;
-  width: min(100vw, 1179px);
-  aspect-ratio: 1179 / 2048;
+  width: min(100vw, 951px);
+  aspect-ratio: 951 / 1654;
   overflow: hidden;
   background: #000;
 }
@@ -128,6 +128,7 @@
 .photo-next-button,
 .lobby-calendar-button,
 .lobby-nightlife-button,
+.lobby-eats-button,
 .lobby-gallery-button {
   position: absolute;
   right: 8.4%;
@@ -151,6 +152,10 @@
 
 .lobby-nightlife-button {
   top: 44.8%;
+}
+
+.lobby-eats-button {
+  top: 55.7%;
 }
 
 .lobby-gallery-button {
