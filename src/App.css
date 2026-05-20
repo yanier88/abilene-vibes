@@ -126,7 +126,9 @@
 }
 
 .photo-next-button,
-.lobby-calendar-button {
+.lobby-calendar-button,
+.lobby-nightlife-button,
+.lobby-gallery-button {
   position: absolute;
   right: 8.4%;
   width: 15%;
@@ -140,11 +142,19 @@
 }
 
 .photo-next-button {
-  top: 23.8%;
+  top: 23.4%;
 }
 
 .lobby-calendar-button {
   top: 34.1%;
+}
+
+.lobby-nightlife-button {
+  top: 44.8%;
+}
+
+.lobby-gallery-button {
+  top: 65.75%;
 }
 
 .events-page {

@@ -60,6 +60,14 @@ function App() {
             <button className="primary-button lobby-calendar-button" type="button">
               Calendar
             </button>
+
+            <button className="primary-button lobby-nightlife-button" type="button">
+              Nightlife
+            </button>
+
+            <button className="primary-button lobby-gallery-button" type="button">
+              Gallery
+            </button>
           </div>
         </section>
       </main>
