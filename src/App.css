@@ -814,8 +814,9 @@
 
   .home-hero {
     width: 100%;
+    background-size: auto 116%;
     background-color: black;
-    background-position: center top;
+    background-position: center center;
     border: 0;
     border-radius: 0;
   }
