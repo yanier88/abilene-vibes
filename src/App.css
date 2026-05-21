@@ -424,9 +424,12 @@
   min-height: 150px;
   display: grid;
   place-items: center;
+  color: inherit;
+  font: inherit;
   border: 1px solid rgba(255, 0, 204, 0.58);
   border-radius: 18px;
   padding: clamp(18px, 4vw, 32px);
+  cursor: pointer;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.035)),
     radial-gradient(circle at 20% 10%, rgba(0, 212, 255, 0.22), transparent 58%),
@@ -434,6 +437,25 @@
   box-shadow:
     0 0 24px rgba(255, 0, 204, 0.26),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.promote-card:hover,
+.promote-card.is-selected {
+  transform: translateY(-2px);
+  border-color: rgba(0, 212, 255, 0.9);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05)),
+    radial-gradient(circle at 20% 10%, rgba(0, 212, 255, 0.32), transparent 58%),
+    rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 0 28px rgba(255, 0, 204, 0.36),
+    0 0 26px rgba(0, 212, 255, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .promote-card span {
@@ -444,6 +466,95 @@
   text-align: center;
   text-transform: capitalize;
   text-shadow: 0 0 18px rgba(0, 212, 255, 0.34);
+}
+
+.business-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border: 1px solid rgba(0, 212, 255, 0.42);
+  border-radius: 18px;
+  padding: clamp(18px, 4vw, 30px);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.035)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 0 24px rgba(0, 212, 255, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.business-form-heading {
+  text-align: left;
+}
+
+.business-form-heading h2 {
+  margin: 8px 0 0;
+  color: #fff;
+  font-size: clamp(1.7rem, 4vw, 2.7rem);
+  font-weight: 900;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.form-field span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.82rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.form-field input,
+.form-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  color: #fff;
+  font: inherit;
+  padding: 14px 15px;
+  background: rgba(0, 0, 0, 0.32);
+  outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.form-field textarea {
+  resize: vertical;
+}
+
+.form-field input::placeholder,
+.form-field textarea::placeholder {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+  border-color: rgba(0, 212, 255, 0.78);
+  background: rgba(0, 0, 0, 0.42);
+  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.16);
+}
+
+.form-success {
+  border: 1px solid rgba(40, 231, 255, 0.36);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #fff;
+  background: rgba(40, 231, 255, 0.12);
 }
 
 .subscribe-button {
@@ -658,7 +769,8 @@
 
   .eats-grid,
   .gallery-grid,
-  .promote-grid {
+  .promote-grid,
+  .form-grid {
     grid-template-columns: 1fr;
   }
 

@@ -197,6 +197,13 @@ const promoteCategories = [
 
 function App() {
   const [page, setPage] = useState("home");
+  const [selectedCategory, setSelectedCategory] = useState(promoteCategories[0]);
+  const [businessSubmitted, setBusinessSubmitted] = useState(false);
+
+  const handleBusinessSubmit = (event) => {
+    event.preventDefault();
+    setBusinessSubmitted(true);
+  };
 
   if (page === "lobby") {
     return (
@@ -412,15 +419,62 @@ function App() {
 
           <section className="promote-grid" aria-label="Business promotion categories">
             {promoteCategories.map((category) => (
-              <article className="promote-card" key={category}>
+              <button
+                className={`promote-card${selectedCategory === category ? " is-selected" : ""}`}
+                key={category}
+                type="button"
+                onClick={() => {
+                  setSelectedCategory(category);
+                  setBusinessSubmitted(false);
+                }}
+                aria-pressed={selectedCategory === category}
+              >
                 <span>{category}</span>
-              </article>
+              </button>
             ))}
           </section>
 
-          <button className="primary-button subscribe-button" type="button">
-            Subscribe free
-          </button>
+          <form className="business-form" onSubmit={handleBusinessSubmit}>
+            <div className="business-form-heading">
+              <p className="eyebrow">Free listing</p>
+              <h2>{selectedCategory}</h2>
+            </div>
+
+            <div className="form-grid">
+              <label className="form-field">
+                <span>Business name</span>
+                <input name="businessName" type="text" placeholder="Your business name" required />
+              </label>
+
+              <label className="form-field">
+                <span>Contact name</span>
+                <input name="contactName" type="text" placeholder="Who should we contact?" required />
+              </label>
+
+              <label className="form-field">
+                <span>Phone</span>
+                <input name="phone" type="tel" placeholder="(325) 555-0100" required />
+              </label>
+
+              <label className="form-field">
+                <span>Instagram or website</span>
+                <input name="social" type="text" placeholder="@business or website" />
+              </label>
+            </div>
+
+            <label className="form-field form-field-wide">
+              <span>Short description</span>
+              <textarea name="description" placeholder="Tell people what makes your spot worth visiting." rows="4" />
+            </label>
+
+            {businessSubmitted && (
+              <p className="form-success">Thanks. Your free listing request is ready for review.</p>
+            )}
+
+            <button className="primary-button subscribe-button" type="submit">
+              Subscribe free
+            </button>
+          </form>
         </div>
       </main>
     );
