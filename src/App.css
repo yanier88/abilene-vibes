@@ -846,7 +846,7 @@
   .photo-feature .lobby-eats-button,
   .photo-feature .lobby-gallery-button,
   .photo-feature .lobby-directory-button {
-    right: 7.2%;
+    right: 11%;
     width: 15%;
     min-width: 0;
     min-height: 0;
@@ -858,7 +858,7 @@
   }
 
   .photo-feature .lobby-home-button {
-    left: 7.6%;
+    left: 7%;
     right: auto;
     bottom: 7.2%;
     width: 12%;
@@ -870,10 +870,10 @@
   }
 
   .photo-feature .lobby-promote-button {
-    left: 23%;
+    left: 22%;
     right: auto;
     bottom: 7.2%;
-    width: 69%;
+    width: 68%;
     min-width: 0;
     min-height: 0;
     height: 3.95%;
@@ -911,9 +911,8 @@
 
   .photo-feature {
     height: 100svh;
-    width: calc(100svh * 951 / 1654);
-    max-width: none;
-    aspect-ratio: 951 / 1654;
+    width: 100vw;
+    aspect-ratio: auto;
   }
 
   .photo-feature-image {
