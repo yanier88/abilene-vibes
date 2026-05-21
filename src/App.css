@@ -829,6 +829,48 @@
     width: clamp(230px, 39svh, 360px);
   }
 
+  .photo-feature .photo-next-button,
+  .photo-feature .lobby-calendar-button,
+  .photo-feature .lobby-nightlife-button,
+  .photo-feature .lobby-eats-button,
+  .photo-feature .lobby-gallery-button,
+  .photo-feature .lobby-directory-button {
+    right: 8.4%;
+    width: 15%;
+    min-width: 0;
+    min-height: 0;
+    height: 2.3%;
+    padding: 0;
+    border-radius: 26px;
+    font-size: clamp(0.34rem, 1.8vw, 0.7rem);
+    letter-spacing: 0.2em;
+  }
+
+  .photo-feature .lobby-home-button {
+    left: 8.6%;
+    right: auto;
+    bottom: 7.2%;
+    width: 12%;
+    min-width: 0;
+    min-height: 0;
+    height: 2%;
+    padding: 0;
+    font-size: clamp(0.34rem, 1.7vw, 0.66rem);
+  }
+
+  .photo-feature .lobby-promote-button {
+    left: 24%;
+    right: auto;
+    bottom: 7.2%;
+    width: 68%;
+    min-width: 0;
+    min-height: 0;
+    height: 3.95%;
+    padding: 0;
+    font-size: clamp(0.34rem, 1.55vw, 0.66rem);
+    letter-spacing: 0.1em;
+  }
+
   .event-card {
     grid-template-columns: 1fr;
   }
