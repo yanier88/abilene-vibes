@@ -1,6 +1,8 @@
 import { useState } from "react";
 import "./App.css";
 
+const appAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
+
 const events = [
   {
     title: "Live Music Friday",
@@ -94,35 +96,35 @@ const calendarDays = [
 const nightlifePlaces = [
   {
     name: "Guitars and Cadillacs",
-    image: "/nightlife-guitars.jpg",
+    image: appAsset("nightlife-guitars.jpg"),
   },
   {
     name: "Oggly Lime",
-    image: "/nightlife-ugly-lime.jpg",
+    image: appAsset("nightlife-ugly-lime.jpg"),
   },
   {
     name: "Mi Gente Club",
-    image: "/nightlife-suite.jpg",
+    image: appAsset("nightlife-suite.jpg"),
   },
   {
     name: "The Station",
-    image: "/nightlife-station.jpg",
+    image: appAsset("nightlife-station.jpg"),
   },
   {
     name: "Club Rodeo",
-    image: "/nightlife-guitars.jpg",
+    image: appAsset("nightlife-guitars.jpg"),
   },
   {
     name: "Suite",
-    image: "/nightlife-suite.jpg",
+    image: appAsset("nightlife-suite.jpg"),
   },
   {
     name: "Paramount Cine",
-    image: "/nightlife-paramount.jpg",
+    image: appAsset("nightlife-paramount.jpg"),
   },
   {
     name: "Cinemark",
-    image: "/nightlife-cinemark.jpg",
+    image: appAsset("nightlife-cinemark.jpg"),
   },
 ];
 
@@ -156,31 +158,31 @@ const eatsPlaces = [
 const galleryShots = [
   {
     title: "Downtown Lights",
-    image: "/nightlife-station.jpg",
+    image: appAsset("nightlife-station.jpg"),
   },
   {
     title: "Paramount Glow",
-    image: "/nightlife-paramount.jpg",
+    image: appAsset("nightlife-paramount.jpg"),
   },
   {
     title: "Club Energy",
-    image: "/nightlife-guitars.jpg",
+    image: appAsset("nightlife-guitars.jpg"),
   },
   {
     title: "Movie Night",
-    image: "/nightlife-cinemark.jpg",
+    image: appAsset("nightlife-cinemark.jpg"),
   },
   {
     title: "Oggly Lime",
-    image: "/nightlife-ugly-lime.jpg",
+    image: appAsset("nightlife-ugly-lime.jpg"),
   },
   {
     title: "Mi Gente Club",
-    image: "/nightlife-suite.jpg",
+    image: appAsset("nightlife-suite.jpg"),
   },
   {
     title: "Guitars and Cadillacs",
-    image: "/nightlife-guitars.jpg",
+    image: appAsset("nightlife-guitars.jpg"),
   },
 ];
 
@@ -200,7 +202,7 @@ function App() {
     return (
       <main className="app photo-page">
         <section className="photo-feature" aria-label="Abilene Vibes lobby">
-          <img className="photo-feature-image" src="/lobby-bg.png" alt="" />
+          <img className="photo-feature-image" src={appAsset("lobby-bg.png")} alt="" />
 
           <div className="photo-feature-content">
             <button className="primary-button lobby-home-button" onClick={() => setPage("home")}>
@@ -426,7 +428,11 @@ function App() {
 
   return (
     <main className="app home-page">
-      <section className="home-hero" aria-label="Abilene Vibes">
+      <section
+        className="home-hero"
+        style={{ "--home-hero-image": `url("${appAsset("home-new-hd.png")}")` }}
+        aria-label="Abilene Vibes"
+      >
         <div className="home-cta">
           <button className="primary-button" onClick={() => setPage("lobby")}>
             Explore events
