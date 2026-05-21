@@ -905,6 +905,22 @@
     min-height: 230px;
   }
 
+  .photo-page {
+    place-items: stretch center;
+  }
+
+  .photo-feature {
+    width: 100vw;
+    height: 100svh;
+    aspect-ratio: auto;
+  }
+
+  .photo-feature-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
