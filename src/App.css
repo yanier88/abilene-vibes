@@ -910,15 +910,16 @@
   }
 
   .photo-feature {
-    width: 100vw;
     height: 100svh;
-    aspect-ratio: auto;
+    width: calc(100svh * 951 / 1654);
+    max-width: none;
+    aspect-ratio: 951 / 1654;
   }
 
   .photo-feature-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: fill;
   }
 
 }
