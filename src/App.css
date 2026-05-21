@@ -131,7 +131,8 @@
 .lobby-calendar-button,
 .lobby-nightlife-button,
 .lobby-eats-button,
-.lobby-gallery-button {
+.lobby-gallery-button,
+.lobby-directory-button {
   position: absolute;
   right: 8.4%;
   width: 15%;
@@ -182,6 +183,10 @@
   top: 65.75%;
 }
 
+.lobby-directory-button {
+  top: 76.5%;
+}
+
 .events-page {
   padding: clamp(22px, 4vw, 46px);
 }
@@ -206,6 +211,10 @@
   padding: clamp(22px, 4vw, 46px);
 }
 
+.directory-page {
+  padding: clamp(22px, 4vw, 46px);
+}
+
 .calendar-shell {
   width: min(100%, 980px);
   margin: 0 auto;
@@ -224,7 +233,8 @@
 
 .eats-shell,
 .gallery-shell,
-.promote-shell {
+.promote-shell,
+.directory-shell {
   width: min(100%, 980px);
   margin: 0 auto;
   display: flex;
@@ -242,7 +252,8 @@
 
 .eats-header,
 .gallery-header,
-.promote-header {
+.promote-header,
+.directory-header {
   text-align: center;
 }
 
@@ -270,7 +281,8 @@
 
 .eats-header h1,
 .gallery-header h1,
-.promote-header h1 {
+.promote-header h1,
+.directory-header h1 {
   margin: 10px 0;
   color: #fff;
   font-size: clamp(3rem, 8vw, 5.6rem);
@@ -305,6 +317,12 @@
 }
 
 .promote-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.directory-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
@@ -557,6 +575,58 @@
   background: rgba(40, 231, 255, 0.12);
 }
 
+.directory-card {
+  display: flex;
+  min-height: 210px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid rgba(255, 0, 204, 0.5);
+  border-radius: 18px;
+  padding: clamp(18px, 4vw, 28px);
+  text-align: left;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.035)),
+    radial-gradient(circle at 90% 12%, rgba(0, 212, 255, 0.2), transparent 52%),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 0 22px rgba(255, 0, 204, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.directory-card h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.55rem, 4vw, 2.35rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.directory-card p {
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.directory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.directory-link {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 212, 255, 0.5);
+  border-radius: 999px;
+  color: #fff;
+  padding: 0 18px;
+  font-weight: 900;
+  text-decoration: none;
+  background: rgba(0, 212, 255, 0.12);
+}
+
 .subscribe-button {
   align-self: center;
   width: min(100%, 420px);
@@ -770,6 +840,7 @@
   .eats-grid,
   .gallery-grid,
   .promote-grid,
+  .directory-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }

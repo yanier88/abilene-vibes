@@ -195,14 +195,46 @@ const promoteCategories = [
   "Others",
 ];
 
+const initialBusinesses = [
+  {
+    id: "grain-theory",
+    name: "Grain Theory",
+    category: "Restaurants",
+    phone: "(325) 704-2500",
+    social: "graintheory.com",
+    description: "Downtown brewpub with food, drinks, and a strong patio crowd.",
+  },
+  {
+    id: "guitars-cadillacs",
+    name: "Guitars and Cadillacs",
+    category: "Clubs & Bar",
+    phone: "(325) 672-2960",
+    social: "@guitarsabilene",
+    description: "Country nights, dancing, and weekend energy in Abilene.",
+  },
+];
+
 function App() {
   const [page, setPage] = useState("home");
   const [selectedCategory, setSelectedCategory] = useState(promoteCategories[0]);
   const [businessSubmitted, setBusinessSubmitted] = useState(false);
+  const [businesses, setBusinesses] = useState(initialBusinesses);
 
   const handleBusinessSubmit = (event) => {
     event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const business = {
+      id: `${Date.now()}-${formData.get("businessName")}`,
+      name: formData.get("businessName").trim(),
+      category: selectedCategory,
+      phone: formData.get("phone").trim(),
+      social: formData.get("social").trim(),
+      description: formData.get("description").trim(),
+    };
+
+    setBusinesses((currentBusinesses) => [business, ...currentBusinesses]);
     setBusinessSubmitted(true);
+    event.currentTarget.reset();
   };
 
   if (page === "lobby") {
@@ -238,6 +270,10 @@ function App() {
 
             <button className="primary-button lobby-gallery-button" onClick={() => setPage("gallery")}>
               Gallery
+            </button>
+
+            <button className="primary-button lobby-directory-button" onClick={() => setPage("directory")}>
+              Directory
             </button>
           </div>
         </section>
@@ -468,13 +504,66 @@ function App() {
             </label>
 
             {businessSubmitted && (
-              <p className="form-success">Thanks. Your free listing request is ready for review.</p>
+              <p className="form-success">Thanks. Your business is now visible in the local directory.</p>
             )}
 
             <button className="primary-button subscribe-button" type="submit">
               Subscribe free
             </button>
           </form>
+        </div>
+      </main>
+    );
+  }
+
+  if (page === "directory") {
+    return (
+      <main className="app directory-page">
+        <div className="directory-shell">
+          <button className="back-button" onClick={() => setPage("lobby")}>
+            Back to lobby
+          </button>
+
+          <section className="directory-header" aria-labelledby="directory-title">
+            <p className="eyebrow">Local guide</p>
+            <h1 id="directory-title">Business Directory</h1>
+            <p className="events-intro">Explore Abilene businesses shared through Abilene Vibes.</p>
+          </section>
+
+          <section className="directory-grid" aria-label="Abilene business directory">
+            {businesses.map((business) => (
+              <article className="directory-card" key={business.id}>
+                <span className="event-type">{business.category}</span>
+                <h2>{business.name}</h2>
+                {business.description && <p>{business.description}</p>}
+
+                <div className="directory-actions">
+                  {business.phone && (
+                    <a className="directory-link" href={`tel:${business.phone.replace(/\D/g, "")}`}>
+                      Call
+                    </a>
+                  )}
+
+                  {business.social && (
+                    <a
+                      className="directory-link"
+                      href={
+                        business.social.startsWith("@")
+                          ? `https://instagram.com/${business.social.slice(1)}`
+                          : business.social.startsWith("http")
+                            ? business.social
+                            : `https://${business.social}`
+                      }
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Visit
+                    </a>
+                  )}
+                </div>
+              </article>
+            ))}
+          </section>
         </div>
       </main>
     );
