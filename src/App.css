@@ -846,7 +846,7 @@
   .photo-feature .lobby-eats-button,
   .photo-feature .lobby-gallery-button,
   .photo-feature .lobby-directory-button {
-    right: 8.4%;
+    right: 7.2%;
     width: 15%;
     min-width: 0;
     min-height: 0;
@@ -858,7 +858,7 @@
   }
 
   .photo-feature .lobby-home-button {
-    left: 8.6%;
+    left: 7.6%;
     right: auto;
     bottom: 7.2%;
     width: 12%;
@@ -870,10 +870,10 @@
   }
 
   .photo-feature .lobby-promote-button {
-    left: 24%;
+    left: 23%;
     right: auto;
     bottom: 7.2%;
-    width: 68%;
+    width: 69%;
     min-width: 0;
     min-height: 0;
     height: 3.95%;
