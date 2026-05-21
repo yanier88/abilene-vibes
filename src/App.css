@@ -127,6 +127,7 @@
 
 .photo-next-button,
 .lobby-home-button,
+.lobby-promote-button,
 .lobby-calendar-button,
 .lobby-nightlife-button,
 .lobby-eats-button,
@@ -153,6 +154,16 @@
   bottom: 7.2%;
   width: 12%;
   height: 2%;
+}
+
+.lobby-promote-button {
+  left: 24%;
+  right: auto;
+  bottom: 7.2%;
+  width: 68%;
+  height: 3.95%;
+  font-size: clamp(0.54rem, 1.25vw, 1.15rem);
+  letter-spacing: 0.12em;
 }
 
 .lobby-calendar-button {
@@ -183,6 +194,18 @@
   padding: clamp(22px, 4vw, 46px);
 }
 
+.eats-page {
+  padding: clamp(22px, 4vw, 46px);
+}
+
+.gallery-page {
+  padding: clamp(22px, 4vw, 46px);
+}
+
+.promote-page {
+  padding: clamp(22px, 4vw, 46px);
+}
+
 .calendar-shell {
   width: min(100%, 980px);
   margin: 0 auto;
@@ -199,11 +222,27 @@
   gap: clamp(22px, 4vw, 34px);
 }
 
+.eats-shell,
+.gallery-shell,
+.promote-shell {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(22px, 4vw, 34px);
+}
+
 .calendar-header {
   text-align: center;
 }
 
 .nightlife-header {
+  text-align: center;
+}
+
+.eats-header,
+.gallery-header,
+.promote-header {
   text-align: center;
 }
 
@@ -229,6 +268,19 @@
     0 0 38px rgba(0, 212, 255, 0.28);
 }
 
+.eats-header h1,
+.gallery-header h1,
+.promote-header h1 {
+  margin: 10px 0;
+  color: #fff;
+  font-size: clamp(3rem, 8vw, 5.6rem);
+  font-weight: 900;
+  line-height: 0.9;
+  text-shadow:
+    0 0 18px rgba(255, 0, 204, 0.62),
+    0 0 38px rgba(0, 212, 255, 0.28);
+}
+
 .calendar-list {
   display: grid;
   gap: 16px;
@@ -238,6 +290,24 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.eats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.promote-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
 .calendar-card {
@@ -269,6 +339,118 @@
   box-shadow:
     0 0 22px rgba(255, 0, 204, 0.24),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.eats-card {
+  overflow: hidden;
+  border: 1px solid rgba(255, 0, 204, 0.56);
+  border-radius: 18px;
+  text-align: left;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 0 22px rgba(255, 0, 204, 0.24),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.eats-image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  display: block;
+}
+
+.eats-copy {
+  padding: clamp(16px, 3vw, 24px);
+}
+
+.eats-copy h2 {
+  margin: 8px 0 10px;
+  color: #fff;
+  font-size: clamp(1.4rem, 3vw, 2.1rem);
+  font-weight: 850;
+  line-height: 1;
+}
+
+.eats-copy p {
+  color: rgba(255, 255, 255, 0.74);
+}
+
+.gallery-card {
+  position: relative;
+  min-height: 220px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 0, 204, 0.5);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 0 20px rgba(255, 0, 204, 0.2);
+}
+
+.gallery-card:nth-child(1),
+.gallery-card:nth-child(5) {
+  grid-row: span 2;
+}
+
+.gallery-card img {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  object-fit: cover;
+  display: block;
+}
+
+.gallery-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(5, 0, 8, 0.78));
+}
+
+.gallery-card figcaption {
+  position: absolute;
+  z-index: 1;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 850;
+  text-align: left;
+}
+
+.promote-card {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 0, 204, 0.58);
+  border-radius: 18px;
+  padding: clamp(18px, 4vw, 32px);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.035)),
+    radial-gradient(circle at 20% 10%, rgba(0, 212, 255, 0.22), transparent 58%),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 0 24px rgba(255, 0, 204, 0.26),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.promote-card span {
+  color: #fff;
+  font-size: clamp(1.45rem, 4vw, 2.35rem);
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  text-transform: capitalize;
+  text-shadow: 0 0 18px rgba(0, 212, 255, 0.34);
+}
+
+.subscribe-button {
+  align-self: center;
+  width: min(100%, 420px);
+  min-height: 68px;
+  border-radius: 18px;
 }
 
 .nightlife-card::after {
@@ -473,6 +655,20 @@
   .nightlife-grid {
     grid-template-columns: 1fr;
   }
+
+  .eats-grid,
+  .gallery-grid,
+  .promote-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery-card,
+  .gallery-card:nth-child(1),
+  .gallery-card:nth-child(5) {
+    grid-row: auto;
+    min-height: 230px;
+  }
+
 }
 
 @media (prefers-reduced-motion: reduce) {

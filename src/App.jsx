@@ -41,20 +41,6 @@ const events = [
 
 const calendarDays = [
   {
-    day: "Mon",
-    date: "May 20",
-    title: "Downtown Open Mic",
-    time: "7:00 PM",
-    place: "Grain Theory",
-  },
-  {
-    day: "Tue",
-    date: "May 21",
-    title: "Taco Tuesday",
-    time: "5:00 PM",
-    place: "Downtown Abilene",
-  },
-  {
     day: "Wed",
     date: "May 22",
     title: "Trivia Night",
@@ -88,6 +74,20 @@ const calendarDays = [
     title: "Country Night",
     time: "9:00 PM",
     place: "Potosi Live",
+  },
+  {
+    day: "Mon",
+    date: "May 20",
+    title: "Downtown Open Mic",
+    time: "7:00 PM",
+    place: "Grain Theory",
+  },
+  {
+    day: "Tue",
+    date: "May 21",
+    title: "Taco Tuesday",
+    time: "5:00 PM",
+    place: "Downtown Abilene",
   },
 ];
 
@@ -126,6 +126,73 @@ const nightlifePlaces = [
   },
 ];
 
+const eatsPlaces = [
+  {
+    name: "Grain Theory",
+    kind: "Brewpub",
+    note: "Craft beer, burgers, and a strong downtown patio mood.",
+    image: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "The Beehive",
+    kind: "Steakhouse",
+    note: "Classic Abilene dinner spot for date night or a slower evening.",
+    image: "https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "Vagabond Pizza",
+    kind: "Pizza",
+    note: "Easy slices, late conversations, and a casual downtown stop.",
+    image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    name: "Front Porch Coffee",
+    kind: "Coffee",
+    note: "A low-key daytime reset before the night starts moving.",
+    image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=800&q=80",
+  },
+];
+
+const galleryShots = [
+  {
+    title: "Downtown Lights",
+    image: "/nightlife-station.jpg",
+  },
+  {
+    title: "Paramount Glow",
+    image: "/nightlife-paramount.jpg",
+  },
+  {
+    title: "Club Energy",
+    image: "/nightlife-guitars.jpg",
+  },
+  {
+    title: "Movie Night",
+    image: "/nightlife-cinemark.jpg",
+  },
+  {
+    title: "Oggly Lime",
+    image: "/nightlife-ugly-lime.jpg",
+  },
+  {
+    title: "Mi Gente Club",
+    image: "/nightlife-suite.jpg",
+  },
+  {
+    title: "Guitars and Cadillacs",
+    image: "/nightlife-guitars.jpg",
+  },
+];
+
+const promoteCategories = [
+  "Food trucks",
+  "Restaurants",
+  "Clubs & Bar",
+  "Barber shop",
+  "Hotels & rents",
+  "Others",
+];
+
 function App() {
   const [page, setPage] = useState("home");
 
@@ -140,6 +207,10 @@ function App() {
               Home
             </button>
 
+            <button className="primary-button lobby-promote-button" onClick={() => setPage("promote")}>
+              Promote your business
+            </button>
+
             <button className="primary-button photo-next-button" onClick={() => setPage("events")}>
               Events
             </button>
@@ -152,11 +223,11 @@ function App() {
               Nightlife
             </button>
 
-            <button className="primary-button lobby-eats-button" type="button">
+            <button className="primary-button lobby-eats-button" onClick={() => setPage("eats")}>
               Eats
             </button>
 
-            <button className="primary-button lobby-gallery-button" type="button">
+            <button className="primary-button lobby-gallery-button" onClick={() => setPage("gallery")}>
               Gallery
             </button>
           </div>
@@ -256,6 +327,98 @@ function App() {
               </article>
             ))}
           </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (page === "eats") {
+    return (
+      <main className="app eats-page">
+        <div className="eats-shell">
+          <button className="back-button" onClick={() => setPage("lobby")}>
+            Back to lobby
+          </button>
+
+          <section className="eats-header" aria-labelledby="eats-title">
+            <p className="eyebrow">Food before the fun</p>
+            <h1 id="eats-title">Eats</h1>
+            <p className="events-intro">
+              Quick picks for dinner, coffee, and downtown stops before the night opens up.
+            </p>
+          </section>
+
+          <section className="eats-grid" aria-label="Abilene restaurants and coffee spots">
+            {eatsPlaces.map((place) => (
+              <article className="eats-card" key={place.name}>
+                <img className="eats-image" src={place.image} alt="" loading="lazy" />
+
+                <div className="eats-copy">
+                  <span className="event-type">{place.kind}</span>
+                  <h2>{place.name}</h2>
+                  <p>{place.note}</p>
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (page === "gallery") {
+    return (
+      <main className="app gallery-page">
+        <div className="gallery-shell">
+          <button className="back-button" onClick={() => setPage("lobby")}>
+            Back to lobby
+          </button>
+
+          <section className="gallery-header" aria-labelledby="gallery-title">
+            <p className="eyebrow">City snapshots</p>
+            <h1 id="gallery-title">Gallery</h1>
+          </section>
+
+          <section className="gallery-grid" aria-label="Abilene Vibes gallery">
+            {galleryShots.map((shot) => (
+              <figure className="gallery-card" key={shot.title}>
+                <img src={shot.image} alt="" loading="lazy" />
+                <figcaption>{shot.title}</figcaption>
+              </figure>
+            ))}
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (page === "promote") {
+    return (
+      <main className="app promote-page">
+        <div className="promote-shell">
+          <button className="back-button" onClick={() => setPage("lobby")}>
+            Back to lobby
+          </button>
+
+          <section className="promote-header" aria-labelledby="promote-title">
+            <p className="eyebrow">Local spotlight</p>
+            <h1 id="promote-title">Promote your business</h1>
+            <p className="events-intro">
+              Choose the category that fits your business and get in front of the Abilene crowd.
+            </p>
+          </section>
+
+          <section className="promote-grid" aria-label="Business promotion categories">
+            {promoteCategories.map((category) => (
+              <article className="promote-card" key={category}>
+                <span>{category}</span>
+              </article>
+            ))}
+          </section>
+
+          <button className="primary-button subscribe-button" type="button">
+            Subscribe free
+          </button>
         </div>
       </main>
     );
