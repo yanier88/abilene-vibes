@@ -325,16 +325,8 @@ const galleryShots = [
     image: appAsset("nightlife-paramount.jpg"),
   },
   {
-    title: "Live Music Crowd",
-    image: appAsset("nightlife-guitars.jpg"),
-  },
-  {
     title: "Movie Night",
     image: appAsset("nightlife-cinemark.jpg"),
-  },
-  {
-    title: "The Ugly Lime",
-    image: appAsset("nightlife-ugly-lime.jpg"),
   },
   {
     title: "Cocktail Hour",
