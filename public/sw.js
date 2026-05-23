@@ -1,4 +1,4 @@
-const CACHE_NAME = "abilene-vibes-v5";
+const CACHE_NAME = "abilene-vibes-v22";
 const BASE_URL = new URL(self.registration.scope).pathname;
 const APP_SHELL = [
   BASE_URL,
@@ -19,6 +19,12 @@ self.addEventListener("activate", (event) => {
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))),
   );
   self.clients.claim();
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (event) => {
