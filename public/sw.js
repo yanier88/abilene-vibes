@@ -1,4 +1,4 @@
-const CACHE_NAME = "abilene-vibes-v22";
+const CACHE_NAME = "abilene-vibes-v23";
 const BASE_URL = new URL(self.registration.scope).pathname;
 const APP_SHELL = [
   BASE_URL,
@@ -39,6 +39,6 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/"))),
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match(BASE_URL))),
   );
 });
