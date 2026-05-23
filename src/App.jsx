@@ -285,6 +285,38 @@ const eatsPlaces = [
 
 const galleryShots = [
   {
+    title: "Paramount Marquee",
+    image: appAsset("1fd1ea2a-acb5-47b2-81dc-6e9fd898f418.jpg"),
+  },
+  {
+    title: "Grain Theory Patio",
+    image: appAsset("522c6f5e-6918-4dd3-8874-3eaaa75430a2.jpg"),
+  },
+  {
+    title: "Grain Theory Corner",
+    image: appAsset("9e98df0d-dc19-429c-8205-675ba9cff023.jpg"),
+  },
+  {
+    title: "Downtown Abilene",
+    image: appAsset("227005f7-a560-45d7-bea9-557e2cee61f3.jpg"),
+  },
+  {
+    title: "Cypress Street",
+    image: appAsset("95547aea-c652-48bc-bff2-3f9f645236e3.jpg"),
+  },
+  {
+    title: "Abilene Mural",
+    image: appAsset("553b9d8e-d087-4267-a0dc-d475fd25f231.jpg"),
+  },
+  {
+    title: "The Grace",
+    image: appAsset("45cbacf8-d03a-4d23-ba5d-0f59509c79c6.jpg"),
+  },
+  {
+    title: "Abilene Banner",
+    image: appAsset("bd916012-2fb5-4dd1-b854-77a3b801bcd4.jpg"),
+  },
+  {
     title: "Downtown Nights",
     image: appAsset("nightlife-station.jpg"),
   },
