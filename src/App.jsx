@@ -1861,14 +1861,10 @@ function App() {
     <main className="app home-page">
       <section
         className="home-hero"
-        style={{ "--home-hero-image": `url("${appAsset("home-new-hd.png")}")` }}
+        style={{ "--home-hero-image": `url("${appAsset("3110a91c-36c2-4c99-b245-e5856062f992.jpg")}")` }}
         aria-label="Abilene Vibes"
       >
-        <div className="home-cta">
-          <button className="primary-button" onClick={() => navigateTo("lobby")}>
-            Explore Abilene
-          </button>
-        </div>
+        <button className="home-hero-button" onClick={() => navigateTo("lobby")} aria-label="Explore Abilene" />
       </section>
     </main>,
   );

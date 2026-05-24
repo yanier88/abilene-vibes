@@ -178,27 +178,24 @@
   border: 0;
   border-radius: 0;
   background:
-    linear-gradient(180deg, rgba(5, 0, 8, 0.04), rgba(5, 0, 8, 0.08) 58%, rgba(5, 0, 8, 0.58)),
-    var(--home-hero-image) center top / auto 126% no-repeat;
+    var(--home-hero-image) center center / contain no-repeat,
+    #050008;
   box-shadow: none;
 }
 
-.home-hero::after {
-  content: "";
+.home-hero-button {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(180deg, rgba(5, 0, 8, 0) 58%, rgba(5, 0, 8, 0.34) 82%, rgba(5, 0, 8, 0.9)),
-    linear-gradient(90deg, rgba(255, 0, 204, 0.1), transparent 34%, transparent 68%, rgba(0, 212, 255, 0.1));
-}
-
-.home-cta {
-  position: absolute;
-  z-index: 1;
   left: 50%;
-  bottom: 4.7%;
+  bottom: max(3.2svh, calc((100svh - min(100svh, 191.111vw)) / 2 + min(100svh, 191.111vw) * 0.031));
+  z-index: 1;
+  width: min(79vw, calc(min(100svh, 191.111vw) * 0.789));
+  height: min(10svh, calc(min(100svh, 191.111vw) * 0.083));
+  min-height: 54px;
+  border: 0;
+  border-radius: 18px;
+  cursor: pointer;
   transform: translateX(-50%);
+  background: transparent;
 }
 
 .primary-button,
@@ -1568,22 +1565,6 @@
     background-size: auto 125%;
     border: 0;
     border-radius: 0;
-  }
-
-  .home-cta {
-    left: 50%;
-    bottom: 4.25%;
-    transform: translateX(-50%);
-  }
-
-  .home-cta .primary-button {
-    width: min(79vw, 566px);
-    min-width: 0;
-    min-height: clamp(72px, 9svh, 86px);
-    padding: 14px 24px;
-    border-radius: 16px;
-    font-size: clamp(0.9rem, 3.3vw, 1.18rem);
-    letter-spacing: 0.18em;
   }
 
   .primary-button {
