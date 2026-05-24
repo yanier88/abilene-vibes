@@ -1859,12 +1859,15 @@ function App() {
 
   return withSplash(
     <main className="app home-page">
-      <section
-        className="home-hero"
-        style={{ "--home-hero-image": `url("${appAsset("3110a91c-36c2-4c99-b245-e5856062f992.jpg")}")` }}
-        aria-label="Abilene Vibes"
-      >
-        <button className="home-hero-button" onClick={() => navigateTo("lobby")} aria-label="Explore Abilene" />
+      <section className="home-hero" aria-label="Abilene Vibes">
+        <div className="home-hero-frame">
+          <img
+            className="home-hero-image"
+            src={appAsset("3110a91c-36c2-4c99-b245-e5856062f992.jpg")}
+            alt=""
+          />
+          <button className="home-hero-button" onClick={() => navigateTo("lobby")} aria-label="Explore Abilene" />
+        </div>
       </section>
     </main>,
   );
