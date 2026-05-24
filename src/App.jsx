@@ -1211,7 +1211,7 @@ function App() {
     }
   };
 
-  const loadAdminData = async (sessionOverride = adminSession) => {
+  const loadAdminData = async (sessionOverride = adminSession, showRefreshSuccess = false) => {
     if (!supabase || !sessionOverride) {
       return;
     }
@@ -1238,7 +1238,7 @@ function App() {
 
     setPendingGalleryPhotos(galleryResult.data ?? []);
     setPendingBusinesses(businessResult.data ?? []);
-    setAdminStatus("ready");
+    setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
   };
 
   const handleAdminLogin = async (event) => {
@@ -2246,8 +2246,13 @@ function App() {
           {supabase && adminSession && (
             <>
               <div className="admin-toolbar">
-                <button className="directory-link" type="button" onClick={() => loadAdminData()}>
-                  Refresh
+                <button
+                  className="directory-link"
+                  type="button"
+                  onClick={() => loadAdminData(adminSession, true)}
+                  disabled={adminStatus === "loading"}
+                >
+                  {adminStatus === "loading" ? "Refreshing..." : "Refresh"}
                 </button>
                 <button className="directory-link" type="button" onClick={handleAdminLogout}>
                   Sign out
@@ -2255,6 +2260,8 @@ function App() {
               </div>
 
               {adminStatus === "error" && <p className="form-error">Could not update admin data. Check Supabase policies.</p>}
+              {adminStatus === "loading" && <p className="form-success">Refreshing admin data...</p>}
+              {adminStatus === "refreshed" && <p className="form-success">Admin data updated.</p>}
               {adminStatus === "saving" && <p className="form-success">Saving...</p>}
 
               <section className="admin-section" aria-labelledby="admin-gallery-title">
