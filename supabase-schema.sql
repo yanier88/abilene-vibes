@@ -16,6 +16,10 @@ create table if not exists public.business_submissions (
 
 alter table public.business_submissions enable row level security;
 
+grant usage on schema public to anon, authenticated;
+grant insert, select on public.business_submissions to anon;
+grant select, update on public.business_submissions to authenticated;
+
 drop policy if exists "Allow public business submissions" on public.business_submissions;
 create policy "Allow public business submissions"
 on public.business_submissions
@@ -53,6 +57,9 @@ create table if not exists public.gallery_submissions (
 );
 
 alter table public.gallery_submissions enable row level security;
+
+grant insert, select on public.gallery_submissions to anon;
+grant select, update on public.gallery_submissions to authenticated;
 
 drop policy if exists "Allow public gallery submissions" on public.gallery_submissions;
 create policy "Allow public gallery submissions"
