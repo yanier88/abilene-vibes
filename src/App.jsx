@@ -156,36 +156,57 @@ const nightlifePlaces = [
   {
     name: "The Ugly Lime",
     kind: "Bar",
+    phone: "(325) 695-8185",
+    address: "4109 S Danville Dr, Abilene, TX 79605",
+    website: "https://www.instagram.com/theuglylimebar/",
     image: appAsset("nightlife-ugly-lime.jpg"),
   },
   {
     name: "Mi Gente Club",
     kind: "Club",
+    phone: "(325) 675-9776",
+    address: "157 Burger St, Abilene, TX 79603",
+    website: "https://www.google.com/search?q=Mi+Gente+Club+Abilene+TX",
     image: appAsset("nightlife-suite.jpg"),
   },
   {
     name: "The Station",
     kind: "Lounge",
+    phone: "(325) 437-1336",
+    address: "618 S Pioneer Dr, Abilene, TX 79605",
+    website: "https://www.google.com/search?q=The+Station+Abilene+TX+lounge",
     image: appAsset("nightlife-station.jpg"),
   },
   {
     name: "Club Rodeo",
     kind: "Dance hall",
+    phone: "(325) 692-8077",
+    address: "3881 Vine St, Abilene, TX 79602",
+    website: "http://guitars-cadillacs.com",
     image: appAsset("nightlife-guitars.jpg"),
   },
   {
     name: "Suite",
     kind: "Club",
+    phone: "(325) 698-1234",
+    address: "4250 Ridgemont Dr, Abilene, TX 79606",
+    website: "https://www.mcmelegantesuites.com/",
     image: appAsset("nightlife-suite.jpg"),
   },
   {
     name: "Paramount Theatre",
     kind: "Theatre",
+    phone: "(325) 676-9620",
+    address: "352 Cypress St, Abilene, TX 79601",
+    website: "https://www.paramountabilene.com/",
     image: appAsset("nightlife-paramount.jpg"),
   },
   {
     name: "Cinemark",
     kind: "Cinema",
+    phone: "(325) 670-0097",
+    address: "672 E Overland Trl, Abilene, TX 79601",
+    website: "https://www.cinemark.com/theatres/tx-abilene/cinemark-abilene-and-xd",
     image: appAsset("nightlife-cinemark.jpg"),
   },
 ];
@@ -1190,30 +1211,22 @@ function App() {
                 )}
                 <span className="event-type">{place.kind}</span>
                 <h2>{place.name}</h2>
-                {(place.phone || place.address || place.website) && (
-                  <div className="place-actions nightlife-actions">
-                    {place.phone && (
-                      <a className="place-link" href={telUrl(place.phone)}>
-                        Call
-                      </a>
-                    )}
-                    {place.address && (
-                      <a
-                        className="place-link"
-                        href={mapSearchUrl(`${place.name}, ${place.address}`)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Directions
-                      </a>
-                    )}
-                    {place.website && (
-                      <a className="place-link" href={place.website} target="_blank" rel="noreferrer">
-                        Visit
-                      </a>
-                    )}
-                  </div>
-                )}
+                <div className="place-actions nightlife-actions">
+                  <a className="place-link" href={telUrl(place.phone)}>
+                    Call
+                  </a>
+                  <a
+                    className="place-link"
+                    href={mapSearchUrl(`${place.name}, ${place.address || "Abilene TX"}`)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Directions
+                  </a>
+                  <a className="place-link" href={place.website} target="_blank" rel="noreferrer">
+                    Visit
+                  </a>
+                </div>
               </article>
             ))}
           </section>
