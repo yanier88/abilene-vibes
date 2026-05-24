@@ -27,10 +27,13 @@ const cleanEnvValue = (value, variableName) => {
 };
 
 const normalizeSupabaseUrl = (value) => {
-  const cleanValue = cleanEnvValue(value, "VITE_SUPABASE_URL").replace(/^https\/\//, "https://");
+  const cleanValue = cleanEnvValue(value, "VITE_SUPABASE_URL")
+    .replace(/^Value\s*/i, "")
+    .replace(/^https\/\//, "https://");
+  const urlCandidate = cleanValue.match(/https?:\/\/\S+/)?.[0] ?? cleanValue;
 
   try {
-    const url = new URL(cleanValue);
+    const url = new URL(urlCandidate);
     return url.protocol === "https:" || url.protocol === "http:" ? url.toString().replace(/\/$/, "") : "";
   } catch {
     return "";
@@ -39,7 +42,9 @@ const normalizeSupabaseUrl = (value) => {
 
 const createSupabaseClient = () => {
   const url = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
-  const anonKey = cleanEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY, "VITE_SUPABASE_ANON_KEY");
+  const anonKey =
+    cleanEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY, "VITE_SUPABASE_ANON_KEY").match(/sb_publishable_\S+/)?.[0] ??
+    cleanEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY, "VITE_SUPABASE_ANON_KEY");
 
   if (!url || !anonKey) {
     return null;
