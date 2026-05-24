@@ -15,14 +15,46 @@ const stripePaymentLinks = {
 
 const contactEmail = "abilenevibes@gmail.com";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
-const supabase =
-  supabaseUrl && supabaseAnonKey
-    ? createClient(supabaseUrl, supabaseAnonKey, {
-        auth: { persistSession: false },
-      })
-    : null;
+const cleanEnvValue = (value, variableName) => {
+  const assignmentPrefix = `${variableName}=`;
+  let cleanValue = String(value ?? "").trim().replace(/^["']|["']$/g, "");
+
+  if (cleanValue.startsWith(assignmentPrefix)) {
+    cleanValue = cleanValue.slice(assignmentPrefix.length).trim();
+  }
+
+  return cleanValue;
+};
+
+const normalizeSupabaseUrl = (value) => {
+  const cleanValue = cleanEnvValue(value, "VITE_SUPABASE_URL").replace(/^https\/\//, "https://");
+
+  try {
+    const url = new URL(cleanValue);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString().replace(/\/$/, "") : "";
+  } catch {
+    return "";
+  }
+};
+
+const createSupabaseClient = () => {
+  const url = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
+  const anonKey = cleanEnvValue(import.meta.env.VITE_SUPABASE_ANON_KEY, "VITE_SUPABASE_ANON_KEY");
+
+  if (!url || !anonKey) {
+    return null;
+  }
+
+  try {
+    return createClient(url, anonKey, {
+      auth: { persistSession: false },
+    });
+  } catch {
+    return null;
+  }
+};
+
+const supabase = createSupabaseClient();
 
 const validPages = new Set([
   "home",
