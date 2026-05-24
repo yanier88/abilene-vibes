@@ -1562,7 +1562,7 @@
     width: 100%;
     background-color: black;
     background-position: center top;
-    background-size: auto 125%;
+    background-size: contain;
     border: 0;
     border-radius: 0;
   }
