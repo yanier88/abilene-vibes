@@ -219,7 +219,7 @@ const nightlifePlaces = [
     phone: "(325) 692-8077",
     address: "3881 Vine St, Abilene, TX 79602",
     website: "http://guitars-cadillacs.com",
-    image: appAsset("nightlife-guitars.jpg"),
+    image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=85",
   },
   {
     name: "The Ugly Lime",
@@ -227,7 +227,7 @@ const nightlifePlaces = [
     phone: "(325) 695-8185",
     address: "4109 S Danville Dr, Abilene, TX 79605",
     website: "https://www.instagram.com/theuglylimebar/",
-    image: appAsset("nightlife-ugly-lime.jpg"),
+    image: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=900&q=85",
   },
   {
     name: "Mi Gente Club",
@@ -235,7 +235,7 @@ const nightlifePlaces = [
     phone: "(325) 675-9776",
     address: "157 Burger St, Abilene, TX 79603",
     website: "https://www.google.com/search?q=Mi+Gente+Club+Abilene+TX",
-    image: appAsset("nightlife-suite.jpg"),
+    image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=900&q=85",
   },
   {
     name: "The Station",
@@ -243,7 +243,7 @@ const nightlifePlaces = [
     phone: "(325) 437-1336",
     address: "618 S Pioneer Dr, Abilene, TX 79605",
     website: "https://www.google.com/search?q=The+Station+Abilene+TX+lounge",
-    image: appAsset("nightlife-station.jpg"),
+    image: "https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=900&q=85",
   },
   {
     name: "Club Rodeo",
@@ -251,7 +251,7 @@ const nightlifePlaces = [
     phone: "(325) 692-8077",
     address: "3881 Vine St, Abilene, TX 79602",
     website: "http://guitars-cadillacs.com",
-    image: appAsset("nightlife-guitars.jpg"),
+    image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=900&q=85",
   },
   {
     name: "Suite",
@@ -259,7 +259,7 @@ const nightlifePlaces = [
     phone: "(325) 698-1234",
     address: "4250 Ridgemont Dr, Abilene, TX 79606",
     website: "https://www.mcmelegantesuites.com/",
-    image: appAsset("nightlife-suite.jpg"),
+    image: "https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=900&q=85",
   },
   {
     name: "Paramount Theatre",
@@ -267,7 +267,7 @@ const nightlifePlaces = [
     phone: "(325) 676-9620",
     address: "352 Cypress St, Abilene, TX 79601",
     website: "https://www.paramountabilene.com/",
-    image: appAsset("nightlife-paramount.jpg"),
+    image: "https://images.unsplash.com/photo-1503095396549-807759245b35?auto=format&fit=crop&w=900&q=85",
   },
   {
     name: "Cinemark",
@@ -275,7 +275,7 @@ const nightlifePlaces = [
     phone: "(325) 670-0097",
     address: "672 E Overland Trl, Abilene, TX 79601",
     website: "https://www.cinemark.com/theatres/tx-abilene/cinemark-abilene-and-xd",
-    image: appAsset("nightlife-cinemark.jpg"),
+    image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=85",
   },
 ];
 
