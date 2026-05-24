@@ -285,6 +285,26 @@ const eatsPlaces = [
 
 const galleryShots = [
   {
+    title: "Pine Street",
+    image: appAsset("ded1242b-9c25-4b2b-b16d-5b36ffe01e51.jpg"),
+  },
+  {
+    title: "Condley Downtown",
+    image: appAsset("94190f7b-27db-4b0f-b85e-84b6da72fbf2.jpg"),
+  },
+  {
+    title: "Grain Theory Block Party",
+    image: appAsset("64d46fa8-3f51-4bce-ae95-07f74746d75b.jpg"),
+  },
+  {
+    title: "Texas & Pacific Marker",
+    image: appAsset("77c9ff59-9fba-479d-94f7-14de54433b15.jpg"),
+  },
+  {
+    title: "Downtown Brick Walk",
+    image: appAsset("64dc2bcf-e858-42d9-a881-12d069e4b919.jpg"),
+  },
+  {
     title: "Paramount Marquee",
     image: appAsset("1fd1ea2a-acb5-47b2-81dc-6e9fd898f418.jpg"),
   },
