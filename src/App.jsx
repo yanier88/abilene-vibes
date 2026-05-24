@@ -29,6 +29,7 @@ const validPages = new Set([
   "lobby",
   "events",
   "calendar",
+  "shopping",
   "nightlife",
   "eats",
   "family",
@@ -141,6 +142,41 @@ const calendarDays = [
     title: "Taco & Tequila Fest",
     time: "5:00 PM",
     place: "Frontier Texas! Courtyard",
+  },
+];
+
+const shoppingPlaces = [
+  {
+    title: "Mall of Abilene",
+    type: "Mall",
+    place: "4310 Buffalo Gap Rd, Abilene, TX",
+    note: "A familiar stop for fashion, gifts, snacks, and easy indoor shopping.",
+    website: "https://www.mallofabilene.com/",
+    image: "https://images.unsplash.com/photo-1519567241046-7f570eee3ce6?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    title: "Downtown Abilene Shops",
+    type: "Local shops",
+    place: "Downtown Abilene, TX",
+    note: "Walkable boutiques, gifts, art, books, and small local favorites near restaurants and events.",
+    website: "https://www.google.com/maps/search/downtown+Abilene+TX+shopping",
+    image: appAsset("227005f7-a560-45d7-bea9-557e2cee61f3.jpg"),
+  },
+  {
+    title: "Boutiques & Gifts",
+    type: "Style finds",
+    place: "Abilene, TX boutiques",
+    note: "Find outfits, accessories, gifts, and local finds for a night out or weekend plans.",
+    website: "https://www.google.com/maps/search/boutiques+in+Abilene+TX",
+    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    title: "Antiques & Vintage",
+    type: "Treasure hunt",
+    place: "Abilene, TX antique stores",
+    note: "Browse vintage pieces, home decor, collectibles, and one-of-a-kind local finds.",
+    website: "https://www.google.com/maps/search/antique+stores+in+Abilene+TX",
+    image: "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80",
   },
 ];
 
@@ -486,10 +522,10 @@ const lobbyActions = [
     tone: "pink",
   },
   {
-    page: "calendar",
-    label: "Calendar",
-    description: "See what's happening this week.",
-    icon: "▦",
+    page: "shopping",
+    label: "Shopping",
+    description: "Explore the best shops and local favorites.",
+    icon: "shopping",
     tone: "purple",
   },
   {
@@ -722,6 +758,17 @@ function LobbyActionIcon({ icon }) {
         <path d="M19 18h26" />
         <path d="M34 12c4-6 10-7 18-4" />
         <path d="M34 12c1-7 6-10 14-10" />
+      </svg>
+    );
+  }
+
+  if (icon === "shopping") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M16 24h32l4 30H12l4-30Z" />
+        <path d="M24 24v-6c0-5 4-9 8-9s8 4 8 9v6" />
+        <path d="M24 34v1" />
+        <path d="M40 34v1" />
       </svg>
     );
   }
@@ -1142,6 +1189,51 @@ function App() {
                   <h2>{item.title}</h2>
                   <p>{item.place}</p>
                   <p>{item.time}</p>
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
+      </main>,
+    );
+  }
+
+  if (page === "shopping") {
+    return withSplash(
+      <main className="app events-page">
+        <div className="events-shell">
+          <button className="back-button" onClick={backToLobby}>
+            Back to lobby
+          </button>
+
+          <section className="events-header" aria-labelledby="shopping-title">
+            <p className="eyebrow">Local finds</p>
+            <h1 id="shopping-title">Shopping</h1>
+            <p className="events-intro">Explore shops, boutiques, gifts, and local favorites around Abilene.</p>
+          </section>
+
+          <section className="event-list" aria-label="Abilene shopping places">
+            {shoppingPlaces.map((item) => (
+              <article className="event-card" key={item.title}>
+                <img className="event-image" src={item.image} alt="" loading="lazy" />
+
+                <div className="event-content">
+                  <span className="event-type">{item.type}</span>
+                  <h2>{item.title}</h2>
+                  <p className="event-detail">{item.note}</p>
+                  <div className="place-actions">
+                    <a
+                      className="place-link"
+                      href={mapSearchUrl(`${item.title}, ${item.place}`)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Directions
+                    </a>
+                    <a className="place-link" href={item.website} target="_blank" rel="noreferrer">
+                      Visit
+                    </a>
+                  </div>
                 </div>
               </article>
             ))}
