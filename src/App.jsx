@@ -178,6 +178,38 @@ const shoppingPlaces = [
     website: "https://www.google.com/maps/search/antique+stores+in+Abilene+TX",
     image: "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80",
   },
+  {
+    title: "Ross Dress for Less",
+    type: "Discount fashion",
+    place: "3449 Catclaw Dr, Abilene, TX 79606",
+    note: "Popular stop for clothing, shoes, home finds, and name-brand deals.",
+    website: "https://www.rossstores.com/",
+    image: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    title: "Burlington",
+    type: "Discount retail",
+    place: "3526 S Clack St, Abilene, TX 79606",
+    note: "Shop clothes, shoes, baby items, home goods, gifts, and everyday deals.",
+    website: "https://stores.burlington.com/tx/abilene/",
+    image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    title: "Academy Sports + Outdoors",
+    type: "Sports & outdoors",
+    place: "3518 S Clack St, Abilene, TX 79606",
+    note: "Gear for sports, outdoors, fitness, hunting, fishing, shoes, and family recreation.",
+    website: "https://www.academy.com/storelocator/texas/abilene/store-0070",
+    image: "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=900&q=80",
+  },
+  {
+    title: "Target",
+    type: "Everyday shopping",
+    place: "3710 Ridgemont Dr, Abilene, TX 79606",
+    note: "A go-to for clothing, beauty, home, tech, groceries, gifts, and quick pickup runs.",
+    website: "https://www.target.com/sl/abilene/219",
+    image: "https://images.unsplash.com/photo-1556742031-c6961e8560b0?auto=format&fit=crop&w=900&q=80",
+  },
 ];
 
 const nightlifePlaces = [
