@@ -828,6 +828,61 @@ const readFileAsDataUrl = (file) =>
     reader.readAsDataURL(file);
   });
 
+const loadImageFromFile = (file) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.addEventListener("load", () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    });
+    image.addEventListener("error", () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Image could not load"));
+    });
+    image.src = objectUrl;
+  });
+
+const canvasToBlob = (canvas, quality) =>
+  new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+
+        reject(new Error("Image could not be compressed"));
+      },
+      "image/jpeg",
+      quality,
+    );
+  });
+
+const optimizeGalleryImage = async (file) => {
+  const maxStoredSize = 3 * 1024 * 1024;
+  const maxDimension = 1800;
+  const image = await loadImageFromFile(file);
+  const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  for (const quality of [0.9, 0.84, 0.78, 0.72]) {
+    const blob = await canvasToBlob(canvas, quality);
+
+    if (blob.size <= maxStoredSize) {
+      return readFileAsDataUrl(blob);
+    }
+  }
+
+  throw new Error("Compressed image is too large");
+};
+
 function LobbyActionIcon({ icon }) {
   if (icon === "nightlife") {
     return (
@@ -1184,13 +1239,13 @@ function App() {
       return;
     }
 
-    if (!file.type.startsWith("image/") || file.size > 3 * 1024 * 1024) {
+    if (!file.type.startsWith("image/") || file.size > 15 * 1024 * 1024) {
       setGallerySubmissionStatus("file-error");
       return;
     }
 
     try {
-      const imageData = await readFileAsDataUrl(file);
+      const imageData = await optimizeGalleryImage(file);
       const { error } = await supabase.from("gallery_submissions").insert({
         contributor_name: formData.get("contributorName").trim(),
         title: formData.get("title").trim(),
@@ -1925,7 +1980,7 @@ function App() {
                     : gallerySubmissionStatus === "missing-config"
                       ? "Connect Supabase to receive gallery submissions for approval."
                       : gallerySubmissionStatus === "file-error"
-                        ? "Please upload an image under 3 MB."
+                        ? "Please upload an image under 15 MB."
                         : "Sorry, the photo could not be submitted. Please try again."}
                 </p>
               )}
