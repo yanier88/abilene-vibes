@@ -610,6 +610,17 @@
   min-height: 6.15%;
   padding: 1.25% 3%;
   border-radius: 19px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
+.lobby-highlight:hover {
+  filter: saturate(1.16);
+  transform: translateY(-1px);
 }
 
 .lobby-highlight img {

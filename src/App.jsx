@@ -1053,6 +1053,28 @@ function App() {
     .filter((business) => business.plan && business.plan !== "Free")
     .sort((a, b) => (planRank[a.plan] ?? 99) - (planRank[b.plan] ?? 99));
   const spotlightBusiness = paidBusinesses.find((business) => business.plan === "Premium") ?? paidBusinesses[0];
+  const openUpcomingHighlight = () => {
+    if (!spotlightBusiness) {
+      navigateTo("events");
+      return;
+    }
+
+    if (spotlightBusiness.social) {
+      window.open(visitUrl(spotlightBusiness.social), "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    if (spotlightBusiness.address) {
+      window.open(
+        mapSearchUrl(`${spotlightBusiness.name}, ${spotlightBusiness.address}`),
+        "_blank",
+        "noopener,noreferrer",
+      );
+      return;
+    }
+
+    navigateTo(categorySectionMap[spotlightBusiness.category] ?? "directory");
+  };
   const categoryBusinessesFor = (section) =>
     paidBusinesses.filter((business) => categorySectionMap[business.category] === section);
   const directoryBusinesses = [...businesses].sort(
@@ -1131,12 +1153,12 @@ function App() {
             ))}
           </nav>
 
-          <article className="lobby-highlight" aria-label="Upcoming highlight">
+          <button className="lobby-highlight" type="button" onClick={openUpcomingHighlight} aria-label="Upcoming highlight">
             {spotlightBusiness ? (
               <>
                 <img src={businessImageForCategory(spotlightBusiness.category)} alt="" />
                 <div>
-                  <span>{spotlightBusiness.plan} Spotlight</span>
+                  <span>Upcoming Highlight</span>
                   <strong>{spotlightBusiness.name}</strong>
                   <p>{spotlightBusiness.category}</p>
                   <p>{spotlightBusiness.phone}</p>
@@ -1153,7 +1175,7 @@ function App() {
                 </div>
               </>
             )}
-          </article>
+          </button>
 
           <div className="lobby-bottom-actions">
             <button className="lobby-bottom-home" type="button" onClick={() => navigateTo("home")}>
