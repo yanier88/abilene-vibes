@@ -675,6 +675,7 @@
   content: "";
   position: absolute;
   inset: auto -12px -17px -12px;
+  z-index: -1;
   height: 28px;
   pointer-events: none;
   background:
@@ -732,6 +733,11 @@
   bottom: -4px;
   animation-duration: 620ms;
   animation-delay: 90ms;
+}
+
+.lobby-action-card.is-priority .lobby-action-copy,
+.lobby-highlight div {
+  isolation: isolate;
 }
 
 .lobby-action-copy {
