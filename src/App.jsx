@@ -957,7 +957,7 @@ function PromoteCategoryIcon({ icon }) {
 }
 
 function App() {
-  const [page, setPage] = useState("home");
+  const [page, setPage] = useState(pageFromLocation);
   const [isStarting, setIsStarting] = useState(true);
   const [weather, setWeather] = useState({ temp: 72, isDay: false, label: "Abilene, TX" });
   const [selectedCategory, setSelectedCategory] = useState(promoteCategories[0].label);
@@ -985,7 +985,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    window.history.replaceState({ page: "home" }, "", urlForPage("home"));
+    window.history.replaceState({ page: pageFromLocation() }, "", window.location.href);
 
     const syncPageFromUrl = () => {
       setPage(pageFromLocation());
