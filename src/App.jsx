@@ -39,6 +39,7 @@ const validPages = new Set([
   "directory",
   "terms",
   "privacy",
+  "admin",
 ]);
 
 const pageFromLocation = () => {
@@ -934,6 +935,12 @@ function App() {
   const [businesses, setBusinesses] = useState(initialBusinesses);
   const [approvedGalleryPhotos, setApprovedGalleryPhotos] = useState([]);
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
+  const [adminSession, setAdminSession] = useState(null);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminStatus, setAdminStatus] = useState("");
+  const [pendingGalleryPhotos, setPendingGalleryPhotos] = useState([]);
+  const [pendingBusinesses, setPendingBusinesses] = useState([]);
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -989,6 +996,28 @@ function App() {
     }
 
     supabase
+      .from("business_submissions")
+      .select("id,business_name,category,phone,address,social,description,plan")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          const approvedBusinesses = data.map((business) => ({
+            id: business.id,
+            name: business.business_name,
+            category: business.category,
+            phone: business.phone,
+            address: business.address ?? "",
+            social: business.social ?? "",
+            description: business.description ?? "",
+            plan: business.plan,
+          }));
+
+          setBusinesses([...approvedBusinesses, ...initialBusinesses]);
+        }
+      });
+
+    supabase
       .from("gallery_submissions")
       .select("id,title,image_data")
       .eq("status", "approved")
@@ -1003,6 +1032,24 @@ function App() {
           );
         }
       });
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      setAdminSession(data.session);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAdminSession(session);
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const navigateTo = (nextPage, options = {}) => {
@@ -1045,7 +1092,9 @@ function App() {
 
     setSubmissionStatus("saving");
 
-    if (supabase) {
+    const isSupabaseSubmission = Boolean(supabase);
+
+    if (isSupabaseSubmission) {
       const { error } = await supabase.from("business_submissions").insert({
         business_name: business.name,
         contact_name: formData.get("contactName").trim(),
@@ -1068,9 +1117,9 @@ function App() {
       setSubmissionStatus("saved");
     } else {
       setSubmissionStatus("local");
+      setBusinesses((currentBusinesses) => [business, ...currentBusinesses]);
     }
 
-    setBusinesses((currentBusinesses) => [business, ...currentBusinesses]);
     setBusinessSubmitted(true);
 
     const paymentLink = stripePaymentLinks[selectedPlan];
@@ -1123,6 +1172,89 @@ function App() {
     } catch {
       setGallerySubmissionStatus("error");
     }
+  };
+
+  const loadAdminData = async (sessionOverride = adminSession) => {
+    if (!supabase || !sessionOverride) {
+      return;
+    }
+
+    setAdminStatus("loading");
+
+    const [galleryResult, businessResult] = await Promise.all([
+      supabase
+        .from("gallery_submissions")
+        .select("id,created_at,contributor_name,title,image_data,status")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("business_submissions")
+        .select("id,created_at,business_name,contact_name,category,plan,phone,address,social,description,payment_status,status")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+    ]);
+
+    if (galleryResult.error || businessResult.error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setPendingGalleryPhotos(galleryResult.data ?? []);
+    setPendingBusinesses(businessResult.data ?? []);
+    setAdminStatus("ready");
+  };
+
+  const handleAdminLogin = async (event) => {
+    event.preventDefault();
+
+    if (!supabase) {
+      setAdminStatus("missing-config");
+      return;
+    }
+
+    setAdminStatus("signing-in");
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: adminEmail.trim(),
+      password: adminPassword,
+    });
+
+    if (error) {
+      setAdminStatus("login-error");
+      return;
+    }
+
+    setAdminSession(data.session);
+    setAdminPassword("");
+    setAdminStatus("ready");
+    await loadAdminData(data.session);
+  };
+
+  const handleAdminLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+
+    setAdminSession(null);
+    setPendingGalleryPhotos([]);
+    setPendingBusinesses([]);
+    setAdminStatus("");
+  };
+
+  const moderateItem = async (table, id, status) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from(table).update({ status }).eq("id", id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    await loadAdminData();
   };
 
   const paidBusinesses = [...businesses]
@@ -2011,6 +2143,163 @@ function App() {
               </article>
             ))}
           </section>
+        </div>
+      </main>,
+    );
+  }
+
+  if (page === "admin") {
+    return withSplash(
+      <main className="app admin-page">
+        <div className="admin-shell">
+          <button className="back-button" onClick={backToLobby}>
+            Back to lobby
+          </button>
+
+          <section className="admin-header" aria-labelledby="admin-title">
+            <p className="eyebrow">Private</p>
+            <h1 id="admin-title">Admin Panel</h1>
+            <p className="events-intro">Review submitted photos and businesses before they appear in Abilene Vibes.</p>
+          </section>
+
+          {!supabase && (
+            <p className="form-error">Connect Supabase before using the admin panel.</p>
+          )}
+
+          {supabase && !adminSession && (
+            <form className="business-form admin-login" onSubmit={handleAdminLogin}>
+              <div className="business-form-heading">
+                <p className="eyebrow">Owner login</p>
+                <h2>Sign in</h2>
+              </div>
+
+              <div className="form-grid">
+                <label className="form-field">
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={adminEmail}
+                    onChange={(event) => setAdminEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Password</span>
+                  <input
+                    type="password"
+                    value={adminPassword}
+                    onChange={(event) => setAdminPassword(event.target.value)}
+                    placeholder="Password"
+                    required
+                  />
+                </label>
+              </div>
+
+              {adminStatus === "login-error" && <p className="form-error">Login failed. Check your email and password.</p>}
+              {adminStatus === "missing-config" && <p className="form-error">Supabase is not connected.</p>}
+
+              <button className="primary-button subscribe-button" type="submit" disabled={adminStatus === "signing-in"}>
+                {adminStatus === "signing-in" ? "Signing in..." : "Open Admin"}
+              </button>
+            </form>
+          )}
+
+          {supabase && adminSession && (
+            <>
+              <div className="admin-toolbar">
+                <button className="directory-link" type="button" onClick={() => loadAdminData()}>
+                  Refresh
+                </button>
+                <button className="directory-link" type="button" onClick={handleAdminLogout}>
+                  Sign out
+                </button>
+              </div>
+
+              {adminStatus === "error" && <p className="form-error">Could not update admin data. Check Supabase policies.</p>}
+              {adminStatus === "saving" && <p className="form-success">Saving...</p>}
+
+              <section className="admin-section" aria-labelledby="admin-gallery-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Pending</p>
+                  <h2 id="admin-gallery-title">Gallery Photos</h2>
+                </div>
+
+                {pendingGalleryPhotos.length ? (
+                  <div className="admin-grid">
+                    {pendingGalleryPhotos.map((photo) => (
+                      <article className="admin-card" key={photo.id}>
+                        <img src={photo.image_data} alt="" />
+                        <span className="event-type">{new Date(photo.created_at).toLocaleDateString()}</span>
+                        <h3>{photo.title}</h3>
+                        <p>By {photo.contributor_name}</p>
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => moderateItem("gallery_submissions", photo.id, "approved")}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => moderateItem("gallery_submissions", photo.id, "rejected")}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No pending gallery photos.</p>
+                )}
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-business-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Pending</p>
+                  <h2 id="admin-business-title">Businesses</h2>
+                </div>
+
+                {pendingBusinesses.length ? (
+                  <div className="admin-grid">
+                    {pendingBusinesses.map((business) => (
+                      <article className="admin-card" key={business.id}>
+                        <span className="event-type">{business.plan} - {business.payment_status}</span>
+                        <h3>{business.business_name}</h3>
+                        <p>{business.category}</p>
+                        <p>Contact: {business.contact_name}</p>
+                        <p>{business.phone}</p>
+                        {business.address && <p>{business.address}</p>}
+                        {business.description && <p>{business.description}</p>}
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => moderateItem("business_submissions", business.id, "approved")}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => moderateItem("business_submissions", business.id, "rejected")}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No pending businesses.</p>
+                )}
+              </section>
+            </>
+          )}
         </div>
       </main>,
     );

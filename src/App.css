@@ -903,6 +903,10 @@
   padding: clamp(22px, 4vw, 46px);
 }
 
+.admin-page {
+  padding: clamp(22px, 4vw, 46px);
+}
+
 .calendar-shell {
   width: min(100%, 980px);
   margin: 0 auto;
@@ -923,7 +927,8 @@
 .gallery-shell,
 .promote-shell,
 .directory-shell,
-.legal-shell {
+.legal-shell,
+.admin-shell {
   width: min(100%, 980px);
   margin: 0 auto;
   display: flex;
@@ -943,7 +948,8 @@
 .gallery-header,
 .promote-header,
 .directory-header,
-.legal-header {
+.legal-header,
+.admin-header {
   text-align: center;
 }
 
@@ -973,7 +979,8 @@
 .gallery-header h1,
 .promote-header h1,
 .directory-header h1,
-.legal-header h1 {
+.legal-header h1,
+.admin-header h1 {
   margin: 10px 0;
   color: #fff;
   font-size: clamp(3rem, 8vw, 5.6rem);
@@ -1346,6 +1353,65 @@
   box-shadow:
     0 0 24px rgba(0, 212, 255, 0.16),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.admin-login {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.admin-section {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.admin-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(0, 212, 255, 0.34);
+  border-radius: 18px;
+  padding: clamp(16px, 3vw, 22px);
+  text-align: left;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 0 20px rgba(0, 212, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.admin-card img {
+  width: 100%;
+  max-height: 280px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.admin-card h3 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.25rem, 3vw, 1.7rem);
+  line-height: 1.08;
+}
+
+.admin-card p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.35;
 }
 
 .business-form-heading {
@@ -1871,6 +1937,7 @@
   .eats-grid,
   .gallery-grid,
   .directory-grid,
+  .admin-grid,
   .form-grid {
     grid-template-columns: 1fr;
   }

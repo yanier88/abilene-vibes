@@ -27,6 +27,21 @@ with check (
   and payment_status in ('not_required', 'pending')
 );
 
+drop policy if exists "Allow public approved business listings" on public.business_submissions;
+create policy "Allow public approved business listings"
+on public.business_submissions
+for select
+to anon
+using (status = 'approved');
+
+drop policy if exists "Allow authenticated business moderation" on public.business_submissions;
+create policy "Allow authenticated business moderation"
+on public.business_submissions
+for all
+to authenticated
+using (true)
+with check (true);
+
 create table if not exists public.gallery_submissions (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
@@ -55,3 +70,11 @@ on public.gallery_submissions
 for select
 to anon
 using (status = 'approved');
+
+drop policy if exists "Allow authenticated gallery moderation" on public.gallery_submissions;
+create policy "Allow authenticated gallery moderation"
+on public.gallery_submissions
+for all
+to authenticated
+using (true)
+with check (true);
