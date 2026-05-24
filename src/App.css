@@ -369,6 +369,7 @@
 
 .lobby-title-badge,
 .weather-widget,
+.lobby-about,
 .lobby-action-card,
 .lobby-highlight,
 .lobby-bottom-home,
@@ -452,6 +453,35 @@
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.lobby-about {
+  position: absolute;
+  left: 3.4%;
+  top: 18.4%;
+  z-index: 2;
+  width: 46%;
+  padding: 2.4% 3%;
+  border-radius: 16px;
+}
+
+.lobby-about span {
+  display: inline-flex;
+  margin-bottom: 6px;
+  color: #00d4ff;
+  font-size: clamp(0.54rem, 1.95vw, 0.92rem);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 0 14px rgba(0, 212, 255, 0.62);
+}
+
+.lobby-about p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: clamp(0.62rem, 2.15vw, 1rem);
+  line-height: 1.35;
 }
 
 .weather-copy {

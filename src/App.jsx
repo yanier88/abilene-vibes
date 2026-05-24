@@ -1101,6 +1101,14 @@ function App() {
             </span>
           </button>
 
+          <article className="lobby-about" aria-label="About Abilene Vibes">
+            <span>About the app</span>
+            <p>
+              Abilene Vibes is your local guide to events, nightlife, eats, shopping, family plans, stays, and
+              businesses around Abilene.
+            </p>
+          </article>
+
           <nav className="lobby-action-list" aria-label="Abilene Vibes sections">
             {lobbyActions.map((action) => (
               <button
