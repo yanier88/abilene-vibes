@@ -1213,7 +1213,7 @@ function App() {
           <nav className="lobby-action-list" aria-label="Abilene Vibes sections">
             {lobbyActions.map((action) => (
               <button
-                className={`lobby-action-card is-${action.tone}`}
+                className={`lobby-action-card is-${action.tone}${action.page === "events" ? " is-priority" : ""}`}
                 key={action.page}
                 type="button"
                 onClick={() => navigateTo(action.page)}

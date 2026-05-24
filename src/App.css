@@ -170,6 +170,23 @@
   }
 }
 
+@keyframes flameBorderSpin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes flameGlow {
+  0%,
+  100% {
+    filter: saturate(1.1) brightness(1);
+  }
+
+  50% {
+    filter: saturate(1.55) brightness(1.24);
+  }
+}
+
 .home-hero {
   position: relative;
   width: min(100vw, calc(100svh * 0.5232558));
@@ -522,6 +539,7 @@
 }
 
 .lobby-action-card {
+  position: relative;
   display: grid;
   grid-template-columns: 26% 1fr auto;
   align-items: center;
@@ -533,6 +551,7 @@
   font: inherit;
   cursor: pointer;
   text-align: left;
+  overflow: hidden;
 }
 
 .lobby-action-card.is-cyan {
@@ -568,6 +587,58 @@
 .lobby-action-card.is-cyan .lobby-action-icon,
 .lobby-action-card.is-cyan .lobby-action-arrow {
   color: #00d4ff;
+}
+
+.lobby-action-card.is-priority,
+.lobby-highlight {
+  border-color: rgba(255, 170, 0, 0.86);
+  box-shadow:
+    0 0 20px rgba(255, 87, 0, 0.42),
+    0 0 26px rgba(255, 0, 204, 0.28),
+    inset 0 0 20px rgba(255, 150, 0, 0.12);
+}
+
+.lobby-action-card.is-priority::before,
+.lobby-highlight::before {
+  content: "";
+  position: absolute;
+  inset: -34%;
+  z-index: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 10%,
+    rgba(255, 58, 0, 0.95) 16%,
+    rgba(255, 214, 74, 0.95) 22%,
+    rgba(255, 0, 204, 0.84) 31%,
+    transparent 42% 54%,
+    rgba(255, 120, 0, 0.95) 62%,
+    rgba(255, 235, 117, 0.92) 68%,
+    rgba(0, 212, 255, 0.78) 75%,
+    transparent 84% 100%
+  );
+  animation:
+    flameBorderSpin 3.6s linear infinite,
+    flameGlow 1.45s ease-in-out infinite;
+}
+
+.lobby-action-card.is-priority::after,
+.lobby-highlight::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(145deg, rgba(6, 7, 28, 0.9), rgba(2, 4, 18, 0.88)),
+    rgba(5, 0, 8, 0.88);
+}
+
+.lobby-action-card.is-priority > *,
+.lobby-highlight > * {
+  position: relative;
+  z-index: 1;
 }
 
 .lobby-action-copy {
@@ -613,6 +684,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  overflow: hidden;
   transition:
     transform 180ms ease,
     filter 180ms ease;
