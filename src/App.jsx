@@ -1053,6 +1053,8 @@ function App() {
     .filter((business) => business.plan && business.plan !== "Free")
     .sort((a, b) => (planRank[a.plan] ?? 99) - (planRank[b.plan] ?? 99));
   const spotlightBusiness = paidBusinesses.find((business) => business.plan === "Premium") ?? paidBusinesses[0];
+  const spotlightEvent = events[0];
+  const [spotlightEventDate, spotlightEventTime = ""] = spotlightEvent.date.split(" - ");
   const openUpcomingHighlight = () => {
     if (!spotlightBusiness) {
       navigateTo("events");
@@ -1166,12 +1168,15 @@ function App() {
               </>
             ) : (
               <>
-                <img src={events[0].image} alt="" />
+                <img src={spotlightEvent.image} alt="" />
                 <div>
                   <span>Upcoming Highlight</span>
-                  <strong>Live Music Friday</strong>
-                  <p>The Paramount Theatre</p>
-                  <p>8:00 PM</p>
+                  <strong>{spotlightEvent.title}</strong>
+                  <p>{spotlightEvent.place}</p>
+                  <p>
+                    {spotlightEventDate}
+                    {spotlightEventTime && ` - ${spotlightEventTime}`}
+                  </p>
                 </div>
               </>
             )}
