@@ -782,6 +782,14 @@ const visitUrl = (value) => {
   return value.startsWith("http") ? value : `https://${value}`;
 };
 
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(file);
+  });
+
 function LobbyActionIcon({ icon }) {
   if (icon === "nightlife") {
     return (
@@ -924,6 +932,8 @@ function App() {
   const [businessSubmitted, setBusinessSubmitted] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState("");
   const [businesses, setBusinesses] = useState(initialBusinesses);
+  const [approvedGalleryPhotos, setApprovedGalleryPhotos] = useState([]);
+  const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -970,6 +980,28 @@ function App() {
       })
       .catch(() => {
         setWeather({ temp: 72, isDay: false, label: "Abilene, TX" });
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    supabase
+      .from("gallery_submissions")
+      .select("id,title,image_data")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setApprovedGalleryPhotos(
+            data.map((photo) => ({
+              title: photo.title,
+              image: photo.image_data,
+            })),
+          );
+        }
       });
   }, []);
 
@@ -1049,6 +1081,50 @@ function App() {
     event.currentTarget.reset();
   };
 
+  const handleGallerySubmit = async (event) => {
+    event.preventDefault();
+    setGallerySubmissionStatus("saving");
+
+    if (!supabase) {
+      setGallerySubmissionStatus("missing-config");
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    const file = formData.get("photo");
+
+    if (!file || !file.size) {
+      setGallerySubmissionStatus("error");
+      return;
+    }
+
+    if (!file.type.startsWith("image/") || file.size > 3 * 1024 * 1024) {
+      setGallerySubmissionStatus("file-error");
+      return;
+    }
+
+    try {
+      const imageData = await readFileAsDataUrl(file);
+      const { error } = await supabase.from("gallery_submissions").insert({
+        contributor_name: formData.get("contributorName").trim(),
+        title: formData.get("title").trim(),
+        image_data: imageData,
+        content_rights_confirmed: formData.get("contentRights") === "on",
+        status: "pending",
+      });
+
+      if (error) {
+        setGallerySubmissionStatus("error");
+        return;
+      }
+
+      event.currentTarget.reset();
+      setGallerySubmissionStatus("saved");
+    } catch {
+      setGallerySubmissionStatus("error");
+    }
+  };
+
   const paidBusinesses = [...businesses]
     .filter((business) => business.plan && business.plan !== "Free")
     .sort((a, b) => (planRank[a.plan] ?? 99) - (planRank[b.plan] ?? 99));
@@ -1082,6 +1158,7 @@ function App() {
   const directoryBusinesses = [...businesses].sort(
     (a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99),
   );
+  const galleryPhotos = [...approvedGalleryPhotos, ...galleryShots];
 
   const splashOverlay = isStarting && (
     <div className="splash-page" aria-label="Opening Abilene Vibes">
@@ -1607,12 +1684,88 @@ function App() {
           <section className="gallery-header" aria-labelledby="gallery-title">
             <p className="eyebrow">City snapshots</p>
             <h1 id="gallery-title">Gallery</h1>
-            <p className="events-intro">Curated photos selected by Abilene Vibes.</p>
+            <p className="events-intro">Curated photos selected by Abilene Vibes, with community submissions reviewed before publishing.</p>
+          </section>
+
+          <section className="gallery-submit" aria-labelledby="gallery-submit-title">
+            <div className="business-form-heading">
+              <p className="eyebrow">Share a photo</p>
+              <h2 id="gallery-submit-title">Submit to the gallery</h2>
+            </div>
+
+            <form className="gallery-form" onSubmit={handleGallerySubmit}>
+              <div className="form-grid">
+                <label className="form-field">
+                  <span>Your name</span>
+                  <input
+                    name="contributorName"
+                    type="text"
+                    placeholder="Name or business"
+                    required
+                    onInvalid={handleRequiredInvalid}
+                    onInput={handleRequiredInput}
+                  />
+                </label>
+
+                <label className="form-field">
+                  <span>Photo title</span>
+                  <input
+                    name="title"
+                    type="text"
+                    placeholder="Downtown night, family day, etc."
+                    required
+                    onInvalid={handleRequiredInvalid}
+                    onInput={handleRequiredInput}
+                  />
+                </label>
+
+                <label className="form-field form-field-wide">
+                  <span>Photo</span>
+                  <input
+                    name="photo"
+                    type="file"
+                    accept="image/*"
+                    required
+                    onInvalid={handleRequiredInvalid}
+                    onInput={handleRequiredInput}
+                  />
+                </label>
+              </div>
+
+              <label className="legal-consent">
+                <input
+                  name="contentRights"
+                  type="checkbox"
+                  required
+                  onInvalid={handleRequiredInvalid}
+                  onInput={handleRequiredInput}
+                />
+                <span>
+                  I confirm I have permission to submit this photo and authorize Abilene Vibes to review and publish it.
+                </span>
+              </label>
+
+              <button className="primary-button subscribe-button" type="submit" disabled={gallerySubmissionStatus === "saving"}>
+                {gallerySubmissionStatus === "saving" ? "Sending..." : "Submit Photo"}
+              </button>
+
+              {gallerySubmissionStatus && (
+                <p className={gallerySubmissionStatus === "saved" ? "form-success" : "form-error"}>
+                  {gallerySubmissionStatus === "saved"
+                    ? "Thanks. Your photo was sent for approval."
+                    : gallerySubmissionStatus === "missing-config"
+                      ? "Connect Supabase to receive gallery submissions for approval."
+                      : gallerySubmissionStatus === "file-error"
+                        ? "Please upload an image under 3 MB."
+                        : "Sorry, the photo could not be submitted. Please try again."}
+                </p>
+              )}
+            </form>
           </section>
 
           <section className="gallery-grid" aria-label="Abilene Vibes gallery">
-            {galleryShots.map((shot) => (
-              <figure className="gallery-card" key={shot.title}>
+            {galleryPhotos.map((shot, index) => (
+              <figure className="gallery-card" key={`${shot.title}-${index}`}>
                 <img src={shot.image} alt="" loading="lazy" />
                 <figcaption>{shot.title}</figcaption>
               </figure>

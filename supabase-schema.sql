@@ -26,3 +26,32 @@ with check (
   and status = 'pending'
   and payment_status in ('not_required', 'pending')
 );
+
+create table if not exists public.gallery_submissions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  contributor_name text not null,
+  title text not null,
+  image_data text not null,
+  content_rights_confirmed boolean not null default false,
+  status text not null default 'pending'
+);
+
+alter table public.gallery_submissions enable row level security;
+
+drop policy if exists "Allow public gallery submissions" on public.gallery_submissions;
+create policy "Allow public gallery submissions"
+on public.gallery_submissions
+for insert
+to anon
+with check (
+  content_rights_confirmed = true
+  and status = 'pending'
+);
+
+drop policy if exists "Allow public approved gallery photos" on public.gallery_submissions;
+create policy "Allow public approved gallery photos"
+on public.gallery_submissions
+for select
+to anon
+using (status = 'approved');
