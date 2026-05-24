@@ -704,7 +704,6 @@
   z-index: 2;
 }
 
-.lobby-action-card.is-priority .lobby-action-icon::after,
 .lobby-highlight div::after,
 .lobby-bottom-promote span::after {
   content: "";
