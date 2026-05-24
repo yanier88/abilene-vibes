@@ -24,7 +24,7 @@ drop policy if exists "Allow public business submissions" on public.business_sub
 create policy "Allow public business submissions"
 on public.business_submissions
 for insert
-to anon
+to public
 with check (
   content_rights_confirmed = true
   and status = 'pending'
@@ -65,7 +65,7 @@ drop policy if exists "Allow public gallery submissions" on public.gallery_submi
 create policy "Allow public gallery submissions"
 on public.gallery_submissions
 for insert
-to anon
+to public
 with check (
   content_rights_confirmed = true
   and status = 'pending'
