@@ -1085,12 +1085,19 @@
   position: absolute;
   z-index: 1;
   left: 16px;
-  right: 16px;
+  right: 118px;
   bottom: 16px;
   color: #fff;
   font-size: 1rem;
   font-weight: 850;
   text-align: left;
+}
+
+.gallery-card .like-button {
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  bottom: 12px;
 }
 
 .gallery-submit {
