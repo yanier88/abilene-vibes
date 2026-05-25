@@ -18,7 +18,7 @@ alter table public.business_submissions enable row level security;
 
 grant usage on schema public to anon, authenticated;
 grant insert, select on public.business_submissions to anon;
-grant select, update on public.business_submissions to authenticated;
+grant select, update, delete on public.business_submissions to authenticated;
 
 drop policy if exists "Allow public business submissions" on public.business_submissions;
 create policy "Allow public business submissions"

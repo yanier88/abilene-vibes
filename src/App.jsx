@@ -1040,6 +1040,7 @@ function App() {
   const [pendingGalleryPhotos, setPendingGalleryPhotos] = useState([]);
   const [publishedGalleryPhotos, setPublishedGalleryPhotos] = useState([]);
   const [pendingBusinesses, setPendingBusinesses] = useState([]);
+  const [publishedBusinesses, setPublishedBusinesses] = useState([]);
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -1287,7 +1288,7 @@ function App() {
 
     setAdminStatus("loading");
 
-    const [galleryResult, publishedGalleryResult, businessResult] = await Promise.all([
+    const [galleryResult, publishedGalleryResult, businessResult, publishedBusinessResult] = await Promise.all([
       supabase
         .from("gallery_submissions")
         .select("id,created_at,contributor_name,title,image_data,status")
@@ -1303,9 +1304,14 @@ function App() {
         .select("id,created_at,business_name,contact_name,category,plan,phone,address,social,description,payment_status,status")
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
+      supabase
+        .from("business_submissions")
+        .select("id,created_at,business_name,contact_name,category,plan,phone,address,social,description,payment_status,status")
+        .eq("status", "approved")
+        .order("created_at", { ascending: false }),
     ]);
 
-    if (galleryResult.error || publishedGalleryResult.error || businessResult.error) {
+    if (galleryResult.error || publishedGalleryResult.error || businessResult.error || publishedBusinessResult.error) {
       setAdminStatus("error");
       return;
     }
@@ -1313,6 +1319,7 @@ function App() {
     setPendingGalleryPhotos(galleryResult.data ?? []);
     setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
     setPendingBusinesses(businessResult.data ?? []);
+    setPublishedBusinesses(publishedBusinessResult.data ?? []);
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
   };
 
@@ -1351,6 +1358,7 @@ function App() {
     setPendingGalleryPhotos([]);
     setPublishedGalleryPhotos([]);
     setPendingBusinesses([]);
+    setPublishedBusinesses([]);
     setAdminStatus("");
   };
 
@@ -1390,6 +1398,29 @@ function App() {
     }
 
     setApprovedGalleryPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
+    await loadAdminData();
+  };
+
+  const deleteBusiness = async (id) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const shouldDelete = window.confirm("Delete this business from Abilene Vibes?");
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from("business_submissions").delete().eq("id", id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
     await loadAdminData();
   };
 
@@ -2476,6 +2507,40 @@ function App() {
                   </div>
                 ) : (
                   <p className="legal-disclaimer">No published gallery uploads yet.</p>
+                )}
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-published-business-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Published</p>
+                  <h2 id="admin-published-business-title">Businesses</h2>
+                </div>
+
+                {publishedBusinesses.length ? (
+                  <div className="admin-grid">
+                    {publishedBusinesses.map((business) => (
+                      <article className="admin-card" key={business.id}>
+                        <span className="event-type">{business.plan} - {business.payment_status}</span>
+                        <h3>{business.business_name}</h3>
+                        <p>{business.category}</p>
+                        <p>Contact: {business.contact_name}</p>
+                        <p>{business.phone}</p>
+                        {business.address && <p>{business.address}</p>}
+                        {business.description && <p>{business.description}</p>}
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => deleteBusiness(business.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No published businesses yet.</p>
                 )}
               </section>
             </>
