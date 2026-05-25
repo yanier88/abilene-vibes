@@ -1890,6 +1890,46 @@ function App() {
     await loadAdminData();
   };
 
+  const editEvent = async (event) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const title = window.prompt("Event title", event.title);
+    if (title === null) return;
+
+    const place = window.prompt("Event place", event.place);
+    if (place === null) return;
+
+    const eventDate = window.prompt("Event date (YYYY-MM-DD)", event.event_date);
+    if (eventDate === null) return;
+
+    const eventTime = window.prompt("Event time", event.event_time);
+    if (eventTime === null) return;
+
+    const eventType = window.prompt("Event type", event.event_type);
+    if (eventType === null) return;
+
+    setAdminStatus("saving");
+    const { error } = await supabase
+      .from("event_submissions")
+      .update({
+        title: title.trim(),
+        place: place.trim(),
+        event_date: eventDate.trim(),
+        event_time: eventTime.trim(),
+        event_type: eventType.trim(),
+      })
+      .eq("id", event.id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    await loadAdminData();
+  };
+
   const hideStaticEvent = async (event) => {
     if (!supabase || !adminSession) {
       return;
@@ -3096,6 +3136,9 @@ function App() {
                         <p>{event.place}</p>
                         <p>{event.event_date} - {event.event_time}</p>
                         <div className="directory-actions">
+                          <button className="directory-link" type="button" onClick={() => editEvent(event)}>
+                            Edit
+                          </button>
                           <button className="directory-link" type="button" onClick={() => unpublishEvent(event.id)}>
                             Hide
                           </button>
@@ -3123,6 +3166,9 @@ function App() {
                         <p>{event.place}</p>
                         <p>{event.event_date} - {event.event_time}</p>
                         <div className="directory-actions">
+                          <button className="directory-link" type="button" onClick={() => editEvent(event)}>
+                            Edit
+                          </button>
                           <button className="directory-link" type="button" onClick={() => restoreEvent(event.id)}>
                             Restore
                           </button>
