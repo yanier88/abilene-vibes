@@ -144,7 +144,7 @@ const eventSubmissionToEvent = (event) => ({
   place: event.place,
   date: `${event.event_date}${event.event_time ? ` - ${event.event_time}` : ""}`,
   type: event.event_type,
-  image: event.image_url || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80",
+  image: event.image_data || event.image_url || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80",
 });
 
 const calendarDays = [
@@ -1189,7 +1189,7 @@ function App() {
 
     supabase
       .from("event_submissions")
-      .select("id,title,place,event_date,event_time,event_type,image_url,status")
+      .select("id,title,place,event_date,event_time,event_type,image_url,image_data,status")
       .eq("status", "approved")
       .order("event_date", { ascending: true })
       .then(({ data, error }) => {
@@ -1483,6 +1483,8 @@ function App() {
     const form = event.currentTarget;
     const formData = new FormData(form);
     setEventSubmissionStatus("saving");
+    const imageFile = formData.get("eventImage");
+    const imageData = imageFile && imageFile.size ? await optimizeGalleryImage(imageFile) : "";
 
     const { error } = await supabase.from("event_submissions").insert({
       title: formData.get("title").trim(),
@@ -1490,7 +1492,7 @@ function App() {
       event_date: formData.get("eventDate"),
       event_time: formData.get("eventTime").trim(),
       event_type: formData.get("eventType").trim(),
-      image_url: formData.get("imageUrl").trim(),
+      image_data: imageData,
       status: "approved",
     });
 
@@ -1596,12 +1598,12 @@ function App() {
         .select("created_at,business_id,business_name,action_type"),
       supabase
         .from("event_submissions")
-        .select("id,created_at,title,place,event_date,event_time,event_type,image_url,status")
+        .select("id,created_at,title,place,event_date,event_time,event_type,image_url,image_data,status")
         .eq("status", "approved")
         .order("event_date", { ascending: true }),
       supabase
         .from("event_submissions")
-        .select("id,created_at,title,place,event_date,event_time,event_type,image_url,status")
+        .select("id,created_at,title,place,event_date,event_time,event_type,image_url,image_data,status")
         .eq("status", "hidden")
         .order("event_date", { ascending: true }),
     ]);
@@ -2174,6 +2176,16 @@ function App() {
                   <h2>{event.title}</h2>
                   <p className="event-detail">{event.place}</p>
                   <p className="event-detail">{event.date}</p>
+                  <div className="place-actions">
+                    <a
+                      className="place-link"
+                      href={mapSearchUrl(`${event.title}, ${event.place}, Abilene TX`)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Directions
+                    </a>
+                  </div>
                 </div>
               </article>
             ))}
@@ -3040,8 +3052,8 @@ function App() {
                       <input name="eventType" type="text" placeholder="Live music, Family, Food..." required />
                     </label>
                     <label className="form-field">
-                      <span>Image URL</span>
-                      <input name="imageUrl" type="url" placeholder="https://..." />
+                      <span>Photo</span>
+                      <input name="eventImage" type="file" accept="image/*" />
                     </label>
                   </div>
 
@@ -3071,7 +3083,14 @@ function App() {
                   <div className="admin-grid">
                     {publishedEvents.map((event) => (
                       <article className="admin-card" key={event.id}>
-                        <img src={event.image_url || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80"} alt="" />
+                        <img
+                          src={
+                            event.image_data ||
+                            event.image_url ||
+                            "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80"
+                          }
+                          alt=""
+                        />
                         <span className="event-type">{event.event_type}</span>
                         <h3>{event.title}</h3>
                         <p>{event.place}</p>

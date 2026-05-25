@@ -238,6 +238,7 @@ create table if not exists public.event_submissions (
   event_time text not null,
   event_type text not null,
   image_url text,
+  image_data text,
   status text not null default 'approved'
 );
 
