@@ -1963,6 +1963,104 @@ function App() {
     }
   };
 
+  const createEditableEventFromStatic = async (event, overrides = {}) => {
+    if (!supabase || !adminSession) {
+      return false;
+    }
+
+    const [eventDate, eventTime = ""] = event.date.split(" - ");
+    const imageData = overrides.image_data ?? "";
+    const { error: eventError } = await supabase.from("event_submissions").insert({
+      title: overrides.title ?? event.title,
+      place: overrides.place ?? event.place,
+      event_date: overrides.event_date ?? eventDate,
+      event_time: overrides.event_time ?? eventTime,
+      event_type: overrides.event_type ?? event.type,
+      image_url: imageData ? "" : event.image,
+      image_data: imageData,
+      status: "approved",
+    });
+
+    if (eventError) {
+      setAdminStatus("error");
+      return false;
+    }
+
+    const itemKey = staticEventKey(event);
+    const { error: hideError } = await supabase.from("hidden_static_items").insert({
+      item_key: itemKey,
+      item_type: "event",
+      title: event.title,
+    });
+
+    if (hideError) {
+      setAdminStatus("error");
+      return false;
+    }
+
+    setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
+    return true;
+  };
+
+  const editStaticEvent = async (event) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const [defaultDate, defaultTime = ""] = event.date.split(" - ");
+    const title = window.prompt("Event title", event.title);
+    if (title === null) return;
+
+    const place = window.prompt("Event place", event.place);
+    if (place === null) return;
+
+    const eventDate = window.prompt("Event date (YYYY-MM-DD)", defaultDate);
+    if (eventDate === null) return;
+
+    const eventTime = window.prompt("Event time", defaultTime);
+    if (eventTime === null) return;
+
+    const eventType = window.prompt("Event type", event.type);
+    if (eventType === null) return;
+
+    setAdminStatus("saving");
+    const wasCreated = await createEditableEventFromStatic(event, {
+      title: title.trim(),
+      place: place.trim(),
+      event_date: eventDate.trim(),
+      event_time: eventTime.trim(),
+      event_type: eventType.trim(),
+    });
+
+    if (wasCreated) {
+      await loadAdminData();
+    }
+  };
+
+  const changeStaticEventPhoto = async (event, file) => {
+    if (!supabase || !adminSession || !file || !file.size) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/") || file.size > 15 * 1024 * 1024) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setAdminStatus("saving");
+
+    try {
+      const imageData = await optimizeGalleryImage(file);
+      const wasCreated = await createEditableEventFromStatic(event, { image_data: imageData });
+
+      if (wasCreated) {
+        await loadAdminData();
+      }
+    } catch {
+      setAdminStatus("error");
+    }
+  };
+
   const hideStaticEvent = async (event) => {
     if (!supabase || !adminSession) {
       return;
@@ -3237,6 +3335,20 @@ function App() {
                         <p>{event.place}</p>
                         <p>{event.date}</p>
                         <div className="directory-actions">
+                          <button className="directory-link" type="button" onClick={() => editStaticEvent(event)}>
+                            Edit
+                          </button>
+                          <label className="directory-link file-action">
+                            Change Photo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(inputEvent) => {
+                                changeStaticEventPhoto(event, inputEvent.target.files?.[0]);
+                                inputEvent.target.value = "";
+                              }}
+                            />
+                          </label>
                           <button className="directory-link" type="button" onClick={() => hideStaticEvent(event)}>
                             Hide
                           </button>
