@@ -196,3 +196,35 @@ for all
 to authenticated
 using (true)
 with check (true);
+
+create table if not exists public.business_interactions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  business_id text not null,
+  business_name text not null,
+  action_type text not null
+);
+
+alter table public.business_interactions enable row level security;
+
+grant insert on public.business_interactions to anon;
+grant select, insert, delete on public.business_interactions to authenticated;
+
+drop policy if exists "Allow public business interaction tracking" on public.business_interactions;
+create policy "Allow public business interaction tracking"
+on public.business_interactions
+for insert
+to anon
+with check (
+  action_type in ('calls', 'directions', 'visits')
+  and length(business_id) > 0
+  and length(business_name) > 0
+);
+
+drop policy if exists "Allow authenticated business interaction reads" on public.business_interactions;
+create policy "Allow authenticated business interaction reads"
+on public.business_interactions
+for all
+to authenticated
+using (true)
+with check (true);

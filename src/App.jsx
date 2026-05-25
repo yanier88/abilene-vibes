@@ -1070,6 +1070,7 @@ function App() {
   const [publishedBusinesses, setPublishedBusinesses] = useState([]);
   const [hiddenBusinesses, setHiddenBusinesses] = useState([]);
   const [pendingReviews, setPendingReviews] = useState([]);
+  const [businessReports, setBusinessReports] = useState([]);
   const adminShortcutRef = useRef({ count: 0, timer: null });
 
   useEffect(() => {
@@ -1445,6 +1446,18 @@ function App() {
     setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "saved" }));
   };
 
+  const trackBusinessInteraction = (business, actionType) => {
+    if (!supabase) {
+      return;
+    }
+
+    supabase.from("business_interactions").insert({
+      business_id: business.id,
+      business_name: business.name,
+      action_type: actionType,
+    });
+  };
+
   const loadAdminData = async (sessionOverride = adminSession, showRefreshSuccess = false) => {
     if (!supabase || !sessionOverride) {
       return;
@@ -1460,6 +1473,9 @@ function App() {
       hiddenBusinessResult,
       hiddenStaticResult,
       reviewResult,
+      likeResult,
+      approvedReviewResult,
+      interactionResult,
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
@@ -1495,6 +1511,17 @@ function App() {
         .select("id,created_at,business_id,business_name,reviewer_name,rating,comment,status")
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
+      supabase
+        .from("public_likes")
+        .select("created_at,item_type,item_key")
+        .eq("item_type", "business"),
+      supabase
+        .from("business_reviews")
+        .select("created_at,business_id,rating,status")
+        .eq("status", "approved"),
+      supabase
+        .from("business_interactions")
+        .select("created_at,business_id,business_name,action_type"),
     ]);
 
     if (
@@ -1504,7 +1531,10 @@ function App() {
       publishedBusinessResult.error ||
       hiddenBusinessResult.error ||
       hiddenStaticResult.error ||
-      reviewResult.error
+      reviewResult.error ||
+      likeResult.error ||
+      approvedReviewResult.error ||
+      interactionResult.error
     ) {
       setAdminStatus("error");
       return;
@@ -1517,6 +1547,62 @@ function App() {
     setHiddenBusinesses(hiddenBusinessResult.data ?? []);
     setHiddenStaticItems((hiddenStaticResult.data ?? []).map((item) => item.item_key));
     setPendingReviews(reviewResult.data ?? []);
+
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+
+    const reportsByBusiness = new Map();
+    const ensureReport = (businessId, businessName = businessId) => {
+      if (!reportsByBusiness.has(businessId)) {
+        reportsByBusiness.set(businessId, {
+          businessId,
+          businessName,
+          calls: 0,
+          directions: 0,
+          likes: 0,
+          reviews: 0,
+          ratingTotal: 0,
+          visits: 0,
+        });
+      }
+
+      return reportsByBusiness.get(businessId);
+    };
+
+    [...(publishedBusinessResult.data ?? []), ...initialBusinesses].forEach((business) => {
+      ensureReport(business.id, business.business_name ?? business.name);
+    });
+
+    (likeResult.data ?? [])
+      .filter((like) => new Date(like.created_at) >= monthStart)
+      .forEach((like) => {
+        ensureReport(like.item_key).likes += 1;
+      });
+
+    (approvedReviewResult.data ?? [])
+      .filter((review) => new Date(review.created_at) >= monthStart)
+      .forEach((review) => {
+        const report = ensureReport(review.business_id);
+        report.reviews += 1;
+        report.ratingTotal += Number(review.rating);
+      });
+
+    (interactionResult.data ?? [])
+      .filter((interaction) => new Date(interaction.created_at) >= monthStart)
+      .forEach((interaction) => {
+        const report = ensureReport(interaction.business_id, interaction.business_name);
+        report[interaction.action_type] = (report[interaction.action_type] ?? 0) + 1;
+      });
+
+    setBusinessReports(
+      [...reportsByBusiness.values()]
+        .map((report) => ({
+          ...report,
+          averageRating: report.reviews ? (report.ratingTotal / report.reviews).toFixed(1) : "No reviews",
+        }))
+        .sort((a, b) => b.likes + b.reviews + b.calls + b.directions + b.visits - (a.likes + a.reviews + a.calls + a.directions + a.visits)),
+    );
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
   };
 
@@ -1558,6 +1644,7 @@ function App() {
     setPublishedBusinesses([]);
     setHiddenBusinesses([]);
     setPendingReviews([]);
+    setBusinessReports([]);
     setAdminStatus("");
   };
 
@@ -2621,7 +2708,11 @@ function App() {
 
                 <div className="directory-actions">
                   {business.phone && (
-                    <a className="directory-link" href={`tel:${business.phone.replace(/\D/g, "")}`}>
+                    <a
+                      className="directory-link"
+                      href={`tel:${business.phone.replace(/\D/g, "")}`}
+                      onClick={() => trackBusinessInteraction(business, "calls")}
+                    >
                       Call
                     </a>
                   )}
@@ -2632,13 +2723,20 @@ function App() {
                       href={mapSearchUrl(`${business.name}, ${business.address}`)}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={() => trackBusinessInteraction(business, "directions")}
                     >
                       Directions
                     </a>
                   )}
 
                   {business.social && (
-                    <a className="directory-link" href={visitUrl(business.social)} target="_blank" rel="noreferrer">
+                    <a
+                      className="directory-link"
+                      href={visitUrl(business.social)}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => trackBusinessInteraction(business, "visits")}
+                    >
                       Visit
                     </a>
                   )}
@@ -2847,6 +2945,34 @@ function App() {
                   </div>
                 ) : (
                   <p className="legal-disclaimer">No pending reviews.</p>
+                )}
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-report-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">This month</p>
+                  <h2 id="admin-report-title">Business Report</h2>
+                </div>
+
+                {businessReports.length ? (
+                  <div className="admin-grid">
+                    {businessReports.map((report) => (
+                      <article className="admin-card" key={report.businessId}>
+                        <span className="event-type">Monthly insights</span>
+                        <h3>{report.businessName}</h3>
+                        <div className="report-grid">
+                          <span>Likes <strong>{report.likes}</strong></span>
+                          <span>Reviews <strong>{report.reviews}</strong></span>
+                          <span>Rating <strong>{report.averageRating}</strong></span>
+                          <span>Calls <strong>{report.calls}</strong></span>
+                          <span>Directions <strong>{report.directions}</strong></span>
+                          <span>Visits <strong>{report.visits}</strong></span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No business activity this month yet.</p>
                 )}
               </section>
 

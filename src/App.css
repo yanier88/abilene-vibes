@@ -1327,6 +1327,28 @@
   line-height: 1.35;
 }
 
+.report-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.report-grid span {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(0, 212, 255, 0.28);
+  border-radius: 12px;
+  padding: 10px;
+  color: rgba(255, 255, 255, 0.68);
+  background: rgba(0, 212, 255, 0.08);
+}
+
+.report-grid strong {
+  color: #fff;
+  font-size: 1.2rem;
+}
+
 .business-form-heading {
   text-align: left;
 }
