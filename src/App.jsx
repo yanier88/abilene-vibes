@@ -2713,6 +2713,12 @@ function App() {
           <section className="directory-grid" aria-label="Abilene business directory">
             {directoryBusinesses.map((business) => (
               <article className="directory-card" key={business.id}>
+                <img
+                  className="directory-image"
+                  src={businessImageForCategory(business.category)}
+                  alt=""
+                  loading="lazy"
+                />
                 <span className="event-type">{business.category}</span>
                 {business.plan && business.plan !== "Free" && <span className="plan-badge">{business.plan}</span>}
                 <h2>{business.name}</h2>

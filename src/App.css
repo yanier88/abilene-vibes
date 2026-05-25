@@ -1517,7 +1517,7 @@
 
 .directory-card {
   display: flex;
-  min-height: 210px;
+  min-height: 320px;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
@@ -1533,6 +1533,15 @@
   box-shadow:
     0 0 22px rgba(255, 0, 204, 0.22),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.directory-image {
+  width: calc(100% + clamp(36px, 8vw, 56px));
+  height: 170px;
+  margin: calc(clamp(18px, 4vw, 28px) * -1) calc(clamp(18px, 4vw, 28px) * -1) 2px;
+  object-fit: cover;
+  display: block;
 }
 
 .directory-card h2 {
