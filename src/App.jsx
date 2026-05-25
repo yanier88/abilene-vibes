@@ -1033,6 +1033,7 @@ function App() {
   const [adminPassword, setAdminPassword] = useState("");
   const [adminStatus, setAdminStatus] = useState("");
   const [pendingGalleryPhotos, setPendingGalleryPhotos] = useState([]);
+  const [publishedGalleryPhotos, setPublishedGalleryPhotos] = useState([]);
   const [pendingBusinesses, setPendingBusinesses] = useState([]);
 
   useEffect(() => {
@@ -1119,6 +1120,7 @@ function App() {
         if (!error && data) {
           setApprovedGalleryPhotos(
             data.map((photo) => ({
+              id: photo.id,
               title: photo.title,
               image: photo.image_data,
             })),
@@ -1280,11 +1282,16 @@ function App() {
 
     setAdminStatus("loading");
 
-    const [galleryResult, businessResult] = await Promise.all([
+    const [galleryResult, publishedGalleryResult, businessResult] = await Promise.all([
       supabase
         .from("gallery_submissions")
         .select("id,created_at,contributor_name,title,image_data,status")
         .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("gallery_submissions")
+        .select("id,created_at,contributor_name,title,image_data,status")
+        .eq("status", "approved")
         .order("created_at", { ascending: false }),
       supabase
         .from("business_submissions")
@@ -1293,12 +1300,13 @@ function App() {
         .order("created_at", { ascending: false }),
     ]);
 
-    if (galleryResult.error || businessResult.error) {
+    if (galleryResult.error || publishedGalleryResult.error || businessResult.error) {
       setAdminStatus("error");
       return;
     }
 
     setPendingGalleryPhotos(galleryResult.data ?? []);
+    setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
     setPendingBusinesses(businessResult.data ?? []);
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
   };
@@ -1336,6 +1344,7 @@ function App() {
 
     setAdminSession(null);
     setPendingGalleryPhotos([]);
+    setPublishedGalleryPhotos([]);
     setPendingBusinesses([]);
     setAdminStatus("");
   };
@@ -1353,6 +1362,29 @@ function App() {
       return;
     }
 
+    await loadAdminData();
+  };
+
+  const deleteGalleryPhoto = async (id) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const shouldDelete = window.confirm("Delete this gallery photo from Abilene Vibes?");
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from("gallery_submissions").delete().eq("id", id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setApprovedGalleryPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
     await loadAdminData();
   };
 
@@ -2408,6 +2440,37 @@ function App() {
                   </div>
                 ) : (
                   <p className="legal-disclaimer">No pending businesses.</p>
+                )}
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-published-gallery-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Published</p>
+                  <h2 id="admin-published-gallery-title">Gallery Photos</h2>
+                </div>
+
+                {publishedGalleryPhotos.length ? (
+                  <div className="admin-grid">
+                    {publishedGalleryPhotos.map((photo) => (
+                      <article className="admin-card" key={photo.id}>
+                        <img src={photo.image_data} alt="" />
+                        <span className="event-type">{new Date(photo.created_at).toLocaleDateString()}</span>
+                        <h3>{photo.title}</h3>
+                        <p>By {photo.contributor_name}</p>
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => deleteGalleryPhoto(photo.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No published gallery uploads yet.</p>
                 )}
               </section>
             </>

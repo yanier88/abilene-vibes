@@ -59,7 +59,7 @@ create table if not exists public.gallery_submissions (
 alter table public.gallery_submissions enable row level security;
 
 grant insert, select on public.gallery_submissions to anon;
-grant select, update on public.gallery_submissions to authenticated;
+grant select, update, delete on public.gallery_submissions to authenticated;
 
 drop policy if exists "Allow public gallery submissions" on public.gallery_submissions;
 create policy "Allow public gallery submissions"
