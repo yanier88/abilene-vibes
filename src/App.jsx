@@ -138,11 +138,84 @@ const events = [
 
 const staticEventKey = (event) => `event:${event.title}-${event.date}`;
 
+const eventMonthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const formatEventDate = (value) => {
+  const cleanValue = String(value ?? "").trim();
+  const dateParts = cleanValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+
+  if (!dateParts) {
+    return cleanValue;
+  }
+
+  const monthIndex = Number(dateParts[2]) - 1;
+  const day = Number(dateParts[3]);
+
+  if (!eventMonthNames[monthIndex] || !day) {
+    return cleanValue;
+  }
+
+  return `${eventMonthNames[monthIndex]} ${day}, ${dateParts[1]}`;
+};
+
+const eventDateInputValue = (value) => {
+  const cleanValue = String(value ?? "").trim();
+
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(cleanValue)) {
+    return cleanValue;
+  }
+
+  const displayParts = cleanValue.match(/^([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})$/);
+
+  if (!displayParts) {
+    return cleanValue;
+  }
+
+  const monthIndex = eventMonthNames.findIndex((monthName) => monthName.toLowerCase() === displayParts[1].toLowerCase());
+
+  if (monthIndex === -1) {
+    return cleanValue;
+  }
+
+  return `${displayParts[3]}-${String(monthIndex + 1).padStart(2, "0")}-${String(Number(displayParts[2])).padStart(2, "0")}`;
+};
+
+const formatEventTime = (value) => {
+  const cleanValue = String(value ?? "").trim();
+  const timeParts = cleanValue.match(/^(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?$/i);
+
+  if (!timeParts) {
+    return cleanValue;
+  }
+
+  return `${Number(timeParts[1])}:${timeParts[2] ?? "00"} ${timeParts[3].toUpperCase()}M`;
+};
+
+const formatEventDisplayDate = (date, time) => {
+  const formattedDate = formatEventDate(date);
+  const formattedTime = formatEventTime(time);
+
+  return formattedTime ? `${formattedDate} - ${formattedTime}` : formattedDate;
+};
+
 const eventSubmissionToEvent = (event) => ({
   id: event.id,
   title: event.title,
   place: event.place,
-  date: `${event.event_date}${event.event_time ? ` - ${event.event_time}` : ""}`,
+  date: formatEventDisplayDate(event.event_date, event.event_time),
   type: event.event_type,
   image: event.image_data || event.image_url || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80",
 });
@@ -1509,7 +1582,7 @@ function App() {
       title: formData.get("title").trim(),
       place: formData.get("place").trim(),
       event_date: formData.get("eventDate"),
-      event_time: formData.get("eventTime").trim(),
+      event_time: formatEventTime(formData.get("eventTime")),
       event_type: formData.get("eventType").trim(),
       image_data: imageData,
       status: "approved",
@@ -1936,7 +2009,7 @@ function App() {
         title: title.trim(),
         place: place.trim(),
         event_date: eventDate.trim(),
-        event_time: eventTime.trim(),
+        event_time: formatEventTime(eventTime),
         event_type: eventType.trim(),
       })
       .eq("id", event.id);
@@ -1992,8 +2065,8 @@ function App() {
     const { error: eventError } = await supabase.from("event_submissions").insert({
       title: overrides.title ?? event.title,
       place: overrides.place ?? event.place,
-      event_date: overrides.event_date ?? eventDate,
-      event_time: overrides.event_time ?? eventTime,
+      event_date: eventDateInputValue(overrides.event_date ?? eventDate),
+      event_time: formatEventTime(overrides.event_time ?? eventTime),
       event_type: overrides.event_type ?? event.type,
       image_url: imageData ? "" : event.image,
       image_data: imageData,
@@ -2033,7 +2106,7 @@ function App() {
     const place = window.prompt("Event place", event.place);
     if (place === null) return;
 
-    const eventDate = window.prompt("Event date (YYYY-MM-DD)", defaultDate);
+    const eventDate = window.prompt("Event date (YYYY-MM-DD)", eventDateInputValue(defaultDate));
     if (eventDate === null) return;
 
     const eventTime = window.prompt("Event time", defaultTime);
@@ -2047,7 +2120,7 @@ function App() {
       title: title.trim(),
       place: place.trim(),
       event_date: eventDate.trim(),
-      event_time: eventTime.trim(),
+      event_time: formatEventTime(eventTime),
       event_type: eventType.trim(),
     });
 
@@ -3326,7 +3399,7 @@ function App() {
                         <span className="event-type">{event.event_type}</span>
                         <h3>{event.title}</h3>
                         <p>{event.place}</p>
-                        <p>{event.event_date} - {event.event_time}</p>
+                        <p>{formatEventDisplayDate(event.event_date, event.event_time)}</p>
                         <div className="directory-actions">
                           <button className="directory-link" type="button" onClick={() => editEvent(event)}>
                             Edit
@@ -3367,7 +3440,7 @@ function App() {
                         <span className="event-type">Hidden</span>
                         <h3>{event.title}</h3>
                         <p>{event.place}</p>
-                        <p>{event.event_date} - {event.event_time}</p>
+                        <p>{formatEventDisplayDate(event.event_date, event.event_time)}</p>
                         <div className="directory-actions">
                           <button className="directory-link" type="button" onClick={() => editEvent(event)}>
                             Edit
