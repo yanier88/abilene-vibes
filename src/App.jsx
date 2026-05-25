@@ -1027,6 +1027,7 @@ function App() {
   const [businesses, setBusinesses] = useState(initialBusinesses);
   const [approvedGalleryPhotos, setApprovedGalleryPhotos] = useState([]);
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
+  const [gallerySubmissionError, setGallerySubmissionError] = useState("");
   const [adminSession, setAdminSession] = useState(null);
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -1225,6 +1226,7 @@ function App() {
   const handleGallerySubmit = async (event) => {
     event.preventDefault();
     setGallerySubmissionStatus("saving");
+    setGallerySubmissionError("");
 
     if (!supabase) {
       setGallerySubmissionStatus("missing-config");
@@ -1236,6 +1238,7 @@ function App() {
 
     if (!file || !file.size) {
       setGallerySubmissionStatus("error");
+      setGallerySubmissionError("No photo file was selected.");
       return;
     }
 
@@ -1256,13 +1259,15 @@ function App() {
 
       if (error) {
         setGallerySubmissionStatus("error");
+        setGallerySubmissionError(`${error.code ?? "Upload error"}: ${error.message}`);
         return;
       }
 
       event.currentTarget.reset();
       setGallerySubmissionStatus("saved");
-    } catch {
+    } catch (error) {
       setGallerySubmissionStatus("error");
+      setGallerySubmissionError(error instanceof Error ? error.message : "The image could not be processed.");
     }
   };
 
@@ -1982,6 +1987,12 @@ function App() {
                       : gallerySubmissionStatus === "file-error"
                         ? "Please upload an image under 15 MB."
                         : "Sorry, the photo could not be submitted. Please try again."}
+                  {gallerySubmissionError && (
+                    <>
+                      <br />
+                      {gallerySubmissionError}
+                    </>
+                  )}
                 </p>
               )}
             </form>
