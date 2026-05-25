@@ -428,74 +428,93 @@ const eatsPlaces = [
 
 const galleryShots = [
   {
+    id: "pine-street",
     title: "Pine Street",
     image: appAsset("ded1242b-9c25-4b2b-b16d-5b36ffe01e51.jpg"),
   },
   {
+    id: "condley-downtown",
     title: "Condley Downtown",
     image: appAsset("94190f7b-27db-4b0f-b85e-84b6da72fbf2.jpg"),
   },
   {
+    id: "grain-theory-block-party",
     title: "Grain Theory Block Party",
     image: appAsset("64d46fa8-3f51-4bce-ae95-07f74746d75b.jpg"),
   },
   {
+    id: "texas-pacific-marker",
     title: "Texas & Pacific Marker",
     image: appAsset("77c9ff59-9fba-479d-94f7-14de54433b15.jpg"),
   },
   {
+    id: "downtown-brick-walk",
     title: "Downtown Brick Walk",
     image: appAsset("64dc2bcf-e858-42d9-a881-12d069e4b919.jpg"),
   },
   {
+    id: "paramount-marquee",
     title: "Paramount Marquee",
     image: appAsset("1fd1ea2a-acb5-47b2-81dc-6e9fd898f418.jpg"),
   },
   {
+    id: "grain-theory-patio",
     title: "Grain Theory Patio",
     image: appAsset("522c6f5e-6918-4dd3-8874-3eaaa75430a2.jpg"),
   },
   {
+    id: "grain-theory-corner",
     title: "Grain Theory Corner",
     image: appAsset("9e98df0d-dc19-429c-8205-675ba9cff023.jpg"),
   },
   {
+    id: "downtown-abilene",
     title: "Downtown Abilene",
     image: appAsset("227005f7-a560-45d7-bea9-557e2cee61f3.jpg"),
   },
   {
+    id: "cypress-street",
     title: "Cypress Street",
     image: appAsset("95547aea-c652-48bc-bff2-3f9f645236e3.jpg"),
   },
   {
+    id: "abilene-mural",
     title: "Abilene Mural",
     image: appAsset("553b9d8e-d087-4267-a0dc-d475fd25f231.jpg"),
   },
   {
+    id: "the-grace",
     title: "The Grace",
     image: appAsset("45cbacf8-d03a-4d23-ba5d-0f59509c79c6.jpg"),
   },
   {
+    id: "abilene-banner",
     title: "Abilene Banner",
     image: appAsset("bd916012-2fb5-4dd1-b854-77a3b801bcd4.jpg"),
   },
   {
+    id: "downtown-nights",
     title: "Downtown Nights",
     image: appAsset("nightlife-station.jpg"),
   },
   {
+    id: "paramount-theatre",
     title: "Paramount Theatre",
     image: appAsset("nightlife-paramount.jpg"),
   },
   {
+    id: "movie-night",
     title: "Movie Night",
     image: appAsset("nightlife-cinemark.jpg"),
   },
   {
+    id: "cocktail-hour",
     title: "Cocktail Hour",
     image: appAsset("nightlife-suite.jpg"),
   },
 ];
+
+const staticGalleryKey = (photo) => `gallery:${photo.id}`;
 
 const promoteCategories = [
   { label: "Food trucks", icon: "foodTruck" },
@@ -2101,11 +2120,53 @@ function App() {
     await loadAdminData();
   };
 
+  const hideStaticGalleryPhoto = async (photo) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const itemKey = staticGalleryKey(photo);
+    const { error } = await supabase.from("hidden_static_items").insert({
+      item_key: itemKey,
+      item_type: "gallery",
+      title: photo.title,
+    });
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
+    await loadAdminData();
+  };
+
+  const restoreStaticGalleryPhoto = async (photo) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const itemKey = staticGalleryKey(photo);
+    const { error } = await supabase.from("hidden_static_items").delete().eq("item_key", itemKey);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
+    await loadAdminData();
+  };
+
   const hiddenStaticItemSet = new Set(hiddenStaticItems);
   const visibleInitialBusinesses = initialBusinesses.filter((business) => !hiddenStaticItemSet.has(`business:${business.id}`));
   const hiddenInitialBusinesses = initialBusinesses.filter((business) => hiddenStaticItemSet.has(`business:${business.id}`));
   const visibleStaticEvents = events.filter((event) => !hiddenStaticItemSet.has(staticEventKey(event)));
   const hiddenStaticEvents = events.filter((event) => hiddenStaticItemSet.has(staticEventKey(event)));
+  const visibleStaticGalleryPhotos = galleryShots.filter((photo) => !hiddenStaticItemSet.has(staticGalleryKey(photo)));
+  const hiddenStaticGalleryPhotos = galleryShots.filter((photo) => hiddenStaticItemSet.has(staticGalleryKey(photo)));
   const allEvents = [...approvedEvents, ...visibleStaticEvents];
   const allBusinesses = [...businesses, ...visibleInitialBusinesses];
   const paidBusinesses = [...allBusinesses]
@@ -2141,7 +2202,7 @@ function App() {
   const directoryBusinesses = [...allBusinesses].sort(
     (a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99),
   );
-  const galleryPhotos = [...approvedGalleryPhotos, ...galleryShots];
+  const galleryPhotos = [...approvedGalleryPhotos, ...visibleStaticGalleryPhotos];
   const likeCountFor = (itemType, itemKey) => likeCounts[`${itemType}:${itemKey}`] ?? 0;
   const isLiked = (itemType, itemKey) => likedItems.includes(`${itemType}:${itemKey}`);
   const reviewStatusText = {
@@ -3547,6 +3608,44 @@ function App() {
                   </div>
                 ) : (
                   <p className="legal-disclaimer">No published gallery uploads yet.</p>
+                )}
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-starter-gallery-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Built in</p>
+                  <h2 id="admin-starter-gallery-title">Starter Gallery Photos</h2>
+                </div>
+
+                {visibleStaticGalleryPhotos.length || hiddenStaticGalleryPhotos.length ? (
+                  <div className="admin-grid">
+                    {visibleStaticGalleryPhotos.map((photo) => (
+                      <article className="admin-card" key={photo.id}>
+                        <img src={photo.image} alt="" />
+                        <span className="event-type">Visible</span>
+                        <h3>{photo.title}</h3>
+                        <div className="directory-actions">
+                          <button className="directory-link" type="button" onClick={() => hideStaticGalleryPhoto(photo)}>
+                            Hide
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                    {hiddenStaticGalleryPhotos.map((photo) => (
+                      <article className="admin-card" key={photo.id}>
+                        <img src={photo.image} alt="" />
+                        <span className="event-type">Hidden</span>
+                        <h3>{photo.title}</h3>
+                        <div className="directory-actions">
+                          <button className="directory-link" type="button" onClick={() => restoreStaticGalleryPhoto(photo)}>
+                            Restore
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No starter gallery photos.</p>
                 )}
               </section>
 
