@@ -1171,7 +1171,8 @@ function App() {
 
   const handleBusinessSubmit = async (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const business = {
       id: `${Date.now()}-${formData.get("businessName")}`,
       name: formData.get("businessName").trim(),
@@ -1220,11 +1221,12 @@ function App() {
       window.open(paymentLink, "_blank", "noopener,noreferrer");
     }
 
-    event.currentTarget.reset();
+    form.reset();
   };
 
   const handleGallerySubmit = async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     setGallerySubmissionStatus("saving");
     setGallerySubmissionError("");
 
@@ -1233,7 +1235,7 @@ function App() {
       return;
     }
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(form);
     const file = formData.get("photo");
 
     if (!file || !file.size) {
@@ -1263,7 +1265,7 @@ function App() {
         return;
       }
 
-      event.currentTarget.reset();
+      form.reset();
       setGallerySubmissionStatus("saved");
     } catch (error) {
       setGallerySubmissionStatus("error");
