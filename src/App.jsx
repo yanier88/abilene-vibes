@@ -1042,6 +1042,21 @@ function App() {
   const [submissionStatus, setSubmissionStatus] = useState("");
   const [businesses, setBusinesses] = useState([]);
   const [hiddenStaticItems, setHiddenStaticItems] = useState([]);
+  const [visitorKey] = useState(() => {
+    const storageKey = "abilene-vibes-visitor";
+    let storedVisitorKey = window.localStorage.getItem(storageKey);
+
+    if (!storedVisitorKey) {
+      storedVisitorKey = crypto.randomUUID();
+      window.localStorage.setItem(storageKey, storedVisitorKey);
+    }
+
+    return storedVisitorKey;
+  });
+  const [likeCounts, setLikeCounts] = useState({});
+  const [likedItems, setLikedItems] = useState([]);
+  const [approvedReviews, setApprovedReviews] = useState({});
+  const [reviewSubmissionStatus, setReviewSubmissionStatus] = useState({});
   const [approvedGalleryPhotos, setApprovedGalleryPhotos] = useState([]);
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
   const [gallerySubmissionError, setGallerySubmissionError] = useState("");
@@ -1054,6 +1069,7 @@ function App() {
   const [pendingBusinesses, setPendingBusinesses] = useState([]);
   const [publishedBusinesses, setPublishedBusinesses] = useState([]);
   const [hiddenBusinesses, setHiddenBusinesses] = useState([]);
+  const [pendingReviews, setPendingReviews] = useState([]);
   const adminShortcutRef = useRef({ count: 0, timer: null });
 
   useEffect(() => {
@@ -1109,6 +1125,52 @@ function App() {
         setWeather({ temp: 72, isDay: false, label: "Abilene, TX" });
       });
   }, []);
+
+  useEffect(() => {
+    if (!supabase || !visitorKey) {
+      return;
+    }
+
+    supabase
+      .from("public_likes")
+      .select("item_type,item_key,visitor_key")
+      .then(({ data, error }) => {
+        if (error || !data) {
+          return;
+        }
+
+        const nextLikeCounts = data.reduce((counts, like) => {
+          const key = `${like.item_type}:${like.item_key}`;
+          counts[key] = (counts[key] ?? 0) + 1;
+          return counts;
+        }, {});
+
+        setLikeCounts(nextLikeCounts);
+        setLikedItems(
+          data
+            .filter((like) => like.visitor_key === visitorKey)
+            .map((like) => `${like.item_type}:${like.item_key}`),
+        );
+      });
+
+    supabase
+      .from("business_reviews")
+      .select("id,created_at,business_id,business_name,reviewer_name,rating,comment")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error || !data) {
+          return;
+        }
+
+        const nextReviews = data.reduce((groups, review) => {
+          groups[review.business_id] = [...(groups[review.business_id] ?? []), review];
+          return groups;
+        }, {});
+
+        setApprovedReviews(nextReviews);
+      });
+  }, [visitorKey]);
 
   useEffect(() => {
     if (!supabase) {
@@ -1319,6 +1381,70 @@ function App() {
     }
   };
 
+  const handleLike = async (itemType, itemKey) => {
+    if (!supabase || !visitorKey) {
+      return;
+    }
+
+    const likeKey = `${itemType}:${itemKey}`;
+
+    if (likedItems.includes(likeKey)) {
+      return;
+    }
+
+    setLikedItems((currentItems) => [...currentItems, likeKey]);
+    setLikeCounts((currentCounts) => ({
+      ...currentCounts,
+      [likeKey]: (currentCounts[likeKey] ?? 0) + 1,
+    }));
+
+    const { error } = await supabase.from("public_likes").insert({
+      item_type: itemType,
+      item_key: itemKey,
+      visitor_key: visitorKey,
+    });
+
+    if (error) {
+      setLikedItems((currentItems) => currentItems.filter((item) => item !== likeKey));
+      setLikeCounts((currentCounts) => ({
+        ...currentCounts,
+        [likeKey]: Math.max((currentCounts[likeKey] ?? 1) - 1, 0),
+      }));
+    }
+  };
+
+  const handleReviewSubmit = async (event, business) => {
+    event.preventDefault();
+
+    if (!supabase) {
+      setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "missing-config" }));
+      return;
+    }
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const rating = Number(formData.get("rating"));
+
+    setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "saving" }));
+
+    const { error } = await supabase.from("business_reviews").insert({
+      business_id: business.id,
+      business_name: business.name,
+      reviewer_name: formData.get("reviewerName").trim(),
+      rating,
+      comment: formData.get("comment").trim(),
+      status: "pending",
+    });
+
+    if (error) {
+      setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "error" }));
+      return;
+    }
+
+    form.reset();
+    setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "saved" }));
+  };
+
   const loadAdminData = async (sessionOverride = adminSession, showRefreshSuccess = false) => {
     if (!supabase || !sessionOverride) {
       return;
@@ -1333,6 +1459,7 @@ function App() {
       publishedBusinessResult,
       hiddenBusinessResult,
       hiddenStaticResult,
+      reviewResult,
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
@@ -1363,6 +1490,11 @@ function App() {
         .from("hidden_static_items")
         .select("item_key,item_type,title")
         .order("created_at", { ascending: false }),
+      supabase
+        .from("business_reviews")
+        .select("id,created_at,business_id,business_name,reviewer_name,rating,comment,status")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
     ]);
 
     if (
@@ -1371,7 +1503,8 @@ function App() {
       businessResult.error ||
       publishedBusinessResult.error ||
       hiddenBusinessResult.error ||
-      hiddenStaticResult.error
+      hiddenStaticResult.error ||
+      reviewResult.error
     ) {
       setAdminStatus("error");
       return;
@@ -1383,6 +1516,7 @@ function App() {
     setPublishedBusinesses(publishedBusinessResult.data ?? []);
     setHiddenBusinesses(hiddenBusinessResult.data ?? []);
     setHiddenStaticItems((hiddenStaticResult.data ?? []).map((item) => item.item_key));
+    setPendingReviews(reviewResult.data ?? []);
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
   };
 
@@ -1423,6 +1557,7 @@ function App() {
     setPendingBusinesses([]);
     setPublishedBusinesses([]);
     setHiddenBusinesses([]);
+    setPendingReviews([]);
     setAdminStatus("");
   };
 
@@ -1583,6 +1718,71 @@ function App() {
     (a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99),
   );
   const galleryPhotos = [...approvedGalleryPhotos, ...galleryShots];
+  const likeCountFor = (itemType, itemKey) => likeCounts[`${itemType}:${itemKey}`] ?? 0;
+  const isLiked = (itemType, itemKey) => likedItems.includes(`${itemType}:${itemKey}`);
+  const reviewStatusText = {
+    error: "Sorry, the review could not be sent.",
+    "missing-config": "Reviews are not connected yet.",
+    saved: "Thanks. Your review was sent for approval.",
+    saving: "Sending review...",
+  };
+
+  const renderLikeButton = (itemType, itemKey) => (
+    <button
+      className={`like-button${isLiked(itemType, itemKey) ? " is-liked" : ""}`}
+      type="button"
+      onClick={() => handleLike(itemType, itemKey)}
+      disabled={isLiked(itemType, itemKey)}
+    >
+      {isLiked(itemType, itemKey) ? "Liked" : "Like"} · {likeCountFor(itemType, itemKey)}
+    </button>
+  );
+
+  const renderBusinessReviews = (business) => {
+    const reviews = approvedReviews[business.id] ?? [];
+    const reviewStatus = reviewSubmissionStatus[business.id];
+    const averageRating = reviews.length
+      ? (reviews.reduce((total, review) => total + Number(review.rating), 0) / reviews.length).toFixed(1)
+      : null;
+
+    return (
+      <div className="review-panel">
+        <div className="review-summary">
+          <strong>{averageRating ? `${averageRating} stars` : "No reviews yet"}</strong>
+          <span>{reviews.length} review{reviews.length === 1 ? "" : "s"}</span>
+        </div>
+
+        {reviews.slice(0, 2).map((review) => (
+          <blockquote className="review-card" key={review.id}>
+            <strong>{review.rating} stars · {review.reviewer_name}</strong>
+            <p>{review.comment}</p>
+          </blockquote>
+        ))}
+
+        <form className="review-form" onSubmit={(event) => handleReviewSubmit(event, business)}>
+          <div className="review-form-row">
+            <input name="reviewerName" type="text" placeholder="Your name" required />
+            <select name="rating" defaultValue="5" required>
+              <option value="5">5 stars</option>
+              <option value="4">4 stars</option>
+              <option value="3">3 stars</option>
+              <option value="2">2 stars</option>
+              <option value="1">1 star</option>
+            </select>
+          </div>
+          <textarea name="comment" placeholder="Write a short review" rows="3" required />
+          <button className="directory-link" type="submit" disabled={reviewStatus === "saving"}>
+            {reviewStatus === "saving" ? "Sending..." : "Submit Review"}
+          </button>
+          {reviewStatus && (
+            <p className={reviewStatus === "saved" ? "form-success compact-status" : "form-error compact-status"}>
+              {reviewStatusText[reviewStatus]}
+            </p>
+          )}
+        </form>
+      </div>
+    );
+  };
 
   const splashOverlay = isStarting && (
     <div className="splash-page" aria-label="Opening Abilene Vibes">
@@ -2194,12 +2394,17 @@ function App() {
           </section>
 
           <section className="gallery-grid" aria-label="Abilene Vibes gallery">
-            {galleryPhotos.map((shot, index) => (
-              <figure className="gallery-card" key={`${shot.title}-${index}`}>
-                <img src={shot.image} alt="" loading="lazy" />
-                <figcaption>{shot.title}</figcaption>
-              </figure>
-            ))}
+            {galleryPhotos.map((shot, index) => {
+              const photoKey = shot.id ?? `static-${index}-${shot.title}`;
+
+              return (
+                <figure className="gallery-card" key={`${shot.title}-${index}`}>
+                  <img src={shot.image} alt="" loading="lazy" />
+                  <figcaption>{shot.title}</figcaption>
+                  {renderLikeButton("photo", photoKey)}
+                </figure>
+              );
+            })}
           </section>
         </div>
       </main>,
@@ -2438,6 +2643,9 @@ function App() {
                     </a>
                   )}
                 </div>
+
+                {renderLikeButton("business", business.id)}
+                {renderBusinessReviews(business)}
               </article>
             ))}
           </section>
@@ -2601,6 +2809,44 @@ function App() {
                   </div>
                 ) : (
                   <p className="legal-disclaimer">No pending businesses.</p>
+                )}
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-review-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Pending</p>
+                  <h2 id="admin-review-title">Reviews</h2>
+                </div>
+
+                {pendingReviews.length ? (
+                  <div className="admin-grid">
+                    {pendingReviews.map((review) => (
+                      <article className="admin-card" key={review.id}>
+                        <span className="event-type">{review.rating} stars</span>
+                        <h3>{review.business_name}</h3>
+                        <p>By {review.reviewer_name}</p>
+                        <p>{review.comment}</p>
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => moderateItem("business_reviews", review.id, "approved")}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => moderateItem("business_reviews", review.id, "rejected")}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No pending reviews.</p>
                 )}
               </section>
 

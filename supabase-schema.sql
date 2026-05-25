@@ -112,3 +112,87 @@ for all
 to authenticated
 using (true)
 with check (true);
+
+create table if not exists public.public_likes (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  item_type text not null,
+  item_key text not null,
+  visitor_key text not null,
+  unique (item_type, item_key, visitor_key)
+);
+
+alter table public.public_likes enable row level security;
+
+grant select, insert on public.public_likes to anon;
+grant select, insert, delete on public.public_likes to authenticated;
+
+drop policy if exists "Allow public like reads" on public.public_likes;
+create policy "Allow public like reads"
+on public.public_likes
+for select
+to anon
+using (true);
+
+drop policy if exists "Allow public likes" on public.public_likes;
+create policy "Allow public likes"
+on public.public_likes
+for insert
+to anon
+with check (
+  item_type in ('business', 'photo')
+  and length(item_key) > 0
+  and length(visitor_key) > 0
+);
+
+drop policy if exists "Allow authenticated like management" on public.public_likes;
+create policy "Allow authenticated like management"
+on public.public_likes
+for all
+to authenticated
+using (true)
+with check (true);
+
+create table if not exists public.business_reviews (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  business_id text not null,
+  business_name text not null,
+  reviewer_name text not null,
+  rating integer not null check (rating between 1 and 5),
+  comment text not null,
+  status text not null default 'pending'
+);
+
+alter table public.business_reviews enable row level security;
+
+grant insert, select on public.business_reviews to anon;
+grant select, update, delete on public.business_reviews to authenticated;
+
+drop policy if exists "Allow public review submissions" on public.business_reviews;
+create policy "Allow public review submissions"
+on public.business_reviews
+for insert
+to anon
+with check (
+  status = 'pending'
+  and rating between 1 and 5
+  and length(business_id) > 0
+  and length(reviewer_name) > 0
+  and length(comment) > 0
+);
+
+drop policy if exists "Allow public approved review reads" on public.business_reviews;
+create policy "Allow public approved review reads"
+on public.business_reviews
+for select
+to anon
+using (status = 'approved');
+
+drop policy if exists "Allow authenticated review moderation" on public.business_reviews;
+create policy "Allow authenticated review moderation"
+on public.business_reviews
+for all
+to authenticated
+using (true)
+with check (true);
