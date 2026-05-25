@@ -1446,16 +1446,28 @@ function App() {
     setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "saved" }));
   };
 
-  const trackBusinessInteraction = (business, actionType) => {
+  const trackBusinessInteraction = async (business, actionType) => {
     if (!supabase) {
       return;
     }
 
-    supabase.from("business_interactions").insert({
+    await supabase.from("business_interactions").insert({
       business_id: business.id,
       business_name: business.name,
       action_type: actionType,
     });
+  };
+
+  const openTrackedBusinessLink = async (event, business, actionType, url, target = "_self") => {
+    event.preventDefault();
+    await trackBusinessInteraction(business, actionType);
+
+    if (target === "_blank") {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    window.location.assign(url);
   };
 
   const loadAdminData = async (sessionOverride = adminSession, showRefreshSuccess = false) => {
@@ -2711,7 +2723,9 @@ function App() {
                     <a
                       className="directory-link"
                       href={`tel:${business.phone.replace(/\D/g, "")}`}
-                      onClick={() => trackBusinessInteraction(business, "calls")}
+                      onClick={(event) =>
+                        openTrackedBusinessLink(event, business, "calls", `tel:${business.phone.replace(/\D/g, "")}`)
+                      }
                     >
                       Call
                     </a>
@@ -2723,7 +2737,15 @@ function App() {
                       href={mapSearchUrl(`${business.name}, ${business.address}`)}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={() => trackBusinessInteraction(business, "directions")}
+                      onClick={(event) =>
+                        openTrackedBusinessLink(
+                          event,
+                          business,
+                          "directions",
+                          mapSearchUrl(`${business.name}, ${business.address}`),
+                          "_blank",
+                        )
+                      }
                     >
                       Directions
                     </a>
@@ -2735,7 +2757,9 @@ function App() {
                       href={visitUrl(business.social)}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={() => trackBusinessInteraction(business, "visits")}
+                      onClick={(event) =>
+                        openTrackedBusinessLink(event, business, "visits", visitUrl(business.social), "_blank")
+                      }
                     >
                       Visit
                     </a>
