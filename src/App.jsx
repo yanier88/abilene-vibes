@@ -1512,7 +1512,7 @@ function App() {
 
     setAdminStatus("saving");
     const itemKey = `business:${business.id}`;
-    const { error } = await supabase.from("hidden_static_items").upsert({
+    const { error } = await supabase.from("hidden_static_items").insert({
       item_key: itemKey,
       item_type: "business",
       title: business.name,

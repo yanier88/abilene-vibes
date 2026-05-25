@@ -96,7 +96,7 @@ create table if not exists public.hidden_static_items (
 alter table public.hidden_static_items enable row level security;
 
 grant select on public.hidden_static_items to anon;
-grant select, insert, delete on public.hidden_static_items to authenticated;
+grant select, insert, update, delete on public.hidden_static_items to authenticated;
 
 drop policy if exists "Allow public hidden static reads" on public.hidden_static_items;
 create policy "Allow public hidden static reads"
