@@ -1183,7 +1183,7 @@ function App() {
 
     adminShortcutRef.current.count += 1;
 
-    if (adminShortcutRef.current.count >= 5) {
+    if (adminShortcutRef.current.count >= 10) {
       adminShortcutRef.current.count = 0;
       navigateTo("admin");
       return;
