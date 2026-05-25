@@ -81,8 +81,13 @@ const validPages = new Set([
 
 const pageFromLocation = () => {
   const hashPage = window.location.hash.replace("#", "").split("/")[0];
+  const queryPage = new URLSearchParams(window.location.search).get("page");
 
-  return validPages.has(hashPage) ? hashPage : "home";
+  if (validPages.has(hashPage)) {
+    return hashPage;
+  }
+
+  return validPages.has(queryPage) ? queryPage : "home";
 };
 
 const urlForPage = (nextPage) => {
