@@ -1562,6 +1562,18 @@
   gap: 10px;
 }
 
+.file-action {
+  cursor: pointer;
+}
+
+.file-action input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .like-button {
   min-height: 38px;
   border: 1px solid rgba(0, 212, 255, 0.55);

@@ -1930,6 +1930,39 @@ function App() {
     await loadAdminData();
   };
 
+  const changeEventPhoto = async (eventId, file) => {
+    if (!supabase || !adminSession || !file || !file.size) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/") || file.size > 15 * 1024 * 1024) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setAdminStatus("saving");
+
+    try {
+      const imageData = await optimizeGalleryImage(file);
+      const { error } = await supabase
+        .from("event_submissions")
+        .update({
+          image_data: imageData,
+          image_url: "",
+        })
+        .eq("id", eventId);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      await loadAdminData();
+    } catch {
+      setAdminStatus("error");
+    }
+  };
+
   const hideStaticEvent = async (event) => {
     if (!supabase || !adminSession) {
       return;
@@ -3139,6 +3172,17 @@ function App() {
                           <button className="directory-link" type="button" onClick={() => editEvent(event)}>
                             Edit
                           </button>
+                          <label className="directory-link file-action">
+                            Change Photo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(inputEvent) => {
+                                changeEventPhoto(event.id, inputEvent.target.files?.[0]);
+                                inputEvent.target.value = "";
+                              }}
+                            />
+                          </label>
                           <button className="directory-link" type="button" onClick={() => unpublishEvent(event.id)}>
                             Hide
                           </button>
@@ -3169,6 +3213,17 @@ function App() {
                           <button className="directory-link" type="button" onClick={() => editEvent(event)}>
                             Edit
                           </button>
+                          <label className="directory-link file-action">
+                            Change Photo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(inputEvent) => {
+                                changeEventPhoto(event.id, inputEvent.target.files?.[0]);
+                                inputEvent.target.value = "";
+                              }}
+                            />
+                          </label>
                           <button className="directory-link" type="button" onClick={() => restoreEvent(event.id)}>
                             Restore
                           </button>
