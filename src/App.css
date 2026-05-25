@@ -413,8 +413,11 @@
   justify-content: center;
   width: 25.5%;
   min-height: 6.1%;
+  padding: 0;
   border-radius: 20px;
   border-color: rgba(255, 0, 204, 0.66);
+  cursor: pointer;
+  font: inherit;
 }
 
 .lobby-title-badge span {

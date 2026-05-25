@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import "./App.css";
 
@@ -1041,6 +1041,7 @@ function App() {
   const [publishedGalleryPhotos, setPublishedGalleryPhotos] = useState([]);
   const [pendingBusinesses, setPendingBusinesses] = useState([]);
   const [publishedBusinesses, setPublishedBusinesses] = useState([]);
+  const adminShortcutRef = useRef({ count: 0, timer: null });
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -1050,6 +1051,12 @@ function App() {
     return () => {
       window.clearTimeout(splashTimer);
     };
+  }, []);
+
+  useEffect(() => () => {
+    if (adminShortcutRef.current.timer) {
+      window.clearTimeout(adminShortcutRef.current.timer);
+    }
   }, []);
 
   useEffect(() => {
@@ -1167,6 +1174,24 @@ function App() {
 
   const backToLobby = () => {
     navigateTo("lobby", { replace: true });
+  };
+
+  const openAdminShortcut = () => {
+    if (adminShortcutRef.current.timer) {
+      window.clearTimeout(adminShortcutRef.current.timer);
+    }
+
+    adminShortcutRef.current.count += 1;
+
+    if (adminShortcutRef.current.count >= 5) {
+      adminShortcutRef.current.count = 0;
+      navigateTo("admin");
+      return;
+    }
+
+    adminShortcutRef.current.timer = window.setTimeout(() => {
+      adminShortcutRef.current.count = 0;
+    }, 1800);
   };
 
   const handleRequiredInvalid = (event) => {
@@ -1483,9 +1508,9 @@ function App() {
           style={{ "--lobby-bg": `url("${appAsset("lobby-bg.png")}")` }}
           aria-label="Abilene Vibes lobby"
         >
-          <div className="lobby-title-badge" aria-label="Lobby">
+          <button className="lobby-title-badge" type="button" onClick={openAdminShortcut} aria-label="Lobby">
             <span>Lobby</span>
-          </div>
+          </button>
 
           <button className="weather-widget" type="button" aria-label={`Weather in ${weather.label}`}>
             <span className="weather-icon">{weather.isDay ? "☀" : "☾"}</span>
