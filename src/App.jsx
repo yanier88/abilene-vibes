@@ -136,6 +136,17 @@ const events = [
   },
 ];
 
+const staticEventKey = (event) => `event:${event.title}-${event.date}`;
+
+const eventSubmissionToEvent = (event) => ({
+  id: event.id,
+  title: event.title,
+  place: event.place,
+  date: `${event.event_date}${event.event_time ? ` - ${event.event_time}` : ""}`,
+  type: event.event_type,
+  image: event.image_url || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80",
+});
+
 const calendarDays = [
   {
     day: "Sat",
@@ -1057,6 +1068,8 @@ function App() {
   const [likedItems, setLikedItems] = useState([]);
   const [approvedReviews, setApprovedReviews] = useState({});
   const [reviewSubmissionStatus, setReviewSubmissionStatus] = useState({});
+  const [approvedEvents, setApprovedEvents] = useState([]);
+  const [eventSubmissionStatus, setEventSubmissionStatus] = useState("");
   const [approvedGalleryPhotos, setApprovedGalleryPhotos] = useState([]);
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
   const [gallerySubmissionError, setGallerySubmissionError] = useState("");
@@ -1070,6 +1083,8 @@ function App() {
   const [publishedBusinesses, setPublishedBusinesses] = useState([]);
   const [hiddenBusinesses, setHiddenBusinesses] = useState([]);
   const [pendingReviews, setPendingReviews] = useState([]);
+  const [publishedEvents, setPublishedEvents] = useState([]);
+  const [hiddenEvents, setHiddenEvents] = useState([]);
   const [businessReports, setBusinessReports] = useState([]);
   const adminShortcutRef = useRef({ count: 0, timer: null });
 
@@ -1170,6 +1185,17 @@ function App() {
         }, {});
 
         setApprovedReviews(nextReviews);
+      });
+
+    supabase
+      .from("event_submissions")
+      .select("id,title,place,event_date,event_time,event_type,image_url,status")
+      .eq("status", "approved")
+      .order("event_date", { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setApprovedEvents(data.map(eventSubmissionToEvent));
+        }
       });
   }, [visitorKey]);
 
@@ -1446,6 +1472,38 @@ function App() {
     setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "saved" }));
   };
 
+  const handleEventSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!supabase || !adminSession) {
+      setEventSubmissionStatus("missing-config");
+      return;
+    }
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    setEventSubmissionStatus("saving");
+
+    const { error } = await supabase.from("event_submissions").insert({
+      title: formData.get("title").trim(),
+      place: formData.get("place").trim(),
+      event_date: formData.get("eventDate"),
+      event_time: formData.get("eventTime").trim(),
+      event_type: formData.get("eventType").trim(),
+      image_url: formData.get("imageUrl").trim(),
+      status: "approved",
+    });
+
+    if (error) {
+      setEventSubmissionStatus("error");
+      return;
+    }
+
+    form.reset();
+    setEventSubmissionStatus("saved");
+    await loadAdminData(adminSession);
+  };
+
   const trackBusinessInteraction = async (business, actionType) => {
     if (!supabase) {
       return;
@@ -1488,6 +1546,8 @@ function App() {
       likeResult,
       approvedReviewResult,
       interactionResult,
+      publishedEventResult,
+      hiddenEventResult,
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
@@ -1534,6 +1594,16 @@ function App() {
       supabase
         .from("business_interactions")
         .select("created_at,business_id,business_name,action_type"),
+      supabase
+        .from("event_submissions")
+        .select("id,created_at,title,place,event_date,event_time,event_type,image_url,status")
+        .eq("status", "approved")
+        .order("event_date", { ascending: true }),
+      supabase
+        .from("event_submissions")
+        .select("id,created_at,title,place,event_date,event_time,event_type,image_url,status")
+        .eq("status", "hidden")
+        .order("event_date", { ascending: true }),
     ]);
 
     if (
@@ -1546,7 +1616,9 @@ function App() {
       reviewResult.error ||
       likeResult.error ||
       approvedReviewResult.error ||
-      interactionResult.error
+      interactionResult.error ||
+      publishedEventResult.error ||
+      hiddenEventResult.error
     ) {
       setAdminStatus("error");
       return;
@@ -1559,6 +1631,9 @@ function App() {
     setHiddenBusinesses(hiddenBusinessResult.data ?? []);
     setHiddenStaticItems((hiddenStaticResult.data ?? []).map((item) => item.item_key));
     setPendingReviews(reviewResult.data ?? []);
+    setPublishedEvents(publishedEventResult.data ?? []);
+    setHiddenEvents(hiddenEventResult.data ?? []);
+    setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
 
     const monthStart = new Date();
     monthStart.setDate(1);
@@ -1656,6 +1731,8 @@ function App() {
     setPublishedBusinesses([]);
     setHiddenBusinesses([]);
     setPendingReviews([]);
+    setPublishedEvents([]);
+    setHiddenEvents([]);
     setBusinessReports([]);
     setAdminStatus("");
   };
@@ -1779,15 +1856,90 @@ function App() {
     await loadAdminData();
   };
 
+  const unpublishEvent = async (id) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from("event_submissions").update({ status: "hidden" }).eq("id", id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    await loadAdminData();
+  };
+
+  const restoreEvent = async (id) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from("event_submissions").update({ status: "approved" }).eq("id", id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    await loadAdminData();
+  };
+
+  const hideStaticEvent = async (event) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const itemKey = staticEventKey(event);
+    const { error } = await supabase.from("hidden_static_items").insert({
+      item_key: itemKey,
+      item_type: "event",
+      title: event.title,
+    });
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
+    await loadAdminData();
+  };
+
+  const restoreStaticEvent = async (event) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const itemKey = staticEventKey(event);
+    const { error } = await supabase.from("hidden_static_items").delete().eq("item_key", itemKey);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
+    await loadAdminData();
+  };
+
   const hiddenStaticItemSet = new Set(hiddenStaticItems);
   const visibleInitialBusinesses = initialBusinesses.filter((business) => !hiddenStaticItemSet.has(`business:${business.id}`));
   const hiddenInitialBusinesses = initialBusinesses.filter((business) => hiddenStaticItemSet.has(`business:${business.id}`));
+  const visibleStaticEvents = events.filter((event) => !hiddenStaticItemSet.has(staticEventKey(event)));
+  const hiddenStaticEvents = events.filter((event) => hiddenStaticItemSet.has(staticEventKey(event)));
+  const allEvents = [...approvedEvents, ...visibleStaticEvents];
   const allBusinesses = [...businesses, ...visibleInitialBusinesses];
   const paidBusinesses = [...allBusinesses]
     .filter((business) => business.plan && business.plan !== "Free")
     .sort((a, b) => (planRank[a.plan] ?? 99) - (planRank[b.plan] ?? 99));
   const spotlightBusiness = paidBusinesses.find((business) => business.plan === "Premium") ?? paidBusinesses[0];
-  const spotlightEvent = events[0];
+  const spotlightEvent = allEvents[0] ?? events[0];
   const [spotlightEventDate, spotlightEventTime = ""] = spotlightEvent.date.split(" - ");
   const openUpcomingHighlight = () => {
     if (!spotlightBusiness) {
@@ -2013,8 +2165,8 @@ function App() {
           </section>
 
           <section className="event-list" aria-label="Featured Abilene events">
-            {events.map((event) => (
-              <article className="event-card" key={`${event.title}-${event.date}`}>
+            {allEvents.map((event) => (
+              <article className="event-card" key={event.id ?? `${event.title}-${event.date}`}>
                 <img className="event-image" src={event.image} alt="" loading="lazy" />
 
                 <div className="event-copy">
@@ -2858,6 +3010,137 @@ function App() {
               {adminStatus === "loading" && <p className="form-success">Refreshing admin data...</p>}
               {adminStatus === "refreshed" && <p className="form-success">Admin data updated.</p>}
               {adminStatus === "saving" && <p className="form-success">Saving...</p>}
+
+              <section className="admin-section" aria-labelledby="admin-event-form-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Events</p>
+                  <h2 id="admin-event-form-title">Add Event</h2>
+                </div>
+
+                <form className="gallery-form" onSubmit={handleEventSubmit}>
+                  <div className="form-grid">
+                    <label className="form-field">
+                      <span>Title</span>
+                      <input name="title" type="text" placeholder="Live music, market, party..." required />
+                    </label>
+                    <label className="form-field">
+                      <span>Place</span>
+                      <input name="place" type="text" placeholder="Venue or area" required />
+                    </label>
+                    <label className="form-field">
+                      <span>Date</span>
+                      <input name="eventDate" type="date" required />
+                    </label>
+                    <label className="form-field">
+                      <span>Time</span>
+                      <input name="eventTime" type="text" placeholder="8:00 PM" required />
+                    </label>
+                    <label className="form-field">
+                      <span>Type</span>
+                      <input name="eventType" type="text" placeholder="Live music, Family, Food..." required />
+                    </label>
+                    <label className="form-field">
+                      <span>Image URL</span>
+                      <input name="imageUrl" type="url" placeholder="https://..." />
+                    </label>
+                  </div>
+
+                  <button className="primary-button subscribe-button" type="submit" disabled={eventSubmissionStatus === "saving"}>
+                    {eventSubmissionStatus === "saving" ? "Saving..." : "Publish Event"}
+                  </button>
+
+                  {eventSubmissionStatus && (
+                    <p className={eventSubmissionStatus === "saved" ? "form-success" : "form-error"}>
+                      {eventSubmissionStatus === "saved"
+                        ? "Event published."
+                        : eventSubmissionStatus === "missing-config"
+                          ? "Supabase is not connected."
+                          : "Could not save event."}
+                    </p>
+                  )}
+                </form>
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-published-event-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Published</p>
+                  <h2 id="admin-published-event-title">Events</h2>
+                </div>
+
+                {publishedEvents.length ? (
+                  <div className="admin-grid">
+                    {publishedEvents.map((event) => (
+                      <article className="admin-card" key={event.id}>
+                        <img src={event.image_url || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80"} alt="" />
+                        <span className="event-type">{event.event_type}</span>
+                        <h3>{event.title}</h3>
+                        <p>{event.place}</p>
+                        <p>{event.event_date} - {event.event_time}</p>
+                        <div className="directory-actions">
+                          <button className="directory-link" type="button" onClick={() => unpublishEvent(event.id)}>
+                            Hide
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No published admin events yet.</p>
+                )}
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-hidden-event-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Hidden</p>
+                  <h2 id="admin-hidden-event-title">Events</h2>
+                </div>
+
+                {hiddenEvents.length || visibleStaticEvents.length || hiddenStaticEvents.length ? (
+                  <div className="admin-grid">
+                    {hiddenEvents.map((event) => (
+                      <article className="admin-card" key={event.id}>
+                        <span className="event-type">Hidden</span>
+                        <h3>{event.title}</h3>
+                        <p>{event.place}</p>
+                        <p>{event.event_date} - {event.event_time}</p>
+                        <div className="directory-actions">
+                          <button className="directory-link" type="button" onClick={() => restoreEvent(event.id)}>
+                            Restore
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                    {visibleStaticEvents.map((event) => (
+                      <article className="admin-card" key={staticEventKey(event)}>
+                        <span className="event-type">Starter visible</span>
+                        <h3>{event.title}</h3>
+                        <p>{event.place}</p>
+                        <p>{event.date}</p>
+                        <div className="directory-actions">
+                          <button className="directory-link" type="button" onClick={() => hideStaticEvent(event)}>
+                            Hide
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                    {hiddenStaticEvents.map((event) => (
+                      <article className="admin-card" key={staticEventKey(event)}>
+                        <span className="event-type">Starter hidden</span>
+                        <h3>{event.title}</h3>
+                        <p>{event.place}</p>
+                        <p>{event.date}</p>
+                        <div className="directory-actions">
+                          <button className="directory-link" type="button" onClick={() => restoreStaticEvent(event)}>
+                            Restore
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No events to manage.</p>
+                )}
+              </section>
 
               <section className="admin-section" aria-labelledby="admin-gallery-title">
                 <div className="business-form-heading">

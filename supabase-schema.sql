@@ -228,3 +228,35 @@ for all
 to authenticated
 using (true)
 with check (true);
+
+create table if not exists public.event_submissions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  title text not null,
+  place text not null,
+  event_date date not null,
+  event_time text not null,
+  event_type text not null,
+  image_url text,
+  status text not null default 'approved'
+);
+
+alter table public.event_submissions enable row level security;
+
+grant select on public.event_submissions to anon;
+grant select, insert, update, delete on public.event_submissions to authenticated;
+
+drop policy if exists "Allow public approved event reads" on public.event_submissions;
+create policy "Allow public approved event reads"
+on public.event_submissions
+for select
+to anon
+using (status = 'approved');
+
+drop policy if exists "Allow authenticated event management" on public.event_submissions;
+create policy "Allow authenticated event management"
+on public.event_submissions
+for all
+to authenticated
+using (true)
+with check (true);
