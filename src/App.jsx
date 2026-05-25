@@ -784,6 +784,17 @@ const initialBusinesses = [
   },
 ];
 
+const businessSubmissionToBusiness = (business) => ({
+  id: business.id,
+  name: business.business_name,
+  category: business.category,
+  phone: business.phone,
+  address: business.address ?? "",
+  social: business.social ?? "",
+  description: business.description ?? "",
+  plan: business.plan,
+});
+
 const planRank = {
   Premium: 0,
   Featured: 1,
@@ -1029,7 +1040,8 @@ function App() {
   const [selectedPlan, setSelectedPlan] = useState(promotePlans[0].name);
   const [businessSubmitted, setBusinessSubmitted] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState("");
-  const [businesses, setBusinesses] = useState(initialBusinesses);
+  const [businesses, setBusinesses] = useState([]);
+  const [hiddenStaticItems, setHiddenStaticItems] = useState([]);
   const [approvedGalleryPhotos, setApprovedGalleryPhotos] = useState([]);
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
   const [gallerySubmissionError, setGallerySubmissionError] = useState("");
@@ -1041,6 +1053,7 @@ function App() {
   const [publishedGalleryPhotos, setPublishedGalleryPhotos] = useState([]);
   const [pendingBusinesses, setPendingBusinesses] = useState([]);
   const [publishedBusinesses, setPublishedBusinesses] = useState([]);
+  const [hiddenBusinesses, setHiddenBusinesses] = useState([]);
   const adminShortcutRef = useRef({ count: 0, timer: null });
 
   useEffect(() => {
@@ -1109,18 +1122,18 @@ function App() {
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (!error && data) {
-          const approvedBusinesses = data.map((business) => ({
-            id: business.id,
-            name: business.business_name,
-            category: business.category,
-            phone: business.phone,
-            address: business.address ?? "",
-            social: business.social ?? "",
-            description: business.description ?? "",
-            plan: business.plan,
-          }));
+          const approvedBusinesses = data.map(businessSubmissionToBusiness);
 
-          setBusinesses([...approvedBusinesses, ...initialBusinesses]);
+          setBusinesses(approvedBusinesses);
+        }
+      });
+
+    supabase
+      .from("hidden_static_items")
+      .select("item_key")
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setHiddenStaticItems(data.map((item) => item.item_key));
         }
       });
 
@@ -1313,7 +1326,14 @@ function App() {
 
     setAdminStatus("loading");
 
-    const [galleryResult, publishedGalleryResult, businessResult, publishedBusinessResult] = await Promise.all([
+    const [
+      galleryResult,
+      publishedGalleryResult,
+      businessResult,
+      publishedBusinessResult,
+      hiddenBusinessResult,
+      hiddenStaticResult,
+    ] = await Promise.all([
       supabase
         .from("gallery_submissions")
         .select("id,created_at,contributor_name,title,image_data,status")
@@ -1333,10 +1353,26 @@ function App() {
         .from("business_submissions")
         .select("id,created_at,business_name,contact_name,category,plan,phone,address,social,description,payment_status,status")
         .eq("status", "approved")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("business_submissions")
+        .select("id,created_at,business_name,contact_name,category,plan,phone,address,social,description,payment_status,status")
+        .eq("status", "hidden")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("hidden_static_items")
+        .select("item_key,item_type,title")
         .order("created_at", { ascending: false }),
     ]);
 
-    if (galleryResult.error || publishedGalleryResult.error || businessResult.error || publishedBusinessResult.error) {
+    if (
+      galleryResult.error ||
+      publishedGalleryResult.error ||
+      businessResult.error ||
+      publishedBusinessResult.error ||
+      hiddenBusinessResult.error ||
+      hiddenStaticResult.error
+    ) {
       setAdminStatus("error");
       return;
     }
@@ -1345,6 +1381,8 @@ function App() {
     setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
     setPendingBusinesses(businessResult.data ?? []);
     setPublishedBusinesses(publishedBusinessResult.data ?? []);
+    setHiddenBusinesses(hiddenBusinessResult.data ?? []);
+    setHiddenStaticItems((hiddenStaticResult.data ?? []).map((item) => item.item_key));
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
   };
 
@@ -1384,6 +1422,7 @@ function App() {
     setPublishedGalleryPhotos([]);
     setPendingBusinesses([]);
     setPublishedBusinesses([]);
+    setHiddenBusinesses([]);
     setAdminStatus("");
   };
 
@@ -1426,19 +1465,19 @@ function App() {
     await loadAdminData();
   };
 
-  const deleteBusiness = async (id) => {
+  const unpublishBusiness = async (id) => {
     if (!supabase || !adminSession) {
       return;
     }
 
-    const shouldDelete = window.confirm("Delete this business from Abilene Vibes?");
+    const shouldUnpublish = window.confirm("Remove this business from the public app?");
 
-    if (!shouldDelete) {
+    if (!shouldUnpublish) {
       return;
     }
 
     setAdminStatus("saving");
-    const { error } = await supabase.from("business_submissions").delete().eq("id", id);
+    const { error } = await supabase.from("business_submissions").update({ status: "hidden" }).eq("id", id);
 
     if (error) {
       setAdminStatus("error");
@@ -1449,7 +1488,68 @@ function App() {
     await loadAdminData();
   };
 
-  const paidBusinesses = [...businesses]
+  const restoreBusiness = async (business) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from("business_submissions").update({ status: "approved" }).eq("id", business.id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setBusinesses((currentBusinesses) => [businessSubmissionToBusiness(business), ...currentBusinesses]);
+    await loadAdminData();
+  };
+
+  const hideStaticBusiness = async (business) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const itemKey = `business:${business.id}`;
+    const { error } = await supabase.from("hidden_static_items").upsert({
+      item_key: itemKey,
+      item_type: "business",
+      title: business.name,
+    });
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
+    await loadAdminData();
+  };
+
+  const restoreStaticBusiness = async (business) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const itemKey = `business:${business.id}`;
+    const { error } = await supabase.from("hidden_static_items").delete().eq("item_key", itemKey);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
+    await loadAdminData();
+  };
+
+  const hiddenStaticItemSet = new Set(hiddenStaticItems);
+  const visibleInitialBusinesses = initialBusinesses.filter((business) => !hiddenStaticItemSet.has(`business:${business.id}`));
+  const hiddenInitialBusinesses = initialBusinesses.filter((business) => hiddenStaticItemSet.has(`business:${business.id}`));
+  const allBusinesses = [...businesses, ...visibleInitialBusinesses];
+  const paidBusinesses = [...allBusinesses]
     .filter((business) => business.plan && business.plan !== "Free")
     .sort((a, b) => (planRank[a.plan] ?? 99) - (planRank[b.plan] ?? 99));
   const spotlightBusiness = paidBusinesses.find((business) => business.plan === "Premium") ?? paidBusinesses[0];
@@ -1479,7 +1579,7 @@ function App() {
   };
   const categoryBusinessesFor = (section) =>
     paidBusinesses.filter((business) => categorySectionMap[business.category] === section);
-  const directoryBusinesses = [...businesses].sort(
+  const directoryBusinesses = [...allBusinesses].sort(
     (a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99),
   );
   const galleryPhotos = [...approvedGalleryPhotos, ...galleryShots];
@@ -2556,9 +2656,9 @@ function App() {
                           <button
                             className="directory-link"
                             type="button"
-                            onClick={() => deleteBusiness(business.id)}
+                            onClick={() => unpublishBusiness(business.id)}
                           >
-                            Delete
+                            Unpublish
                           </button>
                         </div>
                       </article>
@@ -2567,6 +2667,95 @@ function App() {
                 ) : (
                   <p className="legal-disclaimer">No published businesses yet.</p>
                 )}
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-hidden-business-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Hidden</p>
+                  <h2 id="admin-hidden-business-title">Businesses</h2>
+                </div>
+
+                {hiddenBusinesses.length ? (
+                  <div className="admin-grid">
+                    {hiddenBusinesses.map((business) => (
+                      <article className="admin-card" key={business.id}>
+                        <span className="event-type">{business.plan} - {business.payment_status}</span>
+                        <h3>{business.business_name}</h3>
+                        <p>{business.category}</p>
+                        <p>Contact: {business.contact_name}</p>
+                        <p>{business.phone}</p>
+                        {business.address && <p>{business.address}</p>}
+                        {business.description && <p>{business.description}</p>}
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => restoreBusiness(business)}
+                          >
+                            Restore
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No hidden published businesses.</p>
+                )}
+              </section>
+
+              <section className="admin-section" aria-labelledby="admin-built-in-business-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Built in</p>
+                  <h2 id="admin-built-in-business-title">Starter Businesses</h2>
+                </div>
+
+                {visibleInitialBusinesses.length ? (
+                  <div className="admin-grid">
+                    {visibleInitialBusinesses.map((business) => (
+                      <article className="admin-card" key={business.id}>
+                        <span className="event-type">Visible</span>
+                        <h3>{business.name}</h3>
+                        <p>{business.category}</p>
+                        <p>{business.phone}</p>
+                        {business.description && <p>{business.description}</p>}
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => hideStaticBusiness(business)}
+                          >
+                            Hide
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No visible starter businesses.</p>
+                )}
+
+                {hiddenInitialBusinesses.length ? (
+                  <div className="admin-grid">
+                    {hiddenInitialBusinesses.map((business) => (
+                      <article className="admin-card" key={business.id}>
+                        <span className="event-type">Hidden</span>
+                        <h3>{business.name}</h3>
+                        <p>{business.category}</p>
+                        <p>{business.phone}</p>
+                        {business.description && <p>{business.description}</p>}
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => restoreStaticBusiness(business)}
+                          >
+                            Restore
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
               </section>
             </>
           )}

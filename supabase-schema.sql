@@ -85,3 +85,30 @@ for all
 to authenticated
 using (true)
 with check (true);
+
+create table if not exists public.hidden_static_items (
+  item_key text primary key,
+  created_at timestamptz not null default now(),
+  item_type text not null,
+  title text not null
+);
+
+alter table public.hidden_static_items enable row level security;
+
+grant select on public.hidden_static_items to anon;
+grant select, insert, delete on public.hidden_static_items to authenticated;
+
+drop policy if exists "Allow public hidden static reads" on public.hidden_static_items;
+create policy "Allow public hidden static reads"
+on public.hidden_static_items
+for select
+to anon
+using (true);
+
+drop policy if exists "Allow authenticated hidden static management" on public.hidden_static_items;
+create policy "Allow authenticated hidden static management"
+on public.hidden_static_items
+for all
+to authenticated
+using (true)
+with check (true);
