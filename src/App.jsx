@@ -2731,25 +2731,23 @@ function App() {
                     </a>
                   )}
 
-                  {business.address && (
-                    <a
-                      className="directory-link"
-                      href={mapSearchUrl(`${business.name}, ${business.address}`)}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(event) =>
-                        openTrackedBusinessLink(
-                          event,
-                          business,
-                          "directions",
-                          mapSearchUrl(`${business.name}, ${business.address}`),
-                          "_blank",
-                        )
-                      }
-                    >
-                      Directions
-                    </a>
-                  )}
+                  <a
+                    className="directory-link"
+                    href={mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`)}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(event) =>
+                      openTrackedBusinessLink(
+                        event,
+                        business,
+                        "directions",
+                        mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`),
+                        "_blank",
+                      )
+                    }
+                  >
+                    Directions
+                  </a>
 
                   {business.social && (
                     <a
