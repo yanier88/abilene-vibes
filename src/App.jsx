@@ -4385,15 +4385,43 @@ function App() {
           </section>
 
           {checkoutNotice === "success" && (
-            <p className="form-success">
-              Payment received. Your listing is now waiting for admin review.
-            </p>
+            <section className="checkout-result-card is-success" aria-labelledby="checkout-success-title">
+              <p className="eyebrow">Payment received</p>
+              <h2 id="checkout-success-title">Thanks for promoting your business.</h2>
+              <p>
+                Your payment was received and your listing is waiting for Abilene Vibes admin review. Once approved, it
+                will appear in the paid promotion spots for the current billing period.
+              </p>
+              <div className="checkout-steps" aria-label="What happens next">
+                <span>1. Payment confirmed</span>
+                <span>2. Admin review</span>
+                <span>3. Listing goes live</span>
+              </div>
+              <div className="checkout-result-actions">
+                <button className="directory-link" type="button" onClick={backToLobby}>
+                  Back to Lobby
+                </button>
+                <button className="directory-link" type="button" onClick={() => navigateTo("promote")}>
+                  Promote Another
+                </button>
+              </div>
+            </section>
           )}
 
           {checkoutNotice === "cancelled" && (
-            <p className="form-error">
-              Checkout was cancelled. Your request was saved, but the paid placement is not active yet.
-            </p>
+            <section className="checkout-result-card is-cancelled" aria-labelledby="checkout-cancelled-title">
+              <p className="eyebrow">Checkout cancelled</p>
+              <h2 id="checkout-cancelled-title">Your request was saved.</h2>
+              <p>
+                The paid placement is not active yet because checkout was cancelled. You can submit again when you are
+                ready to finish payment.
+              </p>
+              <div className="checkout-result-actions">
+                <button className="directory-link" type="button" onClick={() => navigateTo("promote")}>
+                  Try Again
+                </button>
+              </div>
+            </section>
           )}
 
           <button className="directory-add-button" type="button" onClick={() => navigateTo("promote")}>
