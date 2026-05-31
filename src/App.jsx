@@ -1589,9 +1589,11 @@ function App() {
     };
 
     window.addEventListener("popstate", syncPageFromUrl);
+    window.addEventListener("hashchange", syncPageFromUrl);
 
     return () => {
       window.removeEventListener("popstate", syncPageFromUrl);
+      window.removeEventListener("hashchange", syncPageFromUrl);
     };
   }, []);
 
