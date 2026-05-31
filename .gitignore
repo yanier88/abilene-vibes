@@ -34,3 +34,7 @@ supabase/.temp
 
 # Generated archives
 *.zip
+
+# Browser screenshot profiles
+.chrome-shot*
+.edge-shot*

@@ -1881,9 +1881,12 @@ function App() {
       const status = business.payment_status ?? "pending";
       summary.total += 1;
       summary[status] = (summary[status] ?? 0) + 1;
+      if (activePaidPaymentStatuses.has(status)) {
+        summary.activePaid += 1;
+      }
       return summary;
     },
-    { total: 0 },
+    { total: 0, activePaid: 0 },
   );
 
   const handleReviewSubmit = async (event, business) => {
@@ -4720,10 +4723,10 @@ function App() {
 
                 <div className="payment-summary-grid">
                   <span>Total <strong>{paymentSummary.total}</strong></span>
-                  <span>Paid <strong>{paymentSummary.paid ?? 0}</strong></span>
+                  <span>Paid <strong>{paymentSummary.activePaid ?? 0}</strong></span>
                   <span>Checkout <strong>{paymentSummary.checkout_started ?? 0}</strong></span>
                   <span>Pending <strong>{paymentSummary.pending ?? 0}</strong></span>
-                  <span>Failed <strong>{paymentSummary.failed ?? 0}</strong></span>
+                  <span>Canceling <strong>{paymentSummary.cancel_pending ?? 0}</strong></span>
                   <span>Free promos <strong>{promoBusinesses.length}</strong></span>
                 </div>
 
