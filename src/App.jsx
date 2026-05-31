@@ -1323,6 +1323,167 @@ function PromoteCategoryIcon({ icon }) {
   );
 }
 
+const distanceBetweenPointers = (firstPointer, secondPointer) => Math.hypot(
+  firstPointer.clientX - secondPointer.clientX,
+  firstPointer.clientY - secondPointer.clientY,
+);
+
+const midpointBetweenPointers = (firstPointer, secondPointer) => ({
+  x: (firstPointer.clientX + secondPointer.clientX) / 2,
+  y: (firstPointer.clientY + secondPointer.clientY) / 2,
+});
+
+function ImageViewer({ photo, onClose }) {
+  const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
+  const pointersRef = useRef(new Map());
+  const gestureRef = useRef(null);
+
+  useEffect(() => {
+    if (!photo) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, photo]);
+
+  if (!photo) {
+    return null;
+  }
+
+  const clampScale = (scale) => Math.min(4, Math.max(1, scale));
+
+  const updatePointer = (event) => {
+    pointersRef.current.set(event.pointerId, {
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+  };
+
+  const handlePointerDown = (event) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    updatePointer(event);
+    const pointers = Array.from(pointersRef.current.values());
+
+    if (pointers.length === 1) {
+      gestureRef.current = { type: "pan", pointer: pointers[0], transform };
+    }
+
+    if (pointers.length >= 2) {
+      const midpoint = midpointBetweenPointers(pointers[0], pointers[1]);
+      gestureRef.current = {
+        type: "pinch",
+        distance: distanceBetweenPointers(pointers[0], pointers[1]),
+        midpoint,
+        transform,
+      };
+    }
+  };
+
+  const handlePointerMove = (event) => {
+    if (!pointersRef.current.has(event.pointerId)) {
+      return;
+    }
+
+    updatePointer(event);
+    const pointers = Array.from(pointersRef.current.values());
+    const gesture = gestureRef.current;
+
+    if (!gesture) {
+      return;
+    }
+
+    if (pointers.length >= 2 && gesture.type === "pinch") {
+      const midpoint = midpointBetweenPointers(pointers[0], pointers[1]);
+      const distance = distanceBetweenPointers(pointers[0], pointers[1]);
+      const nextScale = clampScale(gesture.transform.scale * (distance / Math.max(gesture.distance, 1)));
+
+      setTransform({
+        scale: nextScale,
+        x: gesture.transform.x + midpoint.x - gesture.midpoint.x,
+        y: gesture.transform.y + midpoint.y - gesture.midpoint.y,
+      });
+      return;
+    }
+
+    if (pointers.length === 1 && gesture.type === "pan") {
+      const pointer = pointers[0];
+      setTransform((currentTransform) => ({
+        scale: currentTransform.scale,
+        x: currentTransform.scale > 1 ? gesture.transform.x + pointer.clientX - gesture.pointer.clientX : 0,
+        y: currentTransform.scale > 1 ? gesture.transform.y + pointer.clientY - gesture.pointer.clientY : 0,
+      }));
+    }
+  };
+
+  const handlePointerEnd = (event) => {
+    pointersRef.current.delete(event.pointerId);
+    const pointers = Array.from(pointersRef.current.values());
+
+    if (pointers.length === 1) {
+      gestureRef.current = { type: "pan", pointer: pointers[0], transform };
+      return;
+    }
+
+    gestureRef.current = null;
+  };
+
+  const handleWheel = (event) => {
+    event.preventDefault();
+    setTransform((currentTransform) => {
+      const nextScale = clampScale(currentTransform.scale + (event.deltaY < 0 ? 0.25 : -0.25));
+
+      return {
+        scale: nextScale,
+        x: nextScale === 1 ? 0 : currentTransform.x,
+        y: nextScale === 1 ? 0 : currentTransform.y,
+      };
+    });
+  };
+
+  const toggleZoom = () => {
+    setTransform((currentTransform) => (
+      currentTransform.scale > 1
+        ? { scale: 1, x: 0, y: 0 }
+        : { scale: 2.4, x: 0, y: 0 }
+    ));
+  };
+
+  return (
+    <div className="image-viewer" role="dialog" aria-modal="true" aria-label={photo.title || "Photo preview"}>
+      <button className="image-viewer-close" type="button" onClick={onClose}>
+        Close
+      </button>
+      <div
+        className="image-viewer-stage"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onWheel={handleWheel}
+        onDoubleClick={toggleZoom}
+      >
+        <img
+          src={photo.src}
+          alt={photo.title || ""}
+          draggable="false"
+          style={{
+            transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
+          }}
+        />
+      </div>
+      <p>{photo.title || "Photo"}</p>
+    </div>
+  );
+}
+
 function App() {
   const [page, setPage] = useState(pageFromLocation);
   const [isStarting, setIsStarting] = useState(true);
@@ -1374,7 +1535,8 @@ function App() {
   const [premiumCarouselIndex, setPremiumCarouselIndex] = useState(0);
   const [businessReports, setBusinessReports] = useState([]);
   const [itemReports, setItemReports] = useState([]);
-  const adminShortcutRef = useRef({ count: 0, timer: null });
+  const [imageViewerPhoto, setImageViewerPhoto] = useState(null);
+  const imageViewerPhotoRef = useRef(null);
   const pageRef = useRef(page);
   const previousPageRef = useRef(page);
 
@@ -1392,6 +1554,10 @@ function App() {
   }, [page]);
 
   useEffect(() => {
+    imageViewerPhotoRef.current = imageViewerPhoto;
+  }, [imageViewerPhoto]);
+
+  useEffect(() => {
     const splashTimer = window.setTimeout(() => {
       setIsStarting(false);
     }, 3000);
@@ -1399,12 +1565,6 @@ function App() {
     return () => {
       window.clearTimeout(splashTimer);
     };
-  }, []);
-
-  useEffect(() => () => {
-    if (adminShortcutRef.current.timer) {
-      window.clearTimeout(adminShortcutRef.current.timer);
-    }
   }, []);
 
   useEffect(() => {
@@ -1618,6 +1778,11 @@ function App() {
     CapacitorApp.addListener("backButton", () => {
       const currentPage = pageRef.current;
 
+      if (imageViewerPhotoRef.current) {
+        setImageViewerPhoto(null);
+        return;
+      }
+
       if (currentPage === "home") {
         CapacitorApp.exitApp();
         return;
@@ -1646,24 +1811,6 @@ function App() {
 
   const backToLobby = () => {
     navigateTo("lobby", { replace: true });
-  };
-
-  const openAdminShortcut = () => {
-    if (adminShortcutRef.current.timer) {
-      window.clearTimeout(adminShortcutRef.current.timer);
-    }
-
-    adminShortcutRef.current.count += 1;
-
-    if (adminShortcutRef.current.count >= 10) {
-      adminShortcutRef.current.count = 0;
-      navigateTo("admin");
-      return;
-    }
-
-    adminShortcutRef.current.timer = window.setTimeout(() => {
-      adminShortcutRef.current.count = 0;
-    }, 1800);
   };
 
   const handleRequiredInvalid = (event) => {
@@ -3025,6 +3172,14 @@ function App() {
     return () => window.clearInterval(timer);
   }, [premiumBusinesses.length]);
 
+  const openImageViewer = (src, title) => {
+    if (!src) {
+      return;
+    }
+
+    setImageViewerPhoto({ src, title });
+  };
+
   const renderLikeButton = (itemType, itemKey) => (
     <button
       className={`like-button${isLiked(itemType, itemKey) ? " is-liked" : ""}`}
@@ -3136,6 +3291,13 @@ function App() {
   const withSplash = (content) => (
     <>
       {content}
+      {imageViewerPhoto && (
+        <ImageViewer
+          key={`${imageViewerPhoto.src}-${imageViewerPhoto.title}`}
+          photo={imageViewerPhoto}
+          onClose={() => setImageViewerPhoto(null)}
+        />
+      )}
       {splashOverlay}
     </>
   );
@@ -3148,9 +3310,9 @@ function App() {
           style={{ "--lobby-bg": `url("${appAsset("lobby-correcta.jpg")}")` }}
           aria-label="Abilene Vibes lobby"
         >
-          <button className="lobby-title-badge" type="button" onClick={openAdminShortcut} aria-label="Lobby">
+          <div className="lobby-title-badge" aria-label="Lobby">
             <span>Lobby</span>
-          </button>
+          </div>
 
           <button className="weather-widget" type="button" aria-label={`Weather in ${weather.label}`}>
             <span className="weather-icon">{weather.isDay ? "☀" : "☾"}</span>
@@ -3676,12 +3838,19 @@ function App() {
           <section className="eats-grid" aria-label="Abilene restaurants and coffee spots">
             {categoryBusinessesFor("eats").map((business) => (
               <article className="eats-card paid-placement-card" key={business.id}>
-                <img
-                  className="eats-image"
-                  src={businessDisplayImage(business)}
-                  alt=""
-                  loading="lazy"
-                />
+                <button
+                  className="image-open-button"
+                  type="button"
+                  onClick={() => openImageViewer(businessDisplayImage(business), business.name)}
+                  aria-label={`Open ${business.name} photo`}
+                >
+                  <img
+                    className="eats-image"
+                    src={businessDisplayImage(business)}
+                    alt=""
+                    loading="lazy"
+                  />
+                </button>
 
                 <div className="eats-copy">
                   <span className="event-type">{business.plan} local</span>
@@ -3712,7 +3881,14 @@ function App() {
             ))}
             {eatsPlaces.map((place) => (
               <article className="eats-card" key={place.name}>
-                <img className="eats-image" src={place.image} alt="" loading="lazy" />
+                <button
+                  className="image-open-button"
+                  type="button"
+                  onClick={() => openImageViewer(place.image, place.name)}
+                  aria-label={`Open ${place.name} photo`}
+                >
+                  <img className="eats-image" src={place.image} alt="" loading="lazy" />
+                </button>
 
                 <div className="eats-copy">
                   <span className="event-type">{place.kind}</span>
@@ -3961,7 +4137,14 @@ function App() {
 
               return (
                 <figure className="gallery-card" key={`${shot.title}-${index}`}>
-                  <img src={shot.image} alt="" loading="lazy" />
+                  <button
+                    className="image-open-button gallery-image-button"
+                    type="button"
+                    onClick={() => openImageViewer(shot.image, shot.title)}
+                    aria-label={`Open ${shot.title} photo`}
+                  >
+                    <img src={shot.image} alt="" loading="lazy" />
+                  </button>
                   <figcaption>{shot.title}</figcaption>
                   {renderLikeButton("photo", photoKey)}
                 </figure>
@@ -4223,12 +4406,19 @@ function App() {
           <section className="directory-grid" aria-label="Abilene business directory">
             {directoryBusinesses.map((business) => (
               <article className="directory-card" key={business.id}>
-                <img
-                  className="directory-image"
-                  src={businessDisplayImage(business)}
-                  alt=""
-                  loading="lazy"
-                />
+                <button
+                  className="image-open-button directory-image-button"
+                  type="button"
+                  onClick={() => openImageViewer(businessDisplayImage(business), business.name)}
+                  aria-label={`Open ${business.name} photo`}
+                >
+                  <img
+                    className="directory-image"
+                    src={businessDisplayImage(business)}
+                    alt=""
+                    loading="lazy"
+                  />
+                </button>
                 <span className="event-type">{business.category}</span>
                 {business.plan && business.plan !== "Free" && <span className="plan-badge">{business.plan}</span>}
                 <h2>{business.name}</h2>

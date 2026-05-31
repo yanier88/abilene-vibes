@@ -1528,8 +1528,7 @@
 
 .paid-placement-card .eats-image {
   aspect-ratio: 16 / 9;
-  object-fit: contain;
-  padding: 12px;
+  object-fit: cover;
   background:
     radial-gradient(circle at 50% 40%, rgba(0, 212, 255, 0.16), transparent 56%),
     #050008;
@@ -1615,11 +1614,94 @@
   display: block;
 }
 
+.image-open-button {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.image-open-button img {
+  pointer-events: none;
+}
+
+.gallery-image-button {
+  height: 100%;
+  min-height: inherit;
+}
+
+.image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 22% 18%, rgba(255, 0, 204, 0.24), transparent 34%),
+    radial-gradient(circle at 78% 24%, rgba(0, 212, 255, 0.2), transparent 32%),
+    rgba(5, 0, 8, 0.96);
+}
+
+.image-viewer-close {
+  justify-self: end;
+  min-height: 44px;
+  border: 1px solid rgba(0, 212, 255, 0.54);
+  border-radius: 999px;
+  padding: 10px 18px;
+  color: #ffffff;
+  font-weight: 900;
+  letter-spacing: 0;
+  background: rgba(4, 12, 30, 0.82);
+  box-shadow: 0 0 18px rgba(0, 212, 255, 0.24);
+}
+
+.image-viewer-stage {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 0, 204, 0.48);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 0, 204, 0.1), rgba(0, 212, 255, 0.08)),
+    #030007;
+  touch-action: none;
+  cursor: grab;
+}
+
+.image-viewer-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  will-change: transform;
+  transition: transform 80ms ease-out;
+}
+
+.image-viewer p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .gallery-card::after {
   content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, transparent 40%, rgba(5, 0, 8, 0.78));
+  pointer-events: none;
 }
 
 .gallery-card figcaption {
@@ -2225,12 +2307,22 @@
   width: calc(100% + clamp(36px, 8vw, 56px));
   height: clamp(210px, 42vw, 300px);
   margin: calc(clamp(18px, 4vw, 28px) * -1) calc(clamp(18px, 4vw, 28px) * -1) 2px;
-  object-fit: contain;
+  object-fit: cover;
   display: block;
-  padding: 12px;
   background:
     radial-gradient(circle at 50% 40%, rgba(0, 212, 255, 0.16), transparent 56%),
     #050008;
+}
+
+.directory-image-button {
+  width: calc(100% + clamp(36px, 8vw, 56px));
+  margin: calc(clamp(18px, 4vw, 28px) * -1) calc(clamp(18px, 4vw, 28px) * -1) 2px;
+  overflow: hidden;
+}
+
+.directory-image-button .directory-image {
+  width: 100%;
+  margin: 0;
 }
 
 .directory-card h2 {
