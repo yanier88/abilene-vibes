@@ -9,11 +9,6 @@ const mapSearchUrl = (query) => `https://www.google.com/maps/search/?api=1&query
 
 const telUrl = (phone) => `tel:${phone.replace(/\D/g, "")}`;
 
-const stripePaymentLinks = {
-  Featured: import.meta.env.VITE_STRIPE_FEATURED_LINK ?? "",
-  Premium: import.meta.env.VITE_STRIPE_PREMIUM_LINK ?? "",
-};
-
 const paidPlanNames = new Set(["Featured", "Premium"]);
 
 const lobbyAboutRotationMs = 2000;
@@ -27,16 +22,6 @@ const openCheckoutUrl = (url) => {
 
   if (!openedWindow) {
     window.location.assign(url);
-  }
-};
-
-const paymentLinkWithReference = (url, referenceId) => {
-  try {
-    const checkoutUrl = new URL(url);
-    checkoutUrl.searchParams.set("client_reference_id", referenceId);
-    return checkoutUrl.toString();
-  } catch {
-    return url;
   }
 };
 
@@ -641,13 +626,13 @@ const promotePlans = [
     name: "Featured",
     price: "$19",
     cadence: "per month",
-    note: "Photos, buttons, and category placement",
+    note: "Monthly subscription. Auto-renews until canceled.",
   },
   {
     name: "Premium",
     price: "$59",
     cadence: "per month",
-    note: "Top placement, gallery feature, and lobby spotlight",
+    note: "Monthly subscription. Auto-renews until canceled.",
   },
 ];
 
@@ -677,6 +662,11 @@ const legalSections = {
         title: "Listings and paid placements",
         copy:
           "Free, Featured, and Premium placements may be reviewed, edited, approved, rejected, paused, or removed to keep listings accurate, lawful, and appropriate for the app.",
+      },
+      {
+        title: "Monthly billing and cancellation",
+        copy:
+          "Featured and Premium plans are monthly subscriptions. The customer is charged every month automatically until the subscription is canceled. Businesses may contact Abilene Vibes for billing or cancellation help.",
       },
       {
         title: "Contact",
@@ -1748,15 +1738,6 @@ function App() {
     setBusinessSubmitted(true);
 
     if (isSupabaseSubmission && paidPlanNames.has(selectedPlan)) {
-      const paymentLink = stripePaymentLinks[selectedPlan];
-
-      if (paymentLink) {
-        openCheckoutUrl(paymentLinkWithReference(paymentLink, submissionId));
-        setSubmissionStatus("checkout-link");
-        form.reset();
-        return;
-      }
-
       setSubmissionStatus("checkout");
       const returnUrl = window.location.origin.startsWith("https://") ? window.location.origin : "";
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
@@ -2033,17 +2014,17 @@ function App() {
         .order("created_at", { ascending: false }),
       supabase
         .from("business_submissions")
-        .select("id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,status")
+        .select("id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,stripe_subscription_id,status")
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
       supabase
         .from("business_submissions")
-        .select("id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,status")
+        .select("id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,stripe_subscription_id,status")
         .eq("status", "approved")
         .order("created_at", { ascending: false }),
       supabase
         .from("business_submissions")
-        .select("id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,status")
+        .select("id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,stripe_subscription_id,status")
         .eq("status", "hidden")
         .order("created_at", { ascending: false }),
       supabase
@@ -2458,6 +2439,45 @@ function App() {
     }
 
     await loadAdminData();
+  };
+
+  const cancelBusinessSubscription = async (business) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    if (!business.stripe_subscription_id) {
+      window.alert("This business does not have a Stripe subscription ID saved yet.");
+      return;
+    }
+
+    const cancelAtPeriodEnd = window.confirm(
+      `Cancel "${business.business_name}" at the end of the paid billing period?\n\nChoose OK to let the customer keep the current paid month. Choose Cancel for immediate cancellation.`,
+    );
+
+    const shouldContinue = cancelAtPeriodEnd
+      ? true
+      : window.confirm(`Cancel "${business.business_name}" immediately? This may end paid placement right away.`);
+
+    if (!shouldContinue) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.functions.invoke("cancel-subscription", {
+      body: {
+        submissionId: business.id,
+        cancelAtPeriodEnd,
+      },
+    });
+
+    if (error) {
+      setAdminStatus("error");
+      window.alert(error.message ?? "Could not cancel this subscription.");
+      return;
+    }
+
+    await loadAdminData(undefined, true);
   };
 
   const clearCompBusinessPlacement = async (business) => {
@@ -3041,6 +3061,11 @@ function App() {
       {business.placement_source === "comp" && (
         <button className="directory-link danger-link" type="button" onClick={() => clearCompBusinessPlacement(business)}>
           End Promo
+        </button>
+      )}
+      {business.stripe_subscription_id && !["canceled", "cancel_pending"].includes(business.payment_status) && (
+        <button className="directory-link danger-link" type="button" onClick={() => cancelBusinessSubscription(business)}>
+          Cancel Subscription
         </button>
       )}
     </>
@@ -4093,6 +4118,14 @@ function App() {
               updates or removals.
             </p>
 
+            {paidPlanNames.has(selectedPlan) && (
+              <p className="legal-disclaimer">
+                {selectedPlan} is a monthly subscription. You will be charged {selectedPlan === "Featured" ? "$19" : "$59"} today
+                and automatically every month until the subscription is canceled. Contact {contactEmail} for billing or
+                cancellation help.
+              </p>
+            )}
+
             {businessSubmitted && (
               <p className="form-success">
                 {submissionStatus === "saved"
@@ -4113,9 +4146,7 @@ function App() {
                             ? "Your request was saved, but checkout could not open. Please contact us to finish payment."
                     : selectedPlan === "Free"
                   ? "Thanks. Your business is now visible in the local directory."
-                  : stripePaymentLinks[selectedPlan]
-                    ? "Thanks. Your payment page opened in a new tab. We will review your listing after payment."
-                    : "Thanks. Your paid plan request was saved. Add your Stripe payment link to activate checkout."}
+                    : "Thanks. Your paid plan request was saved. Secure checkout will open for payment."}
               </p>
             )}
 

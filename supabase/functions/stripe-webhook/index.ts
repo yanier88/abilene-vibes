@@ -116,6 +116,30 @@ Deno.serve(async (request) => {
     }
   }
 
+  if (event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object;
+    const subscriptionId = subscription.id ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+    if (supabaseUrl && serviceRoleKey && subscriptionId) {
+      await fetch(`${supabaseUrl}/rest/v1/business_submissions?stripe_subscription_id=eq.${subscriptionId}`, {
+        method: "PATCH",
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          payment_status: "canceled",
+          status: "hidden",
+          placement_expires_at: null,
+        }),
+      });
+    }
+  }
+
   return new Response(JSON.stringify({ received: true }), {
     headers: { "Content-Type": "application/json" },
   });
