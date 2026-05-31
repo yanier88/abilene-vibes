@@ -626,13 +626,13 @@ const promotePlans = [
     name: "Featured",
     price: "$19",
     cadence: "per month",
-    note: "Monthly subscription. Auto-renews until canceled.",
+    note: "Monthly subscription. $19 today, then auto-renews until canceled.",
   },
   {
     name: "Premium",
     price: "$59",
     cadence: "per month",
-    note: "Monthly subscription. Auto-renews until canceled.",
+    note: "Monthly subscription. $59 today, then auto-renews until canceled.",
   },
 ];
 
@@ -641,7 +641,7 @@ const legalSections = {
     eyebrow: "Legal",
     title: "Terms of Use",
     intro:
-      "These terms explain how businesses and visitors may use Abilene Vibes. They are a practical starting point and should be reviewed by a lawyer before heavy commercial launch.",
+      "These terms explain how businesses and visitors may use Abilene Vibes. By submitting a listing or purchasing a placement, you agree to these terms. They should be reviewed by a lawyer before large-scale commercial launch.",
     items: [
       {
         title: "Business submissions",
@@ -661,12 +661,22 @@ const legalSections = {
       {
         title: "Listings and paid placements",
         copy:
-          "Free, Featured, and Premium placements may be reviewed, edited, approved, rejected, paused, or removed to keep listings accurate, lawful, and appropriate for the app.",
+          "Free, Featured, and Premium placements may be reviewed, edited, approved, rejected, paused, or removed to keep listings accurate, lawful, and appropriate for the app. Payment does not guarantee instant publication; paid placements can require admin approval before going live.",
       },
       {
-        title: "Monthly billing and cancellation",
+        title: "Paid subscriptions",
         copy:
-          "Featured and Premium plans are monthly subscriptions. The customer is charged every month automatically until the subscription is canceled. Businesses may contact Abilene Vibes for billing or cancellation help.",
+          "Featured and Premium plans are monthly subscriptions billed through Stripe. By purchasing a paid placement, the customer authorizes Abilene Vibes and Stripe to charge the selected plan amount today and automatically every month until the subscription is canceled.",
+      },
+      {
+        title: "Cancellation",
+        copy:
+          "Cancellation stops future renewals. If a subscription is scheduled to cancel at the end of the billing period, the paid placement may remain active until the current paid month expires. Immediate cancellation may remove the paid placement sooner.",
+      },
+      {
+        title: "Refunds",
+        copy:
+          "Payments for the current billing period are not automatically refunded after purchase. Refund requests may be reviewed case by case by contacting Abilene Vibes, and Stripe or payment provider policies may also apply.",
       },
       {
         title: "Contact",
@@ -703,7 +713,7 @@ const legalSections = {
       {
         title: "Payments",
         copy:
-          "If payments are processed through Stripe, Square, or another payment provider, payment details are handled by that provider and are subject to their own terms and privacy policy.",
+          "Payments are processed by Stripe or another payment provider. Abilene Vibes does not store full card numbers in the app database. The app may store billing status, plan type, customer identifiers, subscription identifiers, checkout session identifiers, and business contact details needed to manage paid listings and cancellations.",
       },
       {
         title: "Contact",
@@ -4311,10 +4321,12 @@ function App() {
             </p>
 
             {paidPlanNames.has(selectedPlan) && (
-              <p className="legal-disclaimer">
-                {selectedPlan} is a monthly subscription. You will be charged {selectedPlan === "Featured" ? "$19" : "$59"} today
-                and automatically every month until the subscription is canceled. Contact {contactEmail} for billing or
-                cancellation help.
+              <p className="legal-disclaimer billing-disclaimer">
+                {selectedPlan} is a monthly subscription. By continuing to checkout, you authorize Abilene Vibes and
+                Stripe to charge {selectedPlan === "Featured" ? "$19" : "$59"} today and automatically every month
+                until the subscription is canceled. Payment starts the review process; the paid placement goes live
+                after admin approval. Cancellation stops future renewals, and current-period payments are not
+                automatically refunded. Contact {contactEmail} for billing or cancellation help.
               </p>
             )}
 

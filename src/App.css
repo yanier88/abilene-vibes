@@ -2220,6 +2220,14 @@
   background: rgba(255, 255, 255, 0.035);
 }
 
+.billing-disclaimer {
+  border-color: rgba(0, 212, 255, 0.45);
+  color: rgba(255, 255, 255, 0.86);
+  background:
+    linear-gradient(135deg, rgba(0, 212, 255, 0.13), rgba(255, 0, 204, 0.08)),
+    rgba(255, 255, 255, 0.045);
+}
+
 .legal-links {
   display: flex;
   flex-wrap: wrap;
