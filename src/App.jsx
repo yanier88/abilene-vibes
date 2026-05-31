@@ -3063,7 +3063,9 @@ function App() {
           End Promo
         </button>
       )}
-      {business.stripe_subscription_id && !["canceled", "cancel_pending"].includes(business.payment_status) && (
+      {business.placement_source !== "comp" &&
+        business.stripe_subscription_id &&
+        !["canceled", "cancel_pending"].includes(business.payment_status) && (
         <button className="directory-link danger-link" type="button" onClick={() => cancelBusinessSubscription(business)}>
           Cancel Subscription
         </button>
