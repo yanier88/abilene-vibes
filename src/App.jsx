@@ -986,6 +986,8 @@ const planRank = {
   Free: 2,
 };
 
+const activePaidPaymentStatuses = new Set(["paid", "cancel_pending"]);
+
 const categorySectionMap = {
   "Food trucks": "eats",
   Restaurants: "eats",
@@ -2951,7 +2953,7 @@ function App() {
         return true;
       }
 
-      return business.paymentStatus === "paid";
+      return activePaidPaymentStatuses.has(business.paymentStatus);
     })
     .filter((business) => !business.placementExpiresAt || new Date(business.placementExpiresAt) > new Date())
     .sort((a, b) => (planRank[a.plan] ?? 99) - (planRank[b.plan] ?? 99));
