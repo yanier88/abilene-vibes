@@ -6,19 +6,56 @@ create table if not exists public.business_submissions (
   category text not null,
   plan text not null default 'Free',
   phone text not null,
+  contact_email text,
   address text,
   social text,
   description text,
+  image_data text,
   content_rights_confirmed boolean not null default false,
   status text not null default 'pending',
-  payment_status text not null default 'pending'
+  payment_status text not null default 'pending',
+  placement_source text not null default 'paid',
+  placement_expires_at timestamptz,
+  stripe_session_id text,
+  stripe_payment_intent_id text,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  paid_at timestamptz
 );
 
 alter table public.business_submissions enable row level security;
 
+alter table public.business_submissions
+add column if not exists image_data text;
+
+alter table public.business_submissions
+add column if not exists contact_email text;
+
+alter table public.business_submissions
+add column if not exists stripe_session_id text;
+
+alter table public.business_submissions
+add column if not exists stripe_payment_intent_id text;
+
+alter table public.business_submissions
+add column if not exists stripe_customer_id text;
+
+alter table public.business_submissions
+add column if not exists stripe_subscription_id text;
+
+alter table public.business_submissions
+add column if not exists paid_at timestamptz;
+
+alter table public.business_submissions
+add column if not exists placement_source text not null default 'paid';
+
+alter table public.business_submissions
+add column if not exists placement_expires_at timestamptz;
+
 grant usage on schema public to anon, authenticated;
 grant insert, select on public.business_submissions to anon;
 grant select, update, delete on public.business_submissions to authenticated;
+grant select, insert, update, delete on public.business_submissions to service_role;
 
 drop policy if exists "Allow public business submissions" on public.business_submissions;
 create policy "Allow public business submissions"
@@ -29,6 +66,8 @@ with check (
   content_rights_confirmed = true
   and status = 'pending'
   and payment_status in ('not_required', 'pending')
+  and plan in ('Free', 'Featured', 'Premium')
+  and placement_source = 'paid'
 );
 
 drop policy if exists "Allow public approved business listings" on public.business_submissions;
@@ -173,11 +212,12 @@ drop policy if exists "Allow public review submissions" on public.business_revie
 create policy "Allow public review submissions"
 on public.business_reviews
 for insert
-to anon
+to public
 with check (
   status = 'pending'
   and rating between 1 and 5
   and length(business_id) > 0
+  and length(business_name) > 0
   and length(reviewer_name) > 0
   and length(comment) > 0
 );
@@ -228,6 +268,109 @@ for all
 to authenticated
 using (true)
 with check (true);
+
+create table if not exists public.public_item_interactions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  item_type text not null,
+  item_key text not null,
+  item_name text not null,
+  action_type text not null default 'click'
+);
+
+alter table public.public_item_interactions enable row level security;
+
+grant insert on public.public_item_interactions to anon;
+grant select, insert, delete on public.public_item_interactions to authenticated;
+
+drop policy if exists "Allow public item interaction tracking" on public.public_item_interactions;
+create policy "Allow public item interaction tracking"
+on public.public_item_interactions
+for insert
+to anon
+with check (
+  action_type = 'click'
+  and item_type in ('service', 'event', 'business', 'photo', 'section')
+  and length(item_key) > 0
+  and length(item_name) > 0
+);
+
+drop policy if exists "Allow authenticated item interaction reads" on public.public_item_interactions;
+create policy "Allow authenticated item interaction reads"
+on public.public_item_interactions
+for all
+to authenticated
+using (true)
+with check (true);
+
+create table if not exists public.local_news_items (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  published_at timestamptz not null,
+  title text not null,
+  summary text not null,
+  image_url text,
+  source_name text not null,
+  source_url text not null,
+  original_url text not null unique,
+  story_fingerprint text not null default '',
+  news_category text not null default 'Local Buzz',
+  mood_label text not null default 'Fresh',
+  verification_status text not null default 'verified',
+  status text not null default 'approved'
+);
+
+alter table public.local_news_items
+add column if not exists news_category text not null default 'Local Buzz';
+
+alter table public.local_news_items
+add column if not exists mood_label text not null default 'Fresh';
+
+alter table public.local_news_items
+add column if not exists image_url text;
+
+alter table public.local_news_items
+add column if not exists story_fingerprint text not null default '';
+
+update public.local_news_items
+set story_fingerprint = left(regexp_replace(regexp_replace(lower(title), '&[#a-z0-9]+;', ' ', 'g'), '[^a-z0-9]+', ' ', 'g'), 140)
+where story_fingerprint = '';
+
+drop index if exists public.local_news_items_story_fingerprint_key;
+
+create unique index if not exists local_news_items_story_fingerprint_key
+on public.local_news_items (story_fingerprint);
+
+alter table public.local_news_items enable row level security;
+
+grant select on public.local_news_items to anon;
+grant select, insert, update, delete on public.local_news_items to authenticated;
+grant select, insert, update, delete on public.local_news_items to service_role;
+
+drop policy if exists "Allow public approved local news reads" on public.local_news_items;
+create policy "Allow public approved local news reads"
+on public.local_news_items
+for select
+to anon
+using (
+  status = 'approved'
+  and published_at >= now() - interval '7 days'
+);
+
+drop policy if exists "Allow authenticated local news management" on public.local_news_items;
+create policy "Allow authenticated local news management"
+on public.local_news_items
+for all
+to authenticated
+using (true)
+with check (
+  verification_status in ('verified', 'needs_review')
+  and status in ('approved', 'draft', 'rejected')
+  and news_category in ('Fires', 'Arrests', 'New Spots', 'Sports', 'Campus', 'Flying Bison', 'Local Buzz')
+  and length(title) > 0
+  and length(summary) > 0
+  and length(original_url) > 0
+);
 
 create table if not exists public.event_submissions (
   id uuid primary key default gen_random_uuid(),

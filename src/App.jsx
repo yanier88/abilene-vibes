@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
 import { createClient } from "@supabase/supabase-js";
 import "./App.css";
 
@@ -13,7 +14,31 @@ const stripePaymentLinks = {
   Premium: import.meta.env.VITE_STRIPE_PREMIUM_LINK ?? "",
 };
 
+const paidPlanNames = new Set(["Featured", "Premium"]);
+
+const lobbyAboutRotationMs = 2000;
+const featuredPromotionRotationMs = 3000;
+const premiumPromotionRotationMs = 5000;
+
 const contactEmail = "abilenevibes@gmail.com";
+
+const openCheckoutUrl = (url) => {
+  const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
+
+  if (!openedWindow) {
+    window.location.assign(url);
+  }
+};
+
+const paymentLinkWithReference = (url, referenceId) => {
+  try {
+    const checkoutUrl = new URL(url);
+    checkoutUrl.searchParams.set("client_reference_id", referenceId);
+    return checkoutUrl.toString();
+  } catch {
+    return url;
+  }
+};
 
 const cleanEnvValue = (value, variableName) => {
   const assignmentPrefix = `${variableName}=`;
@@ -65,6 +90,8 @@ const validPages = new Set([
   "home",
   "lobby",
   "events",
+  "more",
+  "news",
   "calendar",
   "shopping",
   "nightlife",
@@ -80,7 +107,7 @@ const validPages = new Set([
 ]);
 
 const pageFromLocation = () => {
-  const hashPage = window.location.hash.replace("#", "").split("/")[0];
+  const hashPage = window.location.hash.replace("#", "").split("?")[0].split("/")[0];
   const queryPage = new URLSearchParams(window.location.search).get("page");
 
   if (validPages.has(hashPage)) {
@@ -88,6 +115,11 @@ const pageFromLocation = () => {
   }
 
   return validPages.has(queryPage) ? queryPage : "home";
+};
+
+const checkoutResultFromLocation = () => {
+  const hashQuery = window.location.hash.split("?")[1] ?? "";
+  return new URLSearchParams(hashQuery || window.location.search).get("checkout") ?? "";
 };
 
 const urlForPage = (nextPage) => {
@@ -594,7 +626,7 @@ const promoteCategories = [
   { label: "Restaurants", icon: "restaurant" },
   { label: "Clubs & Bars", icon: "bars" },
   { label: "Barber Shop", icon: "barber" },
-  { label: "Hotels & Rents", icon: "hotels" },
+  { label: "Hotels", icon: "hotels" },
   { label: "Others", icon: "others" },
 ];
 
@@ -729,8 +761,8 @@ const lobbyActions = [
   },
   {
     page: "hotels",
-    label: "Hotels & Rents",
-    description: "Find hotels and rentals in Abilene.",
+    label: "Hotels",
+    description: "Find hotels in Abilene.",
     icon: "hotels",
     tone: "purple",
   },
@@ -748,6 +780,61 @@ const lobbyActions = [
     icon: "directory",
     tone: "pink",
   },
+];
+
+const moreServices = [
+  { label: "Local News", icon: "news", page: "news" },
+  { label: "Local Marketplace", icon: "sales" },
+  { label: "Groceries", icon: "groceries" },
+  { label: "Jobs & Hiring", icon: "jobs" },
+  { label: "Rentals", icon: "rents" },
+  { label: "Dealers", icon: "dealers" },
+  { label: "Insurance Companies", icon: "insurance" },
+  { label: "Barber Shops", icon: "barber" },
+  { label: "Health", icon: "health" },
+  { label: "Schools", icon: "schools" },
+];
+
+const verifiedNewsSources = [
+  {
+    name: "City of Abilene News",
+    url: "https://www.abilenetx.gov/rss.aspx",
+    note: "Official city updates and public notices.",
+  },
+  {
+    name: "KACU Local News",
+    url: "https://www.kacu.org/local-news",
+    note: "Local reporting for Abilene and the Big Country.",
+  },
+  {
+    name: "Big Country Homepage",
+    url: "https://www.bigcountryhomepage.com/news/abilene-news/",
+    note: "Regional local news from KTAB/KRBC.",
+  },
+  {
+    name: "KTXS",
+    url: "https://ktxs.com/news/local",
+    note: "Local news, weather, and public safety coverage.",
+  },
+];
+
+const localNewsCategories = [
+  { label: "All", description: "Everything fresh" },
+  { label: "Fires", description: "Fire and emergency updates" },
+  { label: "Arrests", description: "Public safety reports" },
+  { label: "New Spots", description: "Openings and local business buzz" },
+  { label: "Sports", description: "Local scores and matchups" },
+  { label: "Campus", description: "ACU, HSU, McMurry and local colleges" },
+  { label: "Flying Bison", description: "Professional baseball updates" },
+];
+
+const adminTabs = [
+  { id: "events", label: "Events" },
+  { id: "gallery", label: "Gallery" },
+  { id: "businesses", label: "Businesses" },
+  { id: "payments", label: "Payments" },
+  { id: "reviews", label: "Reviews" },
+  { id: "analytics", label: "Analytics" },
 ];
 
 const familyPlaces = [
@@ -892,10 +979,15 @@ const businessSubmissionToBusiness = (business) => ({
   name: business.business_name,
   category: business.category,
   phone: business.phone,
+  contactEmail: business.contact_email ?? "",
   address: business.address ?? "",
   social: business.social ?? "",
   description: business.description ?? "",
+  image: business.image_data ?? "",
   plan: business.plan,
+  paymentStatus: business.payment_status ?? "",
+  placementSource: business.placement_source ?? "paid",
+  placementExpiresAt: business.placement_expires_at ?? "",
 });
 
 const planRank = {
@@ -908,6 +1000,7 @@ const categorySectionMap = {
   "Food trucks": "eats",
   Restaurants: "eats",
   "Clubs & Bars": "nightlife",
+  Hotels: "hotels",
   "Hotels & Rents": "hotels",
 };
 
@@ -916,7 +1009,7 @@ const businessImageForCategory = (category) => {
     return appAsset("nightlife-station.jpg");
   }
 
-  if (category === "Hotels & Rents") {
+  if (category === "Hotels" || category === "Hotels & Rents") {
     return "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80";
   }
 
@@ -1071,6 +1164,109 @@ function LobbyActionIcon({ icon }) {
   return <span aria-hidden="true">{icon}</span>;
 }
 
+function ServiceIcon({ icon }) {
+  if (icon === "news") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M14 14h30v38H14V14Z" />
+        <path d="M44 22h6v30c0 3-2 5-5 5H19" />
+        <path d="M21 24h16M21 32h16M21 40h10" />
+      </svg>
+    );
+  }
+
+  if (icon === "sales") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M12 18h40l-4 28H18L12 18Z" />
+        <path d="M22 18c0-6 4-10 10-10s10 4 10 10" />
+        <path d="M24 34h16" />
+      </svg>
+    );
+  }
+
+  if (icon === "groceries") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M16 24h36l-5 24H21l-5-24Z" />
+        <path d="M22 24l8-12M46 24 34 12" />
+        <path d="M25 34h18" />
+      </svg>
+    );
+  }
+
+  if (icon === "jobs") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M12 22h40v28H12V22Z" />
+        <path d="M24 22v-6h16v6" />
+        <path d="M12 32h40M29 32h6" />
+      </svg>
+    );
+  }
+
+  if (icon === "rents") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M10 32 32 14l22 18" />
+        <path d="M16 30v24h32V30" />
+        <path d="M26 54V40h12v14" />
+      </svg>
+    );
+  }
+
+  if (icon === "dealers") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M12 38h40l-5-14H17l-5 14Z" />
+        <circle cx="22" cy="43" r="5" />
+        <circle cx="42" cy="43" r="5" />
+        <path d="M20 24l4-8h16l4 8" />
+      </svg>
+    );
+  }
+
+  if (icon === "insurance") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M32 10 14 18v14c0 12 7 21 18 26 11-5 18-14 18-26V18L32 10Z" />
+        <path d="M24 33h16M32 25v16" />
+      </svg>
+    );
+  }
+
+  if (icon === "barber") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="21" cy="18" r="7" />
+        <circle cx="21" cy="46" r="7" />
+        <path d="M27 23l25 27M27 41l25-27" />
+      </svg>
+    );
+  }
+
+  if (icon === "health") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M32 54S13 43 13 27c0-8 5-13 12-13 4 0 7 2 7 5 0-3 3-5 7-5 7 0 12 5 12 13 0 16-19 27-19 27Z" />
+        <path d="M24 32h16M32 24v16" />
+      </svg>
+    );
+  }
+
+  if (icon === "schools") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M8 26 32 14l24 12-24 12L8 26Z" />
+        <path d="M18 32v12c7 6 21 6 28 0V32" />
+        <path d="M56 26v17" />
+      </svg>
+    );
+  }
+
+  return null;
+}
+
 function PromoteCategoryIcon({ icon }) {
   if (icon === "foodTruck") {
     return (
@@ -1169,6 +1365,7 @@ function App() {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminStatus, setAdminStatus] = useState("");
+  const [adminTab, setAdminTab] = useState("events");
   const [pendingGalleryPhotos, setPendingGalleryPhotos] = useState([]);
   const [publishedGalleryPhotos, setPublishedGalleryPhotos] = useState([]);
   const [pendingBusinesses, setPendingBusinesses] = useState([]);
@@ -1177,8 +1374,30 @@ function App() {
   const [pendingReviews, setPendingReviews] = useState([]);
   const [publishedEvents, setPublishedEvents] = useState([]);
   const [hiddenEvents, setHiddenEvents] = useState([]);
+  const [deletedStaticItems, setDeletedStaticItems] = useState([]);
+  const [localNewsItems, setLocalNewsItems] = useState([]);
+  const [selectedNewsCategory, setSelectedNewsCategory] = useState("All");
+  const [checkoutNotice, setCheckoutNotice] = useState(checkoutResultFromLocation);
+  const [lobbyCarouselIndex, setLobbyCarouselIndex] = useState(0);
+  const [premiumCarouselIndex, setPremiumCarouselIndex] = useState(0);
   const [businessReports, setBusinessReports] = useState([]);
+  const [itemReports, setItemReports] = useState([]);
   const adminShortcutRef = useRef({ count: 0, timer: null });
+  const pageRef = useRef(page);
+  const previousPageRef = useRef(page);
+
+  useEffect(() => {
+    if (previousPageRef.current === "news" && page === "lobby") {
+      pageRef.current = "more";
+      previousPageRef.current = "more";
+      window.history.replaceState({ page: "more" }, "", urlForPage("more"));
+      setPage("more");
+      return;
+    }
+
+    previousPageRef.current = page;
+    pageRef.current = page;
+  }, [page]);
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -1200,7 +1419,20 @@ function App() {
     window.history.replaceState({ page: pageFromLocation() }, "", window.location.href);
 
     const syncPageFromUrl = () => {
-      setPage(pageFromLocation());
+      const nextPage = pageFromLocation();
+
+      if (pageRef.current === "news" && nextPage !== "more") {
+        window.history.replaceState({ page: "more" }, "", urlForPage("more"));
+        pageRef.current = "more";
+        setPage("more");
+        setCheckoutNotice(checkoutResultFromLocation());
+        window.scrollTo(0, 0);
+        return;
+      }
+
+      pageRef.current = nextPage;
+      setPage(nextPage);
+      setCheckoutNotice(checkoutResultFromLocation());
       window.scrollTo(0, 0);
     };
 
@@ -1279,6 +1511,26 @@ function App() {
         setApprovedReviews(nextReviews);
       });
 
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 7);
+    weekStart.setHours(0, 0, 0, 0);
+
+    supabase
+      .from("local_news_items")
+      .select("id,title,summary,image_url,source_name,source_url,original_url,published_at,news_category,mood_label,verification_status")
+      .eq("status", "approved")
+      .gte("published_at", weekStart.toISOString())
+      .order("published_at", { ascending: false })
+      .limit(20)
+      .then(({ data, error }) => {
+        if (error || !data) {
+          setLocalNewsItems([]);
+          return;
+        }
+
+        setLocalNewsItems(data);
+      });
+
     supabase
       .from("event_submissions")
       .select("id,title,place,event_date,event_time,event_type,image_url,image_data,status")
@@ -1298,7 +1550,7 @@ function App() {
 
     supabase
       .from("business_submissions")
-      .select("id,business_name,category,phone,address,social,description,plan")
+      .select("id,business_name,category,phone,address,social,description,image_data,plan,payment_status,placement_source,placement_expires_at")
       .eq("status", "approved")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -1311,10 +1563,11 @@ function App() {
 
     supabase
       .from("hidden_static_items")
-      .select("item_key")
+      .select("item_key,item_type")
       .then(({ data, error }) => {
         if (!error && data) {
-          setHiddenStaticItems(data.map((item) => item.item_key));
+          setHiddenStaticItems(data.filter((item) => item.item_type !== "deleted").map((item) => item.item_key));
+          setDeletedStaticItems(data.filter((item) => item.item_type === "deleted").map((item) => item.item_key));
         }
       });
 
@@ -1354,7 +1607,8 @@ function App() {
     };
   }, []);
 
-  const navigateTo = (nextPage, options = {}) => {
+  const navigateTo = useCallback((nextPage, options = {}) => {
+    pageRef.current = nextPage;
     setPage(nextPage);
 
     if (options.replace) {
@@ -1364,7 +1618,39 @@ function App() {
     }
 
     window.scrollTo(0, 0);
-  };
+  }, []);
+
+  useEffect(() => {
+    let backButtonListener;
+
+    CapacitorApp.addListener("backButton", () => {
+      const currentPage = pageRef.current;
+
+      if (currentPage === "home") {
+        CapacitorApp.exitApp();
+        return;
+      }
+
+      if (currentPage === "lobby") {
+        navigateTo("home");
+        return;
+      }
+
+      if (currentPage === "news") {
+        pageRef.current = "more";
+        navigateTo("more", { replace: true });
+        return;
+      }
+
+      navigateTo("lobby", { replace: true });
+    }).then((listener) => {
+      backButtonListener = listener;
+    });
+
+    return () => {
+      backButtonListener?.remove();
+    };
+  }, [navigateTo]);
 
   const backToLobby = () => {
     navigateTo("lobby", { replace: true });
@@ -1400,14 +1686,29 @@ function App() {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const requiredFields = ["businessName", "contactName", "contactEmail", "phone"];
+    const isMissingRequiredField = requiredFields.some((fieldName) => !String(formData.get(fieldName) ?? "").trim());
+
+    if (isMissingRequiredField || formData.get("contentRights") !== "on") {
+      setBusinessSubmitted(true);
+      setSubmissionStatus("validation-error");
+      return;
+    }
+
+    const imageFile = formData.get("businessImage");
+    const imageData = imageFile && imageFile.size ? await optimizeGalleryImage(imageFile) : "";
+    const submissionId = crypto.randomUUID();
     const business = {
-      id: `${Date.now()}-${formData.get("businessName")}`,
+      id: submissionId,
       name: formData.get("businessName").trim(),
+      contactName: formData.get("contactName").trim(),
+      contactEmail: formData.get("contactEmail").trim(),
       category: selectedCategory,
       phone: formData.get("phone").trim(),
       social: formData.get("social").trim(),
       address: formData.get("address").trim(),
       description: formData.get("description").trim(),
+      image: imageData,
       plan: selectedPlan,
     };
 
@@ -1417,14 +1718,17 @@ function App() {
 
     if (isSupabaseSubmission) {
       const { error } = await supabase.from("business_submissions").insert({
+        id: submissionId,
         business_name: business.name,
-        contact_name: formData.get("contactName").trim(),
+        contact_name: business.contactName,
+        contact_email: business.contactEmail,
         category: business.category,
         plan: business.plan,
         phone: business.phone,
         address: business.address,
         social: business.social,
         description: business.description,
+        image_data: imageData,
         content_rights_confirmed: formData.get("contentRights") === "on",
         status: "pending",
         payment_status: business.plan === "Free" ? "not_required" : "pending",
@@ -1443,9 +1747,34 @@ function App() {
 
     setBusinessSubmitted(true);
 
-    const paymentLink = stripePaymentLinks[selectedPlan];
-    if (paymentLink) {
-      window.open(paymentLink, "_blank", "noopener,noreferrer");
+    if (isSupabaseSubmission && paidPlanNames.has(selectedPlan)) {
+      const paymentLink = stripePaymentLinks[selectedPlan];
+
+      if (paymentLink) {
+        openCheckoutUrl(paymentLinkWithReference(paymentLink, submissionId));
+        setSubmissionStatus("checkout-link");
+        form.reset();
+        return;
+      }
+
+      setSubmissionStatus("checkout");
+      const returnUrl = window.location.origin.startsWith("https://") ? window.location.origin : "";
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: {
+          submissionId,
+          plan: selectedPlan,
+          businessName: business.name,
+          contactEmail: business.contactEmail,
+          returnUrl,
+        },
+      });
+
+      if (data?.url) {
+        openCheckoutUrl(data.url);
+        return;
+      }
+
+      setSubmissionStatus(error?.message?.includes("APP_PUBLIC_URL") ? "checkout-config" : "checkout-error");
     }
 
     form.reset();
@@ -1532,6 +1861,48 @@ function App() {
     }
   };
 
+  const trackPublicItemClick = async (itemType, itemKey, itemName) => {
+    if (!supabase) {
+      return;
+    }
+
+    const { error } = await supabase.from("public_item_interactions").insert({
+      item_type: itemType,
+      item_key: itemKey,
+      item_name: itemName,
+      action_type: "click",
+    });
+
+    if (error) {
+      console.warn("Abilene Vibes click tracking failed", error);
+    }
+  };
+
+  const trackLobbySectionClick = (itemKey, itemName) =>
+    trackPublicItemClick("service", `lobby-${itemKey}`, `Lobby: ${itemName}`);
+
+  const navigateWithLobbyClick = async (itemKey, itemName, nextPage) => {
+    await trackLobbySectionClick(itemKey, itemName);
+    navigateTo(nextPage);
+  };
+
+  const paidOrPromoBusinesses = [...pendingBusinesses, ...publishedBusinesses, ...hiddenBusinesses]
+    .filter((business) => business.plan && business.plan !== "Free")
+    .sort((left, right) => new Date(right.created_at) - new Date(left.created_at));
+
+  const paymentBusinesses = paidOrPromoBusinesses.filter((business) => business.placement_source !== "comp");
+  const promoBusinesses = paidOrPromoBusinesses.filter((business) => business.placement_source === "comp");
+
+  const paymentSummary = paymentBusinesses.reduce(
+    (summary, business) => {
+      const status = business.payment_status ?? "pending";
+      summary.total += 1;
+      summary[status] = (summary[status] ?? 0) + 1;
+      return summary;
+    },
+    { total: 0 },
+  );
+
   const handleReviewSubmit = async (event, business) => {
     event.preventDefault();
 
@@ -1546,14 +1917,19 @@ function App() {
 
     setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "saving" }));
 
-    const { error } = await supabase.from("business_reviews").insert({
-      business_id: business.id,
-      business_name: business.name,
-      reviewer_name: formData.get("reviewerName").trim(),
-      rating,
-      comment: formData.get("comment").trim(),
-      status: "pending",
-    });
+    const { error } = await supabase
+      .from("business_reviews")
+      .insert(
+        {
+          business_id: business.id,
+          business_name: business.name,
+          reviewer_name: formData.get("reviewerName").trim(),
+          rating,
+          comment: formData.get("comment").trim(),
+          status: "pending",
+        },
+        { returning: "minimal" },
+      );
 
     if (error) {
       setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "error" }));
@@ -1622,6 +1998,8 @@ function App() {
     window.location.assign(url);
   };
 
+  const businessDisplayImage = (business) => business.image || business.image_data || businessImageForCategory(business.category);
+
   const loadAdminData = async (sessionOverride = adminSession, showRefreshSuccess = false) => {
     if (!supabase || !sessionOverride) {
       return;
@@ -1655,17 +2033,17 @@ function App() {
         .order("created_at", { ascending: false }),
       supabase
         .from("business_submissions")
-        .select("id,created_at,business_name,contact_name,category,plan,phone,address,social,description,payment_status,status")
+        .select("id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,status")
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
       supabase
         .from("business_submissions")
-        .select("id,created_at,business_name,contact_name,category,plan,phone,address,social,description,payment_status,status")
+        .select("id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,status")
         .eq("status", "approved")
         .order("created_at", { ascending: false }),
       supabase
         .from("business_submissions")
-        .select("id,created_at,business_name,contact_name,category,plan,phone,address,social,description,payment_status,status")
+        .select("id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,status")
         .eq("status", "hidden")
         .order("created_at", { ascending: false }),
       supabase
@@ -1679,8 +2057,7 @@ function App() {
         .order("created_at", { ascending: false }),
       supabase
         .from("public_likes")
-        .select("created_at,item_type,item_key")
-        .eq("item_type", "business"),
+        .select("created_at,item_type,item_key"),
       supabase
         .from("business_reviews")
         .select("created_at,business_id,rating,status")
@@ -1722,12 +2099,21 @@ function App() {
     setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
     setPendingBusinesses(businessResult.data ?? []);
     setPublishedBusinesses(publishedBusinessResult.data ?? []);
+    setBusinesses((publishedBusinessResult.data ?? []).map(businessSubmissionToBusiness));
     setHiddenBusinesses(hiddenBusinessResult.data ?? []);
-    setHiddenStaticItems((hiddenStaticResult.data ?? []).map((item) => item.item_key));
+    setHiddenStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type !== "deleted").map((item) => item.item_key));
+    setDeletedStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type === "deleted").map((item) => item.item_key));
     setPendingReviews(reviewResult.data ?? []);
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
     setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
+    setLikeCounts(
+      (likeResult.data ?? []).reduce((counts, like) => {
+        const key = `${like.item_type}:${like.item_key}`;
+        counts[key] = (counts[key] ?? 0) + 1;
+        return counts;
+      }, {}),
+    );
 
     const monthStart = new Date();
     monthStart.setDate(1);
@@ -1757,13 +2143,12 @@ function App() {
 
     (likeResult.data ?? [])
       .filter((like) => new Date(like.created_at) >= monthStart)
+      .filter((like) => like.item_type === "business")
       .forEach((like) => {
         ensureReport(like.item_key).likes += 1;
       });
 
-    (approvedReviewResult.data ?? [])
-      .filter((review) => new Date(review.created_at) >= monthStart)
-      .forEach((review) => {
+    (approvedReviewResult.data ?? []).forEach((review) => {
         const report = ensureReport(review.business_id);
         report.reviews += 1;
         report.ratingTotal += Number(review.rating);
@@ -1784,6 +2169,37 @@ function App() {
         }))
         .sort((a, b) => b.likes + b.reviews + b.calls + b.directions + b.visits - (a.likes + a.reviews + a.calls + a.directions + a.visits)),
     );
+
+    const itemInteractionResult = await supabase
+      .from("public_item_interactions")
+      .select("created_at,item_type,item_key,item_name,action_type");
+
+    if (!itemInteractionResult.error) {
+      const itemReportsByKey = new Map();
+
+      (itemInteractionResult.data ?? [])
+        .filter((interaction) => new Date(interaction.created_at) >= monthStart)
+        .forEach((interaction) => {
+          const reportKey = `${interaction.item_type}:${interaction.item_key}`;
+          const isLobbyClick =
+            String(interaction.item_key ?? "").startsWith("lobby-") || /^Lobby:\s*/i.test(interaction.item_name ?? "");
+          const itemName = isLobbyClick ? interaction.item_name.replace(/^Lobby:\s*/i, "") : interaction.item_name;
+
+          if (!itemReportsByKey.has(reportKey)) {
+            itemReportsByKey.set(reportKey, {
+              itemKey: reportKey,
+              itemName,
+              itemType: isLobbyClick ? "Lobby" : interaction.item_type,
+              clicks: 0,
+            });
+          }
+
+          itemReportsByKey.get(reportKey).clicks += 1;
+        });
+
+      setItemReports([...itemReportsByKey.values()].sort((a, b) => b.clicks - a.clicks));
+    }
+
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
   };
 
@@ -1827,8 +2243,11 @@ function App() {
     setPendingReviews([]);
     setPublishedEvents([]);
     setHiddenEvents([]);
+    setDeletedStaticItems([]);
     setBusinessReports([]);
+    setItemReports([]);
     setAdminStatus("");
+    setAdminTab("events");
   };
 
   const moderateItem = async (table, id, status) => {
@@ -1867,6 +2286,228 @@ function App() {
     }
 
     setApprovedGalleryPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
+    await loadAdminData();
+  };
+
+  const deleteBusiness = async (id) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const shouldDelete = window.confirm("Permanently delete this business from Abilene Vibes?");
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from("business_submissions").delete().eq("id", id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
+    await loadAdminData();
+  };
+
+  const editBusiness = async (business) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const businessName = window.prompt("Business name", business.business_name);
+    if (businessName === null) return;
+
+    const category = window.prompt("Category", business.category);
+    if (category === null) return;
+
+    const phone = window.prompt("Phone", business.phone ?? "");
+    if (phone === null) return;
+
+    const address = window.prompt("Address", business.address ?? "");
+    if (address === null) return;
+
+    const social = window.prompt("Website, Instagram, or Facebook", business.social ?? "");
+    if (social === null) return;
+
+    const description = window.prompt("Description", business.description ?? "");
+    if (description === null) return;
+
+    const plan = window.prompt("Plan: Free, Featured, or Premium", business.plan || "Free");
+    if (plan === null) return;
+
+    const normalizedPlan = plan.trim();
+    const cleanPlan = ["Free", "Featured", "Premium"].includes(normalizedPlan) ? normalizedPlan : business.plan || "Free";
+    const placementUpdates =
+      cleanPlan === "Free"
+        ? { placement_source: "paid", placement_expires_at: null, payment_status: "not_required" }
+        : {};
+
+    setAdminStatus("saving");
+    const { error } = await supabase
+      .from("business_submissions")
+      .update({
+        business_name: businessName.trim() || business.business_name,
+        category: category.trim() || business.category,
+        phone: phone.trim() || business.phone,
+        address: address.trim(),
+        social: social.trim(),
+        description: description.trim(),
+        plan: cleanPlan,
+        ...placementUpdates,
+      })
+      .eq("id", business.id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    await loadAdminData();
+  };
+
+  const applyBusinessCategoryPhoto = async (business) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const shouldUpdate = window.confirm(`Use the default ${business.category || "category"} photo for "${business.business_name}"?`);
+
+    if (!shouldUpdate) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from("business_submissions").update({ image_data: null }).eq("id", business.id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    await loadAdminData();
+  };
+
+  const compBusinessPlacement = async (business, selectedPromoPlan = "") => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const plan =
+      selectedPromoPlan ||
+      window.prompt("Free promo plan: Featured or Premium", business.plan === "Premium" ? "Premium" : "Featured");
+    if (plan === null) return;
+
+    const days = selectedPromoPlan ? "30" : window.prompt("Promo duration in days", "30");
+    if (days === null) return;
+
+    const cleanPlan = plan.trim() === "Premium" ? "Premium" : "Featured";
+    const durationDays = Math.max(1, Number.parseInt(days, 10) || 30);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + durationDays);
+
+    setAdminStatus("saving");
+    const { error } = await supabase
+      .from("business_submissions")
+      .update({
+        plan: cleanPlan,
+        status: "approved",
+        payment_status: "not_required",
+        placement_source: "comp",
+        placement_expires_at: expiresAt.toISOString(),
+      })
+      .eq("id", business.id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    await loadAdminData();
+  };
+
+  const setPaidBusinessPlacement = async (business, plan) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const cleanPlan = plan === "Premium" ? "Premium" : plan === "Featured" ? "Featured" : "Free";
+    const shouldUpdate = window.confirm(`Set "${business.business_name}" to ${cleanPlan} paid plan?`);
+
+    if (!shouldUpdate) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase
+      .from("business_submissions")
+      .update({
+        plan: cleanPlan,
+        status: cleanPlan === "Free" ? business.status : "approved",
+        payment_status: cleanPlan === "Free" ? "not_required" : "paid",
+        placement_source: "paid",
+        placement_expires_at: null,
+      })
+      .eq("id", business.id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    await loadAdminData();
+  };
+
+  const clearCompBusinessPlacement = async (business) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const shouldClear = window.confirm(`Remove free promo placement from "${business.business_name}"?`);
+
+    if (!shouldClear) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase
+      .from("business_submissions")
+      .update({
+        plan: "Free",
+        placement_source: "paid",
+        placement_expires_at: null,
+      })
+      .eq("id", business.id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    await loadAdminData();
+  };
+
+  const deleteEvent = async (id) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const shouldDelete = window.confirm("Permanently delete this event from Abilene Vibes?");
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from("event_submissions").delete().eq("id", id);
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
     await loadAdminData();
   };
 
@@ -2233,41 +2874,86 @@ function App() {
     await loadAdminData();
   };
 
+  const deleteStaticItem = async (itemKey, title) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    const shouldDelete = window.confirm(`Permanently remove "${title}" from the app?`);
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setAdminStatus("saving");
+    const { error } = await supabase.from("hidden_static_items").upsert({
+      item_key: itemKey,
+      item_type: "deleted",
+      title,
+    });
+
+    if (error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
+    setDeletedStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
+    await loadAdminData();
+  };
+
   const hiddenStaticItemSet = new Set(hiddenStaticItems);
-  const visibleInitialBusinesses = initialBusinesses.filter((business) => !hiddenStaticItemSet.has(`business:${business.id}`));
-  const hiddenInitialBusinesses = initialBusinesses.filter((business) => hiddenStaticItemSet.has(`business:${business.id}`));
-  const visibleStaticEvents = events.filter((event) => !hiddenStaticItemSet.has(staticEventKey(event)));
-  const hiddenStaticEvents = events.filter((event) => hiddenStaticItemSet.has(staticEventKey(event)));
-  const visibleStaticGalleryPhotos = galleryShots.filter((photo) => !hiddenStaticItemSet.has(staticGalleryKey(photo)));
-  const hiddenStaticGalleryPhotos = galleryShots.filter((photo) => hiddenStaticItemSet.has(staticGalleryKey(photo)));
+  const deletedStaticItemSet = new Set(deletedStaticItems);
+  const visibleInitialBusinesses = initialBusinesses.filter(
+    (business) => !deletedStaticItemSet.has(`business:${business.id}`) && !hiddenStaticItemSet.has(`business:${business.id}`),
+  );
+  const hiddenInitialBusinesses = initialBusinesses.filter(
+    (business) => !deletedStaticItemSet.has(`business:${business.id}`) && hiddenStaticItemSet.has(`business:${business.id}`),
+  );
+  const visibleStaticEvents = events.filter(
+    (event) => !deletedStaticItemSet.has(staticEventKey(event)) && !hiddenStaticItemSet.has(staticEventKey(event)),
+  );
+  const hiddenStaticEvents = events.filter(
+    (event) => !deletedStaticItemSet.has(staticEventKey(event)) && hiddenStaticItemSet.has(staticEventKey(event)),
+  );
+  const visibleStaticGalleryPhotos = galleryShots.filter(
+    (photo) => !deletedStaticItemSet.has(staticGalleryKey(photo)) && !hiddenStaticItemSet.has(staticGalleryKey(photo)),
+  );
+  const hiddenStaticGalleryPhotos = galleryShots.filter(
+    (photo) => !deletedStaticItemSet.has(staticGalleryKey(photo)) && hiddenStaticItemSet.has(staticGalleryKey(photo)),
+  );
   const allEvents = [...approvedEvents, ...visibleStaticEvents];
   const allBusinesses = [...businesses, ...visibleInitialBusinesses];
   const paidBusinesses = [...allBusinesses]
     .filter((business) => business.plan && business.plan !== "Free")
+    .filter((business) => {
+      if (business.placementSource === "comp") {
+        return true;
+      }
+
+      return business.paymentStatus === "paid";
+    })
+    .filter((business) => !business.placementExpiresAt || new Date(business.placementExpiresAt) > new Date())
     .sort((a, b) => (planRank[a.plan] ?? 99) - (planRank[b.plan] ?? 99));
-  const spotlightBusiness = paidBusinesses.find((business) => business.plan === "Premium") ?? paidBusinesses[0];
+  const premiumBusinesses = paidBusinesses.filter((business) => business.plan === "Premium");
+  const lobbyFeaturedBusinesses = paidBusinesses.filter((business) => business.plan === "Featured");
+  const lobbyClickReports = itemReports.filter((report) => report.itemType === "Lobby");
+  const serviceClickReports = itemReports.filter((report) => report.itemType !== "Lobby");
+  const lobbyCarouselLength = lobbyFeaturedBusinesses.length + 1;
+  const normalizedLobbyCarouselIndex = lobbyCarouselIndex % lobbyCarouselLength;
+  const isLobbyAboutSlide = normalizedLobbyCarouselIndex === 0 || !lobbyFeaturedBusinesses.length;
+  const lobbyCarouselBusiness = isLobbyAboutSlide ? null : lobbyFeaturedBusinesses[normalizedLobbyCarouselIndex - 1];
+  const spotlightBusiness = premiumBusinesses[premiumCarouselIndex % Math.max(premiumBusinesses.length, 1)] ?? paidBusinesses[0];
   const spotlightEvent = allEvents[0] ?? events[0];
   const [spotlightEventDate, spotlightEventTime = ""] = spotlightEvent.date.split(" - ");
-  const openUpcomingHighlight = () => {
+  const openUpcomingHighlight = async () => {
     if (!spotlightBusiness) {
+      await trackLobbySectionClick("upcoming-highlight", "Upcoming Highlight");
       navigateTo("events");
       return;
     }
 
-    if (spotlightBusiness.social) {
-      window.open(visitUrl(spotlightBusiness.social), "_blank", "noopener,noreferrer");
-      return;
-    }
-
-    if (spotlightBusiness.address) {
-      window.open(
-        mapSearchUrl(`${spotlightBusiness.name}, ${spotlightBusiness.address}`),
-        "_blank",
-        "noopener,noreferrer",
-      );
-      return;
-    }
-
+    await trackPublicItemClick("service", `lobby-highlight-${spotlightBusiness.id}`, `Lobby: Highlight ${spotlightBusiness.name}`);
     navigateTo(categorySectionMap[spotlightBusiness.category] ?? "directory");
   };
   const categoryBusinessesFor = (section) =>
@@ -2276,6 +2962,10 @@ function App() {
     (a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99),
   );
   const galleryPhotos = [...approvedGalleryPhotos, ...visibleStaticGalleryPhotos];
+  const filteredLocalNewsItems =
+    selectedNewsCategory === "All"
+      ? localNewsItems
+      : localNewsItems.filter((story) => (story.news_category ?? "Local Buzz") === selectedNewsCategory);
   const likeCountFor = (itemType, itemKey) => likeCounts[`${itemType}:${itemKey}`] ?? 0;
   const isLiked = (itemType, itemKey) => likedItems.includes(`${itemType}:${itemKey}`);
   const reviewStatusText = {
@@ -2284,6 +2974,31 @@ function App() {
     saved: "Thanks. Your review was sent for approval.",
     saving: "Sending review...",
   };
+
+  useEffect(() => {
+    if (lobbyCarouselLength <= 1) {
+      return;
+    }
+
+    const delay = isLobbyAboutSlide ? lobbyAboutRotationMs : featuredPromotionRotationMs;
+    const timer = window.setTimeout(() => {
+      setLobbyCarouselIndex((currentIndex) => (currentIndex + 1) % lobbyCarouselLength);
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [isLobbyAboutSlide, lobbyCarouselLength, lobbyCarouselIndex]);
+
+  useEffect(() => {
+    if (premiumBusinesses.length <= 1) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setPremiumCarouselIndex((currentIndex) => (currentIndex + 1) % premiumBusinesses.length);
+    }, premiumPromotionRotationMs);
+
+    return () => window.clearInterval(timer);
+  }, [premiumBusinesses.length]);
 
   const renderLikeButton = (itemType, itemKey) => (
     <button
@@ -2294,6 +3009,41 @@ function App() {
     >
       {isLiked(itemType, itemKey) ? "Liked" : "Like"} · {likeCountFor(itemType, itemKey)}
     </button>
+  );
+
+  const renderBusinessPlanButtons = (business, options = {}) => (
+    <>
+      {options.showEdit !== false && (
+        <button className="directory-link" type="button" onClick={() => editBusiness(business)}>
+          Edit
+        </button>
+      )}
+      {options.showCategoryPhoto && (
+        <button className="directory-link" type="button" onClick={() => applyBusinessCategoryPhoto(business)}>
+          Use Category Photo
+        </button>
+      )}
+      <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Free")}>
+        Plan Free
+      </button>
+      <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Featured")}>
+        Paid Featured
+      </button>
+      <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Premium")}>
+        Paid Premium
+      </button>
+      <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Featured")}>
+        Free Promo Featured
+      </button>
+      <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Premium")}>
+        Free Promo Premium
+      </button>
+      {business.placement_source === "comp" && (
+        <button className="directory-link danger-link" type="button" onClick={() => clearCompBusinessPlacement(business)}>
+          End Promo
+        </button>
+      )}
+    </>
   );
 
   const renderBusinessReviews = (business) => {
@@ -2363,7 +3113,7 @@ function App() {
       <main className="app photo-page">
         <section
           className="photo-feature lobby-v2"
-          style={{ "--lobby-bg": `url("${appAsset("lobby-bg.png")}")` }}
+          style={{ "--lobby-bg": `url("${appAsset("lobby-correcta.jpg")}")` }}
           aria-label="Abilene Vibes lobby"
         >
           <button className="lobby-title-badge" type="button" onClick={openAdminShortcut} aria-label="Lobby">
@@ -2384,13 +3134,35 @@ function App() {
             </span>
           </button>
 
-          <article className="lobby-about" aria-label="About Abilene Vibes">
-            <span>About the app</span>
-            <p>
-              Abilene Vibes is your local guide to events, nightlife, eats, shopping, family plans, stays, and
-              businesses around Abilene.
-            </p>
-          </article>
+          <button
+            className={`lobby-about${lobbyCarouselBusiness ? " is-featured" : ""}`}
+            type="button"
+            onClick={async () => {
+              if (lobbyCarouselBusiness) {
+                await trackPublicItemClick("service", `lobby-featured-${lobbyCarouselBusiness.id}`, `Lobby: Featured ${lobbyCarouselBusiness.name}`);
+                navigateTo(categorySectionMap[lobbyCarouselBusiness.category] ?? "directory");
+              }
+            }}
+            aria-label={lobbyCarouselBusiness ? `Featured business ${lobbyCarouselBusiness.name}` : "About Abilene Vibes"}
+          >
+            {lobbyCarouselBusiness ? (
+              <>
+                <img className="lobby-about-thumb" src={businessDisplayImage(lobbyCarouselBusiness)} alt="" />
+                <span>Featured local</span>
+                <strong>{lobbyCarouselBusiness.name}</strong>
+                <p>{lobbyCarouselBusiness.category}</p>
+                {lobbyCarouselBusiness.phone && <p>{lobbyCarouselBusiness.phone}</p>}
+              </>
+            ) : (
+              <>
+                <span>About the app</span>
+                <p>
+                  Abilene Vibes is your local guide to events, nightlife, eats, shopping, family plans, stays, and
+                  businesses around Abilene.
+                </p>
+              </>
+            )}
+          </button>
 
           <nav className="lobby-action-list" aria-label="Abilene Vibes sections">
             {lobbyActions.map((action) => (
@@ -2398,7 +3170,7 @@ function App() {
                 className={`lobby-action-card is-${action.tone}${action.page === "events" ? " is-priority" : ""}`}
                 key={action.page}
                 type="button"
-                onClick={() => navigateTo(action.page)}
+                onClick={() => navigateWithLobbyClick(action.page, action.label, action.page)}
               >
                 <span className="lobby-action-icon" aria-hidden="true">
                   <LobbyActionIcon icon={action.icon} />
@@ -2414,10 +3186,18 @@ function App() {
             ))}
           </nav>
 
+          <button
+            className="lobby-more-button"
+            type="button"
+            onClick={() => navigateWithLobbyClick("more", "More", "more")}
+          >
+            More
+          </button>
+
           <button className="lobby-highlight" type="button" onClick={openUpcomingHighlight} aria-label="Upcoming highlight">
             {spotlightBusiness ? (
               <>
-                <img src={businessImageForCategory(spotlightBusiness.category)} alt="" />
+                <img src={businessDisplayImage(spotlightBusiness)} alt="" />
                 <div>
                   <span>Upcoming Highlight</span>
                   <strong>{spotlightBusiness.name}</strong>
@@ -2442,15 +3222,197 @@ function App() {
           </button>
 
           <div className="lobby-bottom-actions">
-            <button className="lobby-bottom-home" type="button" onClick={() => navigateTo("home")}>
+            <button
+              className="lobby-bottom-home"
+              type="button"
+              onClick={() => navigateWithLobbyClick("home", "Home", "home")}
+            >
               <span aria-hidden="true">⌂</span>
               Home
             </button>
-            <button className="lobby-bottom-promote" type="button" onClick={() => navigateTo("promote")}>
+            <button
+              className="lobby-bottom-promote"
+              type="button"
+              onClick={() => navigateWithLobbyClick("promote", "Promote your business", "promote")}
+            >
               Promote your business
             </button>
           </div>
         </section>
+      </main>,
+    );
+  }
+
+  if (page === "more") {
+    return withSplash(
+      <main className="app more-page">
+        <div className="more-screen" style={{ "--services-bg": `url("${appAsset("services-bg.jpg")}")` }}>
+          <button className="more-back-button" type="button" onClick={backToLobby}>
+            Back
+          </button>
+
+          <section className="more-header" aria-labelledby="more-title">
+            <p>Services</p>
+            <h1 id="more-title">More in Abilene</h1>
+          </section>
+
+          <section className="more-service-grid" aria-label="More Abilene services">
+            {moreServices.map((service) => (
+              <button
+                className="more-service-button"
+                type="button"
+                key={service.label}
+                onClick={() => {
+                  trackPublicItemClick("service", service.icon, service.label);
+                  if (service.page) {
+                    navigateTo(service.page);
+                  }
+                }}
+              >
+                <span className="more-service-icon" aria-hidden="true">
+                  <ServiceIcon icon={service.icon} />
+                </span>
+                <span>{service.label}</span>
+              </button>
+            ))}
+          </section>
+        </div>
+      </main>,
+    );
+  }
+
+  if (page === "news") {
+    const leadNewsStory = filteredLocalNewsItems.find((story) => story.image_url) ?? filteredLocalNewsItems[0];
+    const newsListStories = leadNewsStory
+      ? filteredLocalNewsItems.filter((story) => story.id !== leadNewsStory.id)
+      : filteredLocalNewsItems;
+    const newsTickerStories = localNewsItems.slice(0, 6);
+
+    return withSplash(
+      <main className="app events-page news-page">
+        <div className="events-shell">
+          <button className="back-button" onClick={() => navigateTo("more")}>
+            Back to services
+          </button>
+
+          <section className="events-header" aria-labelledby="news-title">
+            <p className="eyebrow">Live weekly pulse</p>
+            <h1 id="news-title">Local News</h1>
+            <p className="events-intro">
+              Fires, arrests, openings, campus sports, and Flying Bison updates from trusted sources in the last 7 days.
+            </p>
+          </section>
+
+          {localNewsItems.length ? (
+            <section className="news-ticker" aria-label="Latest Abilene updates">
+              <span>Live feed</span>
+              <div>
+                <p>
+                  {newsTickerStories.map((story) => `${story.news_category ?? "Local Buzz"}: ${story.title}`).join("   •   ")}
+                </p>
+              </div>
+            </section>
+          ) : null}
+
+          <section className="news-filter-strip" aria-label="Local news categories">
+            {localNewsCategories.map((category) => (
+              <button
+                className={selectedNewsCategory === category.label ? "is-active" : ""}
+                type="button"
+                key={category.label}
+                onClick={() => setSelectedNewsCategory(category.label)}
+              >
+                <strong>{category.label}</strong>
+                <span>{category.description}</span>
+              </button>
+            ))}
+          </section>
+
+          {localNewsItems.length ? (
+            <>
+              {leadNewsStory && (
+                <article
+                  className={`news-lead-card news-tone-${(leadNewsStory.news_category ?? "Local Buzz").toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  {leadNewsStory.image_url && <img src={leadNewsStory.image_url} alt="" />}
+                  <div>
+                    <span className="news-live-dot">Updated this week</span>
+                    <h2>{leadNewsStory.title}</h2>
+                    <p>{leadNewsStory.summary}</p>
+                    <a
+                      className="place-link"
+                      href={leadNewsStory.original_url ?? leadNewsStory.source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Read original
+                    </a>
+                  </div>
+                </article>
+              )}
+
+            <section className="event-list news-grid" aria-label="Local news this week">
+              {newsListStories.map((story) => (
+                <article
+                  className={`event-card news-card news-tone-${(story.news_category ?? "Local Buzz").toLowerCase().replace(/\s+/g, "-")}`}
+                  key={story.id}
+                >
+                  {story.image_url && <img className="news-image" src={story.image_url} alt="" loading="lazy" />}
+                  <div className="event-copy">
+                    <div className="news-card-topline">
+                      <span className="event-type">{story.news_category ?? "Local Buzz"}</span>
+                      <span className="news-mood">{story.mood_label ?? "Fresh"}</span>
+                    </div>
+                    <h2>{story.title}</h2>
+                    <p className="event-detail">{story.summary}</p>
+                    <p className="event-detail">
+                      {story.source_name} · {new Date(story.published_at).toLocaleDateString()} · {story.verification_status ?? "verified"}
+                    </p>
+                    <div className="place-actions">
+                      <a
+                        className="place-link"
+                        href={story.original_url ?? story.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Read original
+                      </a>
+                    </div>
+                  </div>
+                </article>
+              ))}
+              {!filteredLocalNewsItems.length && (
+                <article className="event-card news-card">
+                  <div className="event-copy">
+                    <span className="event-type">{selectedNewsCategory}</span>
+                    <h2>No fresh stories in this lane yet</h2>
+                    <p className="event-detail">
+                      The feed updates every hour and only shows stories from the last 7 days.
+                    </p>
+                  </div>
+                </article>
+              )}
+            </section>
+            </>
+          ) : (
+            <section className="event-list" aria-label="Verified local news sources">
+              {verifiedNewsSources.map((source) => (
+                <article className="event-card news-card" key={source.name}>
+                  <div className="event-copy">
+                    <span className="event-type">Source ready</span>
+                    <h2>{source.name}</h2>
+                    <p className="event-detail">{source.note}</p>
+                    <div className="place-actions">
+                      <a className="place-link" href={source.url} target="_blank" rel="noreferrer">
+                        Open source
+                      </a>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </section>
+          )}
+        </div>
       </main>,
     );
   }
@@ -2597,7 +3559,7 @@ function App() {
               <article className="nightlife-card paid-placement-card" key={business.id}>
                 <img
                   className="nightlife-image"
-                  src={businessImageForCategory(business.category)}
+                  src={businessDisplayImage(business)}
                   alt=""
                   loading="lazy"
                 />
@@ -2684,7 +3646,7 @@ function App() {
               <article className="eats-card paid-placement-card" key={business.id}>
                 <img
                   className="eats-image"
-                  src={businessImageForCategory(business.category)}
+                  src={businessDisplayImage(business)}
                   alt=""
                   loading="lazy"
                 />
@@ -2804,16 +3766,16 @@ function App() {
 
           <section className="events-header" aria-labelledby="hotels-title">
             <p className="eyebrow">Stay nearby</p>
-            <h1 id="hotels-title">Hotels & Rents</h1>
-            <p className="events-intro">Find places to stay near events, food, family stops, and downtown plans.</p>
+            <h1 id="hotels-title">Hotels</h1>
+            <p className="events-intro">Find hotels near events, food, family stops, and downtown plans.</p>
           </section>
 
-          <section className="event-list" aria-label="Hotels and rentals">
+          <section className="event-list" aria-label="Hotels">
             {categoryBusinessesFor("hotels").map((business) => (
               <article className="event-card paid-placement-card" key={business.id}>
                 <img
                   className="event-image"
-                  src={businessImageForCategory(business.category)}
+                  src={businessDisplayImage(business)}
                   alt=""
                   loading="lazy"
                 />
@@ -3035,7 +3997,7 @@ function App() {
             ))}
           </section>
 
-          <form className="business-form" onSubmit={handleBusinessSubmit}>
+          <form className="business-form" onSubmit={handleBusinessSubmit} noValidate>
             <div className="business-form-heading">
               <p className="eyebrow">{selectedPlan} plan</p>
               <h2>{selectedCategory}</h2>
@@ -3079,6 +4041,18 @@ function App() {
               </label>
 
               <label className="form-field">
+                <span>Email for receipt</span>
+                <input
+                  name="contactEmail"
+                  type="email"
+                  placeholder="owner@example.com"
+                  required
+                  onInvalid={handleRequiredInvalid}
+                  onInput={handleRequiredInput}
+                />
+              </label>
+
+              <label className="form-field">
                 <span>Address</span>
                 <input name="address" type="text" placeholder="Street address or area" />
               </label>
@@ -3088,6 +4062,11 @@ function App() {
                 <input name="social" type="text" placeholder="@business or website" />
               </label>
             </div>
+
+            <label className="form-field form-field-wide">
+              <span>Business photo</span>
+              <input name="businessImage" type="file" accept="image/*" />
+            </label>
 
             <label className="form-field form-field-wide">
               <span>Short description</span>
@@ -3117,9 +4096,21 @@ function App() {
             {businessSubmitted && (
               <p className="form-success">
                 {submissionStatus === "saved"
-                  ? "Thanks. Your request was saved for review."
+                  ? paidPlanNames.has(selectedPlan)
+                    ? "Thanks. Your request was saved. Opening secure checkout..."
+                    : "Thanks. Your request was saved for review."
                   : submissionStatus === "local"
                     ? "Thanks. Your request was added locally. Connect Supabase to save it permanently."
+                    : submissionStatus === "validation-error"
+                      ? "Please complete business name, contact name, email, phone, and the permission checkbox."
+                    : submissionStatus === "checkout"
+                      ? "Opening secure checkout..."
+                      : submissionStatus === "checkout-link"
+                        ? "Thanks. Your payment page opened in a new tab. We will review your listing after payment."
+                        : submissionStatus === "checkout-config"
+                          ? "Your request was saved, but Stripe needs APP_PUBLIC_URL before checkout can open."
+                          : submissionStatus === "checkout-error"
+                            ? "Your request was saved, but checkout could not open. Please contact us to finish payment."
                     : selectedPlan === "Free"
                   ? "Thanks. Your business is now visible in the local directory."
                   : stripePaymentLinks[selectedPlan]
@@ -3170,6 +4161,18 @@ function App() {
             <p className="events-intro">Explore Abilene businesses shared through Abilene Vibes.</p>
           </section>
 
+          {checkoutNotice === "success" && (
+            <p className="form-success">
+              Payment received. Your listing is now waiting for admin review.
+            </p>
+          )}
+
+          {checkoutNotice === "cancelled" && (
+            <p className="form-error">
+              Checkout was cancelled. Your request was saved, but the paid placement is not active yet.
+            </p>
+          )}
+
           <button className="directory-add-button" type="button" onClick={() => navigateTo("promote")}>
             Add your business
           </button>
@@ -3184,7 +4187,7 @@ function App() {
               <article className="directory-card" key={business.id}>
                 <img
                   className="directory-image"
-                  src={businessImageForCategory(business.category)}
+                  src={businessDisplayImage(business)}
                   alt=""
                   loading="lazy"
                 />
@@ -3328,7 +4331,21 @@ function App() {
               {adminStatus === "refreshed" && <p className="form-success">Admin data updated.</p>}
               {adminStatus === "saving" && <p className="form-success">Saving...</p>}
 
-              <section className="admin-section" aria-labelledby="admin-event-form-title">
+              <nav className="admin-tabs" aria-label="Admin categories">
+                {adminTabs.map((tab) => (
+                  <button
+                    className={adminTab === tab.id ? "is-active" : ""}
+                    type="button"
+                    key={tab.id}
+                    onClick={() => setAdminTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </nav>
+
+              <div className={`admin-panel-view admin-panel-view-${adminTab}`}>
+              <section className="admin-section admin-tab-events" id="admin-events" aria-labelledby="admin-event-form-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Events</p>
                   <h2 id="admin-event-form-title">Add Event</h2>
@@ -3378,7 +4395,7 @@ function App() {
                 </form>
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-published-event-title">
+              <section className="admin-section admin-tab-events" aria-labelledby="admin-published-event-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Published</p>
                   <h2 id="admin-published-event-title">Events</h2>
@@ -3418,6 +4435,9 @@ function App() {
                           <button className="directory-link" type="button" onClick={() => unpublishEvent(event.id)}>
                             Hide
                           </button>
+                          <button className="directory-link danger-link" type="button" onClick={() => deleteEvent(event.id)}>
+                            Delete
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -3427,7 +4447,7 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-hidden-event-title">
+              <section className="admin-section admin-tab-events" aria-labelledby="admin-hidden-event-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Hidden</p>
                   <h2 id="admin-hidden-event-title">Events</h2>
@@ -3459,6 +4479,9 @@ function App() {
                           <button className="directory-link" type="button" onClick={() => restoreEvent(event.id)}>
                             Restore
                           </button>
+                          <button className="directory-link danger-link" type="button" onClick={() => deleteEvent(event.id)}>
+                            Delete
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -3486,6 +4509,13 @@ function App() {
                           <button className="directory-link" type="button" onClick={() => hideStaticEvent(event)}>
                             Hide
                           </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteStaticItem(staticEventKey(event), event.title)}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -3499,6 +4529,13 @@ function App() {
                           <button className="directory-link" type="button" onClick={() => restoreStaticEvent(event)}>
                             Restore
                           </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteStaticItem(staticEventKey(event), event.title)}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -3508,7 +4545,7 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-gallery-title">
+              <section className="admin-section admin-tab-gallery" id="admin-photos" aria-labelledby="admin-gallery-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Pending</p>
                   <h2 id="admin-gallery-title">Gallery Photos</h2>
@@ -3522,6 +4559,7 @@ function App() {
                         <span className="event-type">{new Date(photo.created_at).toLocaleDateString()}</span>
                         <h3>{photo.title}</h3>
                         <p>By {photo.contributor_name}</p>
+                        <p className="admin-metric">Likes: <strong>{likeCountFor("photo", photo.id)}</strong></p>
                         <div className="directory-actions">
                           <button
                             className="directory-link"
@@ -3546,7 +4584,7 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-business-title">
+              <section className="admin-section admin-tab-businesses" id="admin-businesses" aria-labelledby="admin-business-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Pending</p>
                   <h2 id="admin-business-title">Businesses</h2>
@@ -3557,13 +4595,20 @@ function App() {
                     {pendingBusinesses.map((business) => (
                       <article className="admin-card" key={business.id}>
                         <span className="event-type">{business.plan} - {business.payment_status}</span>
+                        {business.placement_source === "comp" && <span className="event-type">Comp promo</span>}
+                        {business.placement_expires_at && (
+                          <p>Promo expires: {new Date(business.placement_expires_at).toLocaleDateString()}</p>
+                        )}
+                        {business.image_data && <img src={business.image_data} alt="" />}
                         <h3>{business.business_name}</h3>
                         <p>{business.category}</p>
                         <p>Contact: {business.contact_name}</p>
+                        {business.contact_email && <p>Email: {business.contact_email}</p>}
                         <p>{business.phone}</p>
                         {business.address && <p>{business.address}</p>}
                         {business.description && <p>{business.description}</p>}
                         <div className="directory-actions">
+                          {renderBusinessPlanButtons(business, { showCategoryPhoto: true })}
                           <button
                             className="directory-link"
                             type="button"
@@ -3578,6 +4623,13 @@ function App() {
                           >
                             Reject
                           </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteBusiness(business.id)}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </article>
                     ))}
@@ -3587,7 +4639,7 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-review-title">
+              <section className="admin-section admin-tab-reviews" id="admin-reviews" aria-labelledby="admin-review-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Pending</p>
                   <h2 id="admin-review-title">Reviews</h2>
@@ -3625,7 +4677,86 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-report-title">
+              <section className="admin-section admin-tab-payments" id="admin-payments" aria-labelledby="admin-payment-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Stripe</p>
+                  <h2 id="admin-payment-title">Payments</h2>
+                </div>
+
+                <div className="payment-summary-grid">
+                  <span>Total <strong>{paymentSummary.total}</strong></span>
+                  <span>Paid <strong>{paymentSummary.paid ?? 0}</strong></span>
+                  <span>Checkout <strong>{paymentSummary.checkout_started ?? 0}</strong></span>
+                  <span>Pending <strong>{paymentSummary.pending ?? 0}</strong></span>
+                  <span>Failed <strong>{paymentSummary.failed ?? 0}</strong></span>
+                  <span>Free promos <strong>{promoBusinesses.length}</strong></span>
+                </div>
+
+                {paymentBusinesses.length ? (
+                  <div className="admin-grid">
+                    {paymentBusinesses.map((business) => (
+                      <article className="admin-card" key={`payment-${business.id}`}>
+                        <span className={`event-type payment-status payment-${business.payment_status}`}>
+                          {business.payment_status}
+                        </span>
+                        <h3>{business.business_name}</h3>
+                        <p>{business.plan} plan</p>
+                        <p>Status: {business.status}</p>
+                        {business.contact_email && <p>Email: {business.contact_email}</p>}
+                        <p>{new Date(business.created_at).toLocaleDateString()}</p>
+                        <div className="directory-actions">
+                          {renderBusinessPlanButtons(business)}
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => moderateItem("business_submissions", business.id, "approved")}
+                            disabled={business.status === "approved"}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteBusiness(business.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No paid plan activity yet.</p>
+                )}
+
+                {promoBusinesses.length ? (
+                  <>
+                    <div className="business-form-heading">
+                      <p className="eyebrow">Limited time</p>
+                      <h2>Free Promos</h2>
+                    </div>
+                    <div className="admin-grid">
+                      {promoBusinesses.map((business) => (
+                        <article className="admin-card" key={`promo-${business.id}`}>
+                          <span className="event-type payment-status payment-comp">Comp promo</span>
+                          <h3>{business.business_name}</h3>
+                          <p>{business.plan} plan</p>
+                          <p>Status: {business.status}</p>
+                          {business.contact_email && <p>Email: {business.contact_email}</p>}
+                          {business.placement_expires_at && (
+                            <p>Expires: {new Date(business.placement_expires_at).toLocaleDateString()}</p>
+                          )}
+                          <div className="directory-actions">
+                            {renderBusinessPlanButtons(business)}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </section>
+
+              <section className="admin-section admin-tab-analytics" id="admin-analytics" aria-labelledby="admin-report-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">This month</p>
                   <h2 id="admin-report-title">Business Report</h2>
@@ -3653,7 +4784,45 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-published-gallery-title">
+              <section className="admin-section admin-tab-analytics" aria-labelledby="admin-click-report-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Most clicked</p>
+                  <h2 id="admin-click-report-title">Top Clicks</h2>
+                </div>
+
+                {itemReports.length ? (
+                  <div className="click-report-columns">
+                    {[
+                      { title: "Lobby", reports: lobbyClickReports },
+                      { title: "Service", reports: serviceClickReports },
+                    ].map((group) => (
+                      <div className="click-report-column" key={group.title}>
+                        <div className="click-report-column-heading">
+                          <span className="event-type">{group.title}</span>
+                          <strong>{group.reports.reduce((total, report) => total + report.clicks, 0)}</strong>
+                        </div>
+
+                        {group.reports.length ? (
+                          <div className="click-report-list">
+                            {group.reports.slice(0, 8).map((report) => (
+                              <article className="click-report-card" key={report.itemKey}>
+                                <h3>{report.itemName}</h3>
+                                <span>Clicks <strong>{report.clicks}</strong></span>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="legal-disclaimer">No clicks yet.</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No click activity this month yet.</p>
+                )}
+              </section>
+
+              <section className="admin-section admin-tab-gallery" aria-labelledby="admin-published-gallery-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Published</p>
                   <h2 id="admin-published-gallery-title">Gallery Photos</h2>
@@ -3684,7 +4853,7 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-starter-gallery-title">
+              <section className="admin-section admin-tab-gallery" aria-labelledby="admin-starter-gallery-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Built in</p>
                   <h2 id="admin-starter-gallery-title">Starter Gallery Photos</h2>
@@ -3697,9 +4866,17 @@ function App() {
                         <img src={photo.image} alt="" />
                         <span className="event-type">Visible</span>
                         <h3>{photo.title}</h3>
+                        <p className="admin-metric">Likes: <strong>{likeCountFor("photo", photo.id)}</strong></p>
                         <div className="directory-actions">
                           <button className="directory-link" type="button" onClick={() => hideStaticGalleryPhoto(photo)}>
                             Hide
+                          </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteStaticItem(staticGalleryKey(photo), photo.title)}
+                          >
+                            Delete
                           </button>
                         </div>
                       </article>
@@ -3709,9 +4886,17 @@ function App() {
                         <img src={photo.image} alt="" />
                         <span className="event-type">Hidden</span>
                         <h3>{photo.title}</h3>
+                        <p className="admin-metric">Likes: <strong>{likeCountFor("photo", photo.id)}</strong></p>
                         <div className="directory-actions">
                           <button className="directory-link" type="button" onClick={() => restoreStaticGalleryPhoto(photo)}>
                             Restore
+                          </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteStaticItem(staticGalleryKey(photo), photo.title)}
+                          >
+                            Delete
                           </button>
                         </div>
                       </article>
@@ -3722,7 +4907,7 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-published-business-title">
+              <section className="admin-section admin-tab-businesses" aria-labelledby="admin-published-business-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Published</p>
                   <h2 id="admin-published-business-title">Businesses</h2>
@@ -3733,19 +4918,33 @@ function App() {
                     {publishedBusinesses.map((business) => (
                       <article className="admin-card" key={business.id}>
                         <span className="event-type">{business.plan} - {business.payment_status}</span>
+                        {business.placement_source === "comp" && <span className="event-type">Comp promo</span>}
+                        {business.placement_expires_at && (
+                          <p>Promo expires: {new Date(business.placement_expires_at).toLocaleDateString()}</p>
+                        )}
+                        {business.image_data && <img src={business.image_data} alt="" />}
                         <h3>{business.business_name}</h3>
                         <p>{business.category}</p>
                         <p>Contact: {business.contact_name}</p>
+                        {business.contact_email && <p>Email: {business.contact_email}</p>}
                         <p>{business.phone}</p>
                         {business.address && <p>{business.address}</p>}
                         {business.description && <p>{business.description}</p>}
                         <div className="directory-actions">
+                          {renderBusinessPlanButtons(business, { showCategoryPhoto: true })}
                           <button
                             className="directory-link"
                             type="button"
                             onClick={() => unpublishBusiness(business.id)}
                           >
                             Unpublish
+                          </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteBusiness(business.id)}
+                          >
+                            Delete
                           </button>
                         </div>
                       </article>
@@ -3756,7 +4955,7 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-hidden-business-title">
+              <section className="admin-section admin-tab-businesses" aria-labelledby="admin-hidden-business-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Hidden</p>
                   <h2 id="admin-hidden-business-title">Businesses</h2>
@@ -3767,19 +4966,33 @@ function App() {
                     {hiddenBusinesses.map((business) => (
                       <article className="admin-card" key={business.id}>
                         <span className="event-type">{business.plan} - {business.payment_status}</span>
+                        {business.placement_source === "comp" && <span className="event-type">Comp promo</span>}
+                        {business.placement_expires_at && (
+                          <p>Promo expires: {new Date(business.placement_expires_at).toLocaleDateString()}</p>
+                        )}
+                        {business.image_data && <img src={business.image_data} alt="" />}
                         <h3>{business.business_name}</h3>
                         <p>{business.category}</p>
                         <p>Contact: {business.contact_name}</p>
+                        {business.contact_email && <p>Email: {business.contact_email}</p>}
                         <p>{business.phone}</p>
                         {business.address && <p>{business.address}</p>}
                         {business.description && <p>{business.description}</p>}
                         <div className="directory-actions">
+                          {renderBusinessPlanButtons(business, { showCategoryPhoto: true })}
                           <button
                             className="directory-link"
                             type="button"
                             onClick={() => restoreBusiness(business)}
                           >
                             Restore
+                          </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteBusiness(business.id)}
+                          >
+                            Delete
                           </button>
                         </div>
                       </article>
@@ -3790,7 +5003,7 @@ function App() {
                 )}
               </section>
 
-              <section className="admin-section" aria-labelledby="admin-built-in-business-title">
+              <section className="admin-section admin-tab-businesses" aria-labelledby="admin-built-in-business-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Built in</p>
                   <h2 id="admin-built-in-business-title">Starter Businesses</h2>
@@ -3812,6 +5025,13 @@ function App() {
                             onClick={() => hideStaticBusiness(business)}
                           >
                             Hide
+                          </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteStaticItem(`business:${business.id}`, business.name)}
+                          >
+                            Delete
                           </button>
                         </div>
                       </article>
@@ -3838,12 +5058,20 @@ function App() {
                           >
                             Restore
                           </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteStaticItem(`business:${business.id}`, business.name)}
+                          >
+                            Delete
+                          </button>
                         </div>
                       </article>
                     ))}
                   </div>
                 ) : null}
               </section>
+              </div>
             </>
           )}
         </div>
@@ -3886,7 +5114,7 @@ function App() {
         <div className="home-hero-frame">
           <img
             className="home-hero-image"
-            src={appAsset("3110a91c-36c2-4c99-b245-e5856062f992.jpg")}
+            src={appAsset("home-correcta.jpg")}
             alt=""
           />
           <button className="home-hero-button" onClick={() => navigateTo("lobby")} aria-label="Explore Abilene" />
