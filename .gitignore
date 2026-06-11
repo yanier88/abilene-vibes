@@ -38,3 +38,24 @@ supabase/.temp
 # Browser screenshot profiles
 .chrome-shot*
 .edge-shot*
+# Android / Gradle generated files
+.gradle/
+build/
+android/.gradle/
+android/build/
+android-admin/.gradle/
+android-admin/build/
+
+*.bin
+*.lock
+
+.idea/
+*.iml
+
+**/.gradle/
+**/build/
+**/*.bin
+**/executionHistory/
+**/fileHashes/
+**/checksums/
+android-admin/
