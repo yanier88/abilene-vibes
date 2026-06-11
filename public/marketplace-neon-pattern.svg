@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1560" viewBox="0 0 720 1560">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#170736"/>
+      <stop offset="0.52" stop-color="#080929"/>
+      <stop offset="1" stop-color="#17052e"/>
+    </linearGradient>
+    <filter id="glow" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur stdDeviation="1.55" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      .bg{fill:url(#bg)}
+      .c{fill:none;stroke:#00d4ff;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round;filter:url(#glow);opacity:.78}
+      .m{fill:none;stroke:#ff00cc;stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round;filter:url(#glow);opacity:.78}
+      .p{fill:none;stroke:#8d35ff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;filter:url(#glow);opacity:.62}
+      .d{fill:none;stroke:#a24cff;stroke-width:1.45;stroke-linecap:round;stroke-linejoin:round;opacity:.5}
+    </style>
+    <g id="phone"><rect width="28" height="52" rx="6"/><path d="M10 5h8M12 45h5"/></g>
+    <g id="bag"><path d="M5 16h38l-4 34H9L5 16Z"/><path d="M14 16C14 8 20 3 24 3s10 5 10 13"/></g>
+    <g id="car"><path d="M6 33h64l-8-18H18L6 33Z"/><circle cx="20" cy="38" r="5.5"/><circle cx="55" cy="38" r="5.5"/><path d="M21 15 28 5h24l7 10"/></g>
+    <g id="tv"><rect width="66" height="40" rx="5"/><path d="m27 40-6 10M39 40l6 10M20 50h28"/></g>
+    <g id="tool"><path d="M33 5a13 13 0 0 0-15 16L4 35l10 10 14-14A13 13 0 0 0 45 17L35 27l-8-8L37 9Z"/></g>
+    <g id="shirt"><path d="M13 5 3 13l9 12 6-4v35h34V21l6 4 9-12L57 5 46 2c-5 6-16 6-22 0L13 5Z"/></g>
+    <g id="bike"><circle cx="15" cy="37" r="12"/><circle cx="56" cy="37" r="12"/><path d="M15 37 30 16h13l13 21M30 16l12 21H15M42 37l9-22M27 12h16"/></g>
+    <g id="camera"><rect y="10" width="56" height="36" rx="6"/><path d="m12 10 5-7h16l5 7"/><circle cx="28" cy="28" r="9"/><path d="M44 17h4"/></g>
+    <g id="box"><path d="m5 15 23-11 23 11-23 12L5 15Z"/><path d="M5 15v27l23 12 23-12V15M28 27v27"/></g>
+    <g id="headphones"><path d="M7 34v-9a22 22 0 0 1 44 0v9"/><rect x="3" y="30" width="11" height="20" rx="4"/><rect x="44" y="30" width="11" height="20" rx="4"/></g>
+    <g id="chair"><path d="M12 12h36c8 0 13 6 13 14v25H0V26c0-8 5-14 12-14Z"/><path d="M7 51v14M54 51v14"/></g>
+    <g id="guitar"><path d="m29 4 23 23"/><path d="M25 25c-7-6-18 1-18 11 0 11 13 18 22 10 6 7 17 4 18-6 2-10-9-17-17-11l-5-4Z"/><circle cx="27" cy="37" r="4"/><path d="m49 8 7-7M53 12l7-7"/></g>
+    <g id="tag"><path d="M4 6h30l22 22-26 26L4 28V6Z"/><circle cx="16" cy="17" r="3.5"/><path d="M29 23 18 34M35 30 24 41"/></g>
+    <g id="game"><rect y="13" width="62" height="32" rx="13"/><path d="M16 25v10M11 30h10M42 26h.1M50 34h.1"/></g>
+    <g id="watch"><rect x="11" y="17" width="32" height="38" rx="9"/><path d="m19 17 3-15h11l3 15M19 55l3 15h11l3-15"/><path d="M20 36h13l6-9"/></g>
+    <g id="shoe"><path d="M6 39c13 4 32 3 59 0 0-10-10-11-19-14-9-3-12-9-16-17H20v20L6 32v7Z"/><path d="M22 17h14M22 25h18"/></g>
+    <g id="sale"><path d="M7 6h52v40H7V6Z"/><path d="M17 21h32M17 31h32"/><path d="M7 46v14M59 46v14"/></g>
+    <g id="dots">
+      <circle cx="18" cy="18" r="4"/><circle cx="102" cy="42" r="3"/><circle cx="188" cy="20" r="4"/>
+      <path d="M45 89h8M49 85v8M144 80h8M148 76v8M215 108h8M219 104v8"/>
+      <circle cx="58" cy="142" r="3"/><circle cx="178" cy="158" r="4"/>
+    </g>
+  </defs>
+
+  <rect class="bg" width="720" height="1560"/>
+  <g opacity=".98">
+    <g transform="translate(0 0)">
+      <use href="#phone" class="m" transform="translate(28 22) rotate(-12)"/>
+      <use href="#headphones" class="p" transform="translate(115 30)"/>
+      <use href="#bag" class="m" transform="translate(305 25)"/>
+      <use href="#car" class="c" transform="translate(430 24)"/>
+      <use href="#watch" class="m" transform="translate(610 28)"/>
+      <use href="#box" class="c" transform="translate(12 120)"/>
+      <use href="#tool" class="m" transform="translate(130 130) rotate(-7)"/>
+      <use href="#phone" class="c" transform="translate(250 125) rotate(-10)"/>
+      <use href="#tv" class="m" transform="translate(355 142)"/>
+      <use href="#chair" class="p" transform="translate(520 132)"/>
+      <use href="#camera" class="c" transform="translate(635 118) scale(.78)"/>
+      <use href="#dots" class="d"/>
+    </g>
+    <g transform="translate(0 235)">
+      <use href="#car" class="m" transform="translate(30 5)"/>
+      <use href="#guitar" class="m" transform="translate(180 20) rotate(-8)"/>
+      <use href="#headphones" class="m" transform="translate(315 22)"/>
+      <use href="#shirt" class="p" transform="translate(470 18)"/>
+      <use href="#tag" class="c" transform="translate(628 20) rotate(-12)"/>
+      <use href="#camera" class="c" transform="translate(12 108) scale(.84)"/>
+      <use href="#bike" class="c" transform="translate(260 105)"/>
+      <use href="#game" class="m" transform="translate(610 115) rotate(-6)"/>
+      <use href="#dots" class="d" transform="translate(12 4)"/>
+    </g>
+    <g transform="translate(0 470)">
+      <use href="#bag" class="c" transform="translate(45 30)"/>
+      <use href="#watch" class="m" transform="translate(150 25)"/>
+      <use href="#phone" class="p" transform="translate(330 22) rotate(-5)"/>
+      <use href="#shoe" class="m" transform="translate(455 38)"/>
+      <use href="#chair" class="p" transform="translate(605 38) scale(.86)"/>
+      <use href="#car" class="c" transform="translate(145 142)"/>
+      <use href="#bike" class="c" transform="translate(410 150) scale(.72)"/>
+      <use href="#tv" class="c" transform="translate(565 130)"/>
+      <use href="#dots" class="d" transform="translate(0 8)"/>
+    </g>
+    <g transform="translate(0 705)">
+      <use href="#phone" class="m" transform="translate(50 28) rotate(8)"/>
+      <use href="#box" class="m" transform="translate(190 38)"/>
+      <use href="#phone" class="c" transform="translate(350 45)"/>
+      <use href="#tag" class="m" transform="translate(435 34) rotate(-12)"/>
+      <use href="#chair" class="m" transform="translate(560 24) scale(.9)"/>
+      <use href="#chair" class="p" transform="translate(55 142) scale(.8)"/>
+      <use href="#guitar" class="m" transform="translate(330 130)"/>
+      <use href="#sale" class="m" transform="translate(560 132)"/>
+      <use href="#dots" class="d" transform="translate(18 0)"/>
+    </g>
+    <g transform="translate(0 940)">
+      <use href="#tv" class="c" transform="translate(8 45)"/>
+      <use href="#box" class="c" transform="translate(160 42)"/>
+      <use href="#shirt" class="m" transform="translate(460 38)"/>
+      <use href="#car" class="c" transform="translate(615 50) scale(.75)"/>
+      <use href="#phone" class="c" transform="translate(25 168)"/>
+      <use href="#bag" class="m" transform="translate(195 162)"/>
+      <use href="#watch" class="p" transform="translate(285 145) scale(.8)"/>
+      <use href="#game" class="c" transform="translate(470 155)"/>
+      <use href="#dots" class="d" transform="translate(8 18)"/>
+    </g>
+    <g transform="translate(0 1175)">
+      <use href="#bag" class="m" transform="translate(625 30) scale(.78)"/>
+      <use href="#shirt" class="m" transform="translate(5 65) scale(.82)"/>
+      <use href="#car" class="c" transform="translate(120 120)"/>
+      <use href="#watch" class="m" transform="translate(380 50) scale(.78)"/>
+      <use href="#tv" class="c" transform="translate(560 125)"/>
+      <use href="#bike" class="c" transform="translate(50 8) scale(.72)"/>
+      <use href="#phone" class="m" transform="translate(285 145)"/>
+      <use href="#dots" class="d" transform="translate(0 10)"/>
+    </g>
+    <g transform="translate(0 1410)">
+      <use href="#shirt" class="m" transform="translate(0 5)"/>
+      <use href="#car" class="c" transform="translate(120 35)"/>
+      <use href="#camera" class="p" transform="translate(305 30)"/>
+      <use href="#sale" class="m" transform="translate(470 10) scale(.82)"/>
+      <use href="#box" class="c" transform="translate(625 20) scale(.8)"/>
+      <use href="#dots" class="d"/>
+    </g>
+  </g>
+</svg>

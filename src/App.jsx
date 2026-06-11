@@ -605,6 +605,359 @@ const galleryShots = [
 ];
 
 const staticGalleryKey = (photo) => `gallery:${photo.id}`;
+const marketplaceCategories = [
+  { label: "Vehicles", icon: "🚗" },
+  { label: "Electronics", icon: "📱" },
+  { label: "Furniture", icon: "🛋️" },
+  { label: "Tools", icon: "🛠️" },
+  { label: "Clothing", icon: "👕" },
+  { label: "Gaming", icon: "🎮" },
+  { label: "Pets", icon: "🐶" },
+  { label: "Home & Garden", icon: "🏠" },
+  { label: "Local Businesses", icon: "🏪" },
+];
+
+const marketplaceStarterListings = [
+  {
+    title: 'Samsung TV 65"',
+    price: "$350",
+    category: "Electronics",
+    location: "Abilene, TX",
+    posted: "Posted 2 hours ago",
+    tag: "Featured",
+    image: "https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&w=1200&q=85",
+    description: "Large smart TV in good condition.",
+    contact: "(325) 555-0135",
+    icon: "📺",
+  },
+  {
+    title: "Milwaukee Drill Set",
+    price: "$120",
+    category: "Tools",
+    location: "Abilene, TX",
+    posted: "Posted today",
+    tag: "Deal",
+    image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=1200&q=85",
+    description: "Cordless drill set with case and bits.",
+    contact: "(325) 555-0120",
+    icon: "🛠️",
+  },
+  {
+    title: "Toyota Camry Wheels",
+    price: "$280",
+    category: "Vehicles",
+    location: "Abilene, TX",
+    posted: "Posted today",
+    tag: "New Today",
+    image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=85",
+    description: "Set of wheels ready for pickup.",
+    contact: "(325) 555-0280",
+    icon: "🚗",
+  },
+  {
+    title: "Sectional Sofa",
+    price: "$425",
+    category: "Furniture",
+    location: "South Abilene",
+    posted: "Posted yesterday",
+    tag: "Near Me",
+    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=85",
+    description: "Clean sectional sofa, comfortable and roomy.",
+    contact: "(325) 555-0425",
+    icon: "🛋️",
+  },
+  {
+    title: "Nintendo Switch Bundle",
+    price: "$210",
+    category: "Gaming",
+    location: "Abilene, TX",
+    posted: "Posted today",
+    tag: "Featured",
+    image: "https://images.unsplash.com/photo-1578303512597-81e6cc155b3e?auto=format&fit=crop&w=1200&q=85",
+    description: "Console bundle with games and accessories.",
+    contact: "(325) 555-0210",
+    icon: "🎮",
+  },
+  {
+    title: "Moving Boxes",
+    price: "$25",
+    category: "Home & Garden",
+    location: "Abilene, TX",
+    posted: "Posted 4 hours ago",
+    tag: "New Today",
+    image: "https://images.unsplash.com/photo-1600518464441-9306b57e4e9d?auto=format&fit=crop&w=1200&q=85",
+    description: "Stack of boxes for moving or storage.",
+    contact: "(325) 555-0025",
+    icon: "📦",
+  },
+  {
+    title: "Weekend Lawn Mowing",
+    price: "$45",
+    category: "Local Businesses",
+    location: "Abilene, TX",
+    posted: "Posted today",
+    tag: "Near Me",
+    image: "https://images.unsplash.com/photo-1592420114272-8e29d45c1c26?auto=format&fit=crop&w=1200&q=85",
+    description: "Local lawn mowing openings this weekend.",
+    contact: "(325) 555-0045",
+    icon: "🏪",
+  },
+  {
+    title: "Mobile Barber Openings",
+    price: "$30",
+    category: "Local Businesses",
+    location: "North Abilene",
+    posted: "Posted 3 hours ago",
+    tag: "Featured",
+    image: "https://images.unsplash.com/photo-1512690459411-b9245aed614b?auto=format&fit=crop&w=1200&q=85",
+    description: "Mobile barber appointments available.",
+    contact: "(325) 555-0030",
+    icon: "💈",
+  },
+];
+
+
+const jobsCategories = [
+  "Restaurant & Food", "Construction", "Cleaning", "Retail",
+  "Driving & Delivery", "Health Care", "Office/Admin",
+  "Manufacturing", "Warehouse", "Customer Service", "Skilled Trades", "Other",
+];
+const jobsFilters = ["New Today", "Full Time", "Part Time", "Near Me", "Good Pay", "No Experience"];
+const jobsCategoryIcon = (cat) => {
+  const icons = {
+    "Restaurant & Food": "🍔", Construction: "🏗️", Cleaning: "🧹", Retail: "🛒",
+    "Driving & Delivery": "🚚", "Health Care": "🏥", "Office/Admin": "💻",
+    Manufacturing: "⚙️", Warehouse: "📦", "Customer Service": "🎧",
+    "Skilled Trades": "🔨", Other: "💼",
+  };
+  return icons[cat] ?? "💼";
+};
+const jobsFilterIcon = (f) => {
+  const icons = { "New Today": "🆕 ", "Full Time": "💼 ", "Part Time": "⏰ ", "Near Me": "📍 ", "Good Pay": "💵 ", "No Experience": "🧰 " };
+  return icons[f] ?? "";
+};
+const starterJobListings = [
+  {
+    id: "restaurant-server",
+    title: "Restaurant Server",
+    company: "Abilene Restaurant",
+    pay: "Hourly + Tips",
+    location: "Abilene, TX",
+    type: "Evening Shift",
+    schedule: "Mon – Sat, 4 pm – 11 pm",
+    posted: "Posted Today",
+    category: "Restaurant & Food",
+    tag: "New Today",
+    filters: ["New Today", "Part Time", "Near Me", "Good Pay", "No Experience"],
+    image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=80",
+    description: "Dinner service, guest support, table care, and team closing duties. Greet guests, take orders accurately, serve food and beverages, and ensure a great dining experience from start to finish.",
+    requirements: "Friendly attitude, ability to stand for long periods. Prior experience a plus but not required.",
+    contact: "(325) 555-0412",
+    email: "hiring@abilenerestaurant.com",
+  },
+  {
+    id: "construction-laborer",
+    title: "Construction Laborer",
+    company: "Abilene Build Crew",
+    pay: "$17-$22/hr",
+    location: "Abilene, TX",
+    type: "Full Time",
+    schedule: "Mon – Fri, 7 am – 4 pm",
+    posted: "Posted Yesterday",
+    category: "Construction",
+    tag: "Good Pay",
+    filters: ["Full Time", "Good Pay", "No Experience"],
+    image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80",
+    description: "Site cleanup, materials handling, framing support, and general construction help on residential and commercial projects across Abilene.",
+    requirements: "Reliable and punctual. Steel-toed boots required. No experience needed — will train.",
+    contact: "(325) 555-0517",
+    email: "jobs@abilenebuilds.com",
+  },
+  {
+    id: "cashier-sales-associate",
+    title: "Cashier / Sales Associate",
+    company: "Local Retail Store",
+    pay: "Starting at $14/hr",
+    location: "Abilene, TX",
+    type: "Part Time",
+    schedule: "Flexible — weekdays and weekends available",
+    posted: "Posted Today",
+    category: "Retail",
+    tag: "New Today",
+    filters: ["New Today", "Part Time", "Near Me"],
+    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80",
+    description: "Help customers find what they need, run checkout, organize merchandise, and keep the sales floor clean and stocked.",
+    requirements: "Customer service mindset, basic math skills, reliable transportation.",
+    contact: "(325) 555-0221",
+    email: "store@localretailabilene.com",
+  },
+  {
+    id: "delivery-driver",
+    title: "Delivery Driver",
+    company: "Local Delivery Service",
+    pay: "$18/hr",
+    location: "Abilene, TX",
+    type: "Full Time",
+    schedule: "Mon – Fri, 8 am – 5 pm",
+    posted: "Posted Today",
+    category: "Driving & Delivery",
+    tag: "New Today",
+    filters: ["New Today", "Full Time", "Near Me", "Good Pay"],
+    image: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=80",
+    description: "Drive local delivery routes, handle packages carefully, and ensure on-time drop-offs to residential and business customers throughout Abilene.",
+    requirements: "Valid TX driver's license, clean driving record, ability to lift up to 50 lbs.",
+    contact: "(325) 555-0318",
+    email: "dispatch@localdeliveryabilene.com",
+  },
+  {
+    id: "medical-assistant",
+    title: "Medical Assistant",
+    company: "Abilene Health Clinic",
+    pay: "$17-$20/hr",
+    location: "Abilene, TX",
+    type: "Full Time",
+    schedule: "Mon – Fri, 8 am – 5 pm",
+    posted: "Posted Today",
+    category: "Health Care",
+    tag: "New Today",
+    filters: ["New Today", "Full Time", "Near Me", "Good Pay"],
+    image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80",
+    description: "Patient intake, recording vitals, scheduling appointments, and clinical support in a fast-paced local health clinic.",
+    requirements: "Medical Assistant certification preferred. Strong communication skills, compassion for patients.",
+    contact: "(325) 555-0720",
+    email: "careers@abilenehealthclinic.com",
+  },
+  {
+    id: "office-admin",
+    title: "Office Administrator",
+    company: "Local Business Office",
+    pay: "$16/hr",
+    location: "Abilene, TX",
+    type: "Part Time",
+    schedule: "Mon – Wed – Fri, 9 am – 2 pm",
+    posted: "Posted 2 days ago",
+    category: "Office/Admin",
+    tag: "Part Time",
+    filters: ["Part Time", "Near Me", "No Experience"],
+    image: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=800&q=80",
+    description: "Answer phones, manage scheduling, handle filing, follow up with customers, and provide general daily office support.",
+    requirements: "Basic computer skills (Word, email), organized, professional demeanor. No prior experience required.",
+    contact: "(325) 555-0614",
+    email: "office@localbizabilene.com",
+  },
+  {
+    id: "warehouse-associate",
+    title: "Warehouse Associate",
+    company: "Abilene Distribution",
+    pay: "$15-$17/hr",
+    location: "Abilene, TX",
+    type: "Full Time",
+    schedule: "Mon – Fri, 6 am – 2:30 pm",
+    posted: "Posted Today",
+    category: "Warehouse",
+    tag: "New Today",
+    filters: ["New Today", "Full Time", "Near Me", "No Experience"],
+    image: "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=800&q=80",
+    description: "Receive inbound shipments, sort, pack, and ship orders in a clean organized warehouse facility.",
+    requirements: "Ability to lift up to 60 lbs, stand for extended periods, follow safety protocols. No experience needed.",
+    contact: "(325) 555-0832",
+    email: "warehouse@abilenedist.com",
+  },
+  {
+    id: "customer-service-rep",
+    title: "Customer Service Rep",
+    company: "Local Business",
+    pay: "$14-$16/hr",
+    location: "Abilene, TX",
+    type: "Full Time",
+    schedule: "Mon – Fri, 9 am – 5 pm",
+    posted: "Posted Today",
+    category: "Customer Service",
+    tag: "New Today",
+    filters: ["New Today", "Full Time", "Near Me", "No Experience"],
+    image: "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=800&q=80",
+    description: "Answer inbound calls and messages, resolve customer issues, and help clients get the help they need quickly and professionally.",
+    requirements: "Good communication skills, patience, basic computer proficiency. Training provided.",
+    contact: "(325) 555-0941",
+    email: "support@localbizabilene.com",
+  },
+  {
+    id: "manufacturing-operator",
+    title: "Production Operator",
+    company: "Abilene Manufacturing Co.",
+    pay: "$16-$19/hr",
+    location: "Abilene, TX",
+    type: "Full Time",
+    schedule: "Day shift: Mon – Fri, 6 am – 2 pm",
+    posted: "Posted Today",
+    category: "Manufacturing",
+    tag: "New Today",
+    filters: ["New Today", "Full Time", "Near Me", "Good Pay", "No Experience"],
+    image: "https://images.unsplash.com/photo-1565043589221-1a6fd9ae45c7?auto=format&fit=crop&w=800&q=80",
+    description: "Operate and monitor production equipment, perform quality checks, and help keep assembly lines running efficiently and safely.",
+    requirements: "Attention to detail, physical stamina, ability to follow instructions. Manufacturing experience a plus.",
+    contact: "(325) 555-1020",
+    email: "hr@abilenemanufacturing.com",
+  },
+  {
+    id: "skilled-trades-electrician",
+    title: "Electrician Helper",
+    company: "West Texas Electric",
+    pay: "$18-$24/hr",
+    location: "Abilene, TX",
+    type: "Full Time",
+    schedule: "Mon – Fri, 7 am – 4 pm",
+    posted: "Posted Today",
+    category: "Skilled Trades",
+    tag: "Good Pay",
+    filters: ["Full Time", "Good Pay", "No Experience"],
+    image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80",
+    description: "Assist a licensed electrician with residential and commercial wiring, panel work, and electrical installations across the Abilene area.",
+    requirements: "Valid driver's license, willingness to learn, basic hand tool knowledge. Apprenticeship path available.",
+    contact: "(325) 555-1137",
+    email: "apply@westtexaselectric.com",
+  },
+];
+const jobsListingKey = (j) => j.id ?? `${j.title}:${j.company}`;
+const marketplaceListingKey = (l) => l.id ?? `starter:${l.title}:${l.price}`;
+const marketplaceContactHref = (contact) => `tel:${contact.replace(/\D/g, "")}`;
+const isMarketplaceToday = (dateStr) => {
+  const d = new Date(dateStr);
+  const n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+};
+const formatMarketplacePosted = (dateStr) => {
+  if (!dateStr) return "Posted today";
+  const d = new Date(dateStr);
+  const hours = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60));
+  if (hours < 1) return "Posted just now";
+  if (hours < 24) return `Posted ${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return "Posted today";
+};
+const formatMarketplaceExpiry = (dateStr) => {
+  if (!dateStr) return "Current paid period end";
+  const d = typeof dateStr === "number" ? new Date(dateStr * 1000) : new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "Current paid period end";
+  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+};
+const mapListingFromDb = (row) => ({
+  id: row.id,
+  title: row.title,
+  price: row.price,
+  category: row.category,
+  location: row.location,
+  contact: row.contact,
+  description: row.description,
+  image: row.image_data,
+  status: row.status,
+  ownerUserId: row.owner_user_id,
+  expiresAt: row.expires_at,
+  soldAt: row.sold_at,
+  deletedAt: row.deleted_at,
+  posted: formatMarketplacePosted(row.created_at),
+  tag: isMarketplaceToday(row.created_at) ? "New Today" : "Near Me",
+  icon: marketplaceCategories.find((c) => c.label === row.category)?.icon ?? "📦",
+});
 
 const promoteCategories = [
   { label: "Food trucks", icon: "foodTruck" },
@@ -612,7 +965,14 @@ const promoteCategories = [
   { label: "Clubs & Bars", icon: "bars" },
   { label: "Barber Shop", icon: "barber" },
   { label: "Hotels", icon: "hotels" },
+  { label: "Rentals", icon: "rentals" },
+  { label: "Groceries", icon: "groceries" },
+  { label: "Dealers", icon: "dealers" },
+  { label: "Insurance", icon: "insurance" },
+  { label: "Health", icon: "health" },
+  { label: "Schools", icon: "schools" },
   { label: "Others", icon: "others" },
+  { label: "Jobs & Hiring", icon: "jobsHiring" },
 ];
 
 const promotePlans = [
@@ -784,15 +1144,15 @@ const lobbyActions = [
 
 const moreServices = [
   { label: "Local News", icon: "news", page: "news" },
-  { label: "Local Marketplace", icon: "sales" },
-  { label: "Groceries", icon: "groceries" },
-  { label: "Jobs & Hiring", icon: "jobs" },
-  { label: "Rentals", icon: "rents" },
-  { label: "Dealers", icon: "dealers" },
-  { label: "Insurance Companies", icon: "insurance" },
-  { label: "Barber Shops", icon: "barber" },
-  { label: "Health", icon: "health" },
-  { label: "Schools", icon: "schools" },
+  { label: "Local Marketplace", icon: "sales", page: "marketplace" },
+  { label: "Groceries", icon: "groceries", page: "directory" },
+  { label: "Jobs & Hiring", icon: "jobs", page: "jobs" },
+  { label: "Rentals", icon: "rents", page: "directory" },
+  { label: "Dealers", icon: "dealers", page: "directory" },
+  { label: "Insurance Companies", icon: "insurance", page: "directory" },
+  { label: "Barber Shops", icon: "barber", page: "directory" },
+  { label: "Health", icon: "health", page: "directory" },
+  { label: "Schools", icon: "schools", page: "directory" },
 ];
 
 const verifiedNewsSources = [
@@ -1002,8 +1362,16 @@ const categorySectionMap = {
   "Food trucks": "eats",
   Restaurants: "eats",
   "Clubs & Bars": "nightlife",
+  "Barber Shop": "barbers",
   Hotels: "hotels",
   "Hotels & Rents": "hotels",
+  Rentals: "rentals",
+  Groceries: "groceries",
+  Dealers: "dealers",
+  Insurance: "insurance",
+  Health: "health",
+  Schools: "schools",
+  Others: "directory",
 };
 
 const businessImageForCategory = (category) => {
@@ -1324,6 +1692,79 @@ function PromoteCategoryIcon({ icon }) {
     );
   }
 
+  if (icon === "rentals") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="10" y="24" width="44" height="28" rx="2" />
+        <path d="M18 24V16a14 14 0 0 1 28 0v8" />
+        <path d="M26 38a6 6 0 1 0 12 0 6 6 0 0 0-12 0Z" />
+        <path d="M32 35v-5" />
+      </svg>
+    );
+  }
+
+  if (icon === "groceries") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M10 12h8l6 28h22l6-20H20" />
+        <circle cx="28" cy="50" r="4" />
+        <circle cx="44" cy="50" r="4" />
+      </svg>
+    );
+  }
+
+  if (icon === "dealers") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="6" y="28" width="52" height="16" rx="3" />
+        <path d="M12 28l6-14h28l6 14" />
+        <circle cx="18" cy="46" r="6" />
+        <circle cx="46" cy="46" r="6" />
+        <path d="M24 46h20" />
+      </svg>
+    );
+  }
+
+  if (icon === "insurance") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M32 10l20 8v14c0 12-9 20-20 22C12 52 12 44 12 32V18l20-8Z" />
+        <path d="M22 32l7 7 13-13" />
+      </svg>
+    );
+  }
+
+  if (icon === "health") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M32 52C18 44 8 36 8 24a12 12 0 0 1 24 0 12 12 0 0 1 24 0c0 12-10 20-24 28Z" />
+        <path d="M22 24h20M32 14v20" />
+      </svg>
+    );
+  }
+
+  if (icon === "schools") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M32 10l28 14-28 14L4 24l28-14Z" />
+        <path d="M16 31v14c0 4 7 8 16 8s16-4 16-8V31" />
+        <path d="M56 24v14" />
+        <circle cx="56" cy="40" r="3" />
+      </svg>
+    );
+  }
+
+  if (icon === "jobsHiring") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="18" y="26" width="28" height="22" rx="3" />
+        <path d="M24 26v-5a8 8 0 0 1 16 0v5" />
+        <path d="M32 34v6" />
+        <path d="M28 37h8" />
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 64 64" aria-hidden="true">
       <circle cx="18" cy="32" r="5" />
@@ -1546,9 +1987,36 @@ function App() {
   const [businessReports, setBusinessReports] = useState([]);
   const [itemReports, setItemReports] = useState([]);
   const [imageViewerPhoto, setImageViewerPhoto] = useState(null);
+  const [marketplaceListings, setMarketplaceListings] = useState([]);
+  const [selectedListing, setSelectedListing] = useState(null);
+  const [marketplaceSearch, setMarketplaceSearch] = useState("");
+  const [marketplaceFilter, setMarketplaceFilter] = useState("All");
+  const [myListingTab, setMyListingTab] = useState("Active");
+  const [sellItemStatus, setSellItemStatus] = useState("");
+  const [ownerUserId, setOwnerUserId] = useState("");
+  const [editingListing, setEditingListing] = useState(null);
+  const [deletingListing, setDeletingListing] = useState(null);
+  const [editDeleteStatus, setEditDeleteStatus] = useState("");
+  const [jobsSearch, setJobsSearch] = useState("");
+  const [jobsFilter, setJobsFilter] = useState("All");
+  const [jobsCategoryFilter, setJobsCategoryFilter] = useState("All");
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [postJobForm, setPostJobForm] = useState({
+    title: "", company: "", category: "", jobType: "", payMin: "", payMax: "",
+    location: "Abilene, TX", phone: "", email: "", description: "", requirements: "",
+    image: null, logo: null, appMethod: "Phone", duration: "30 Days",
+  });
+  const [postJobPreview, setPostJobPreview] = useState(false);
+  const [postJobImagePreview, setPostJobImagePreview] = useState(null);
+  const [postJobLogoPreview, setPostJobLogoPreview] = useState(null);
+  const [postJobStep, setPostJobStep] = useState("form"); // "form" | "preview" | "plan"
+  const [postedJobs, setPostedJobs] = useState([]);
+  const [savedJobs, setSavedJobs] = useState([]);
+  const [jobsShowSaved, setJobsShowSaved] = useState(false);
   const imageViewerPhotoRef = useRef(null);
   const pageRef = useRef(page);
   const previousPageRef = useRef(page);
+  const directoryReturnRef = useRef("lobby"); // tracks where directory was opened from
 
   useEffect(() => {
     if (previousPageRef.current === "news" && page === "lobby") {
@@ -1751,6 +2219,16 @@ function App() {
           );
         }
       });
+
+    supabase.rpc("expire_marketplace_listings").then(() => {
+      supabase
+        .from("marketplace_listings")
+        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
+        .order("created_at", { ascending: false })
+        .then(({ data, error }) => {
+          if (!error && data) setMarketplaceListings(data.map(mapListingFromDb));
+        });
+    });
   }, []);
 
   useEffect(() => {
@@ -1760,10 +2238,12 @@ function App() {
 
     supabase.auth.getSession().then(({ data }) => {
       setAdminSession(data.session);
+      setOwnerUserId(data.session?.user?.id ?? "");
     });
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setAdminSession(session);
+      setOwnerUserId(session?.user?.id ?? "");
     });
 
     return () => {
@@ -1805,9 +2285,36 @@ function App() {
         return;
       }
 
-      if (currentPage === "news") {
+      if (
+        currentPage === "news" ||
+        currentPage === "marketplace" ||
+        currentPage === "marketplace-item" ||
+        currentPage === "sell-item" ||
+        currentPage === "jobs"
+      ) {
         pageRef.current = "more";
         navigateTo("more", { replace: true });
+        return;
+      }
+
+      if (currentPage === "post-job") {
+        pageRef.current = "jobs";
+        navigateTo("jobs", { replace: true });
+        return;
+      }
+
+      if (currentPage === "job-detail") {
+        pageRef.current = "jobs";
+        navigateTo("jobs", { replace: true });
+        return;
+      }
+
+      // Directory: return to wherever it was opened from (set at navigation time)
+      if (currentPage === "directory") {
+        const ret = directoryReturnRef.current;
+        directoryReturnRef.current = "lobby"; // reset for next time
+        pageRef.current = ret;
+        navigateTo(ret, { replace: true });
         return;
       }
 
@@ -3087,6 +3594,237 @@ function App() {
   };
 
   const hiddenStaticItemSet = new Set(hiddenStaticItems);
+
+  // ── Marketplace computed ──────────────────────────────────
+  const effectiveOwnerId = ownerUserId || visitorKey;
+  const visibleStarterListings = marketplaceStarterListings.filter(
+    (l) => !hiddenStaticItemSet.has(marketplaceListingKey(l)),
+  );
+  const allMarketplaceListings = [
+    ...marketplaceListings,
+    ...visibleStarterListings,
+  ];
+  const activeMarketplaceListings = allMarketplaceListings.filter(
+    (l) => (l.status ?? "active") === "active" && (!l.expiresAt || new Date(l.expiresAt) > new Date()),
+  );
+  const filteredMarketplaceListings = activeMarketplaceListings.filter((l) => {
+    const matchesFilter = marketplaceFilter === "All" || l.category === marketplaceFilter || l.tag === marketplaceFilter;
+    const searchText = `${l.title} ${l.category} ${l.price} ${l.description ?? ""}`.toLowerCase();
+    return matchesFilter && searchText.includes(marketplaceSearch.trim().toLowerCase());
+  });
+  const marketplaceCategoryCounts = activeMarketplaceListings.reduce((acc, l) => {
+    acc[l.tag] = (acc[l.tag] ?? 0) + 1;
+    acc[l.category] = (acc[l.category] ?? 0) + 1;
+    acc.All = (acc.All ?? 0) + 1;
+    return acc;
+  }, { All: 0 });
+  const isStarterOrLegacyListing = (l) => !l.isStarterListing && (!l.ownerUserId || l.ownerUserId === "legacy-owner");
+  const isListingOwner = (l) => !!(l.ownerUserId === effectiveOwnerId || isStarterOrLegacyListing(l));
+  const myMarketplaceListings = marketplaceListings.filter((l) => isListingOwner(l));
+  const myFilteredListings = myMarketplaceListings.filter((l) =>
+    myListingTab === "Active"
+      ? l.status === "active"
+      : myListingTab === "Sold"
+      ? l.status === "sold"
+      : myListingTab === "Expired"
+      ? l.status === "expired"
+      : ["hidden", "deleted"].includes(l.status),
+  );
+
+  const openListing = (l) => {
+    setSelectedListing(l);
+    navigateTo("marketplace-item");
+  };
+
+  const handleMarkSold = (e, l) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setListingStatus(l, "sold");
+  };
+
+  const handleDeleteListing = (e, l) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setDeletingListing({ ...l });
+  };
+
+  const setListingStatus = async (l, newStatus) => {
+    const canAct = !!adminSession || isListingOwner(l);
+    if (!supabase || !canAct) return;
+
+    if (newStatus === "deleted" && l.isStarterListing) {
+      setAdminStatus("saving");
+      const { error } = await supabase.from("hidden_static_items").upsert({
+        item_key: marketplaceListingKey(l),
+        item_type: "deleted",
+        title: l.title,
+      });
+      if (error) { setAdminStatus("error"); return; }
+      setHiddenStaticItems((items) => [...new Set([...items, marketplaceListingKey(l)])]);
+      setDeletingListing(null);
+      await loadAdminData();
+      return;
+    }
+
+    const ts = new Date().toISOString();
+    const update = { status: newStatus };
+    if (isStarterOrLegacyListing(l)) update.owner_user_id = effectiveOwnerId;
+    if (newStatus === "sold") update.sold_at = ts;
+    if (newStatus === "deleted") update.deleted_at = ts;
+
+    setAdminStatus("saving");
+
+    if (newStatus === "deleted" && adminSession) {
+      const { data, error } = await supabase.rpc("admin_delete_marketplace_listing", {
+        listing_id: l.id,
+      });
+      if (error || data !== true) { setAdminStatus("error"); return; }
+      setMarketplaceListings((items) => items.filter((i) => i.id !== l.id));
+      if (selectedListing?.id === l.id) setSelectedListing(null);
+      setDeletingListing(null);
+      await loadAdminData();
+      return;
+    }
+
+    const { data, error } = adminSession
+      ? await supabase.from("marketplace_listings").update(update).eq("id", l.id)
+      : await supabase.rpc("owner_set_marketplace_listing_status", {
+          listing_id: l.id,
+          owner_id: effectiveOwnerId,
+          new_status: newStatus,
+        });
+
+    if (error || (!adminSession && data !== true)) { setAdminStatus("error"); return; }
+
+    if (selectedListing?.id === l.id) setSelectedListing((prev) => (prev ? { ...prev, ...update } : null));
+    setMarketplaceListings((items) =>
+      items.map((i) =>
+        i.id === l.id
+          ? { ...i, status: newStatus, ownerUserId: update.owner_user_id ?? i.ownerUserId, soldAt: update.sold_at ?? i.soldAt, deletedAt: update.deleted_at ?? i.deletedAt }
+          : i,
+      ),
+    );
+    if (newStatus === "deleted") setDeletingListing(null);
+    if (adminSession) await loadAdminData();
+  };
+
+  const confirmDeleteListing = async (e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    if (!deletingListing) return;
+    await setListingStatus(deletingListing, "deleted");
+  };
+
+  const handleEditListingSubmit = async (e) => {
+    e.preventDefault();
+    if (!supabase || !editingListing || !(adminSession || isListingOwner(editingListing))) return;
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const photo = data.get("photo");
+    const update = {
+      title: data.get("title").trim(),
+      price: data.get("price").trim(),
+      category: data.get("category"),
+      location: data.get("location").trim(),
+      contact: data.get("contact").trim(),
+      description: data.get("description").trim(),
+    };
+    if (isStarterOrLegacyListing(editingListing)) update.owner_user_id = effectiveOwnerId;
+    setEditDeleteStatus("saving");
+    try {
+      if (photo && photo.size) update.image_data = await optimizeGalleryImage(photo);
+      const { data: result, error } = adminSession
+        ? await supabase.from("marketplace_listings").update(update).eq("id", editingListing.id)
+        : await supabase.rpc("owner_update_marketplace_listing", {
+            listing_id: editingListing.id,
+            owner_id: effectiveOwnerId,
+            new_title: update.title,
+            new_price: update.price,
+            new_category: update.category,
+            new_location: update.location,
+            new_contact: update.contact,
+            new_description: update.description,
+            new_image_data: update.image_data ?? null,
+          });
+      if (error || (!adminSession && result !== true)) { setEditDeleteStatus("error"); return; }
+      setMarketplaceListings((items) =>
+        items.map((i) =>
+          i.id === editingListing.id
+            ? { ...i, ...update, ownerUserId: update.owner_user_id ?? i.ownerUserId, image: update.image_data ?? i.image }
+            : i,
+        ),
+      );
+      setSelectedListing((prev) =>
+        prev?.id === editingListing.id
+          ? { ...prev, ...update, ownerUserId: update.owner_user_id ?? prev.ownerUserId, image: update.image_data ?? prev.image }
+          : prev,
+      );
+      setEditDeleteStatus("");
+      setEditingListing(null);
+      if (adminSession) await loadAdminData();
+    } catch {
+      setEditDeleteStatus("error");
+    }
+  };
+
+  const handleSellItemSubmit = async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const photo = data.get("photo");
+    setSellItemStatus("saving");
+    if (!supabase) { setSellItemStatus("missing-config"); return; }
+    if (photo && photo.size && (!photo.type.startsWith("image/") || photo.size > 15 * 1024 * 1024)) {
+      setSellItemStatus("file-error");
+      return;
+    }
+    try {
+      const imageData = photo && photo.size ? await optimizeGalleryImage(photo) : "";
+      const { data: row, error } = await supabase
+        .from("marketplace_listings")
+        .insert({
+          title: data.get("title").trim(),
+          price: data.get("price").trim(),
+          category: data.get("category"),
+          location: data.get("location").trim(),
+          contact: data.get("contact").trim(),
+          description: data.get("description").trim(),
+          image_data: imageData,
+          status: "active",
+          owner_user_id: effectiveOwnerId,
+        })
+        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
+        .single();
+      if (error) { setSellItemStatus("error"); return; }
+      setMarketplaceListings((items) => [mapListingFromDb(row), ...items]);
+      setMarketplaceSearch("");
+      setMarketplaceFilter("All");
+      setSellItemStatus("saved");
+      form.reset();
+      navigateTo("marketplace");
+    } catch {
+      setSellItemStatus("error");
+    }
+  };
+  // ── End marketplace computed ──────────────────────────────
+
+  // ── Jobs computed ─────────────────────────────────────────
+  const allJobListings = [
+    ...postedJobs.map((j) => ({ ...j, tag: j.plan === "free" ? "New Today" : j.plan === "featured" ? "Featured" : "Premium", filters: [j.jobType, "New Today"] })),
+    ...starterJobListings,
+  ];
+  const filteredJobListings = (jobsShowSaved ? allJobListings.filter((j) => savedJobs.includes(j.id)) : allJobListings).filter((j) => {
+    const matchesCategory = jobsCategoryFilter === "All" || j.category === jobsCategoryFilter;
+    const matchesFilter = jobsFilter === "All" || j.tag === jobsFilter || (j.filters ?? []).includes(jobsFilter);
+    const text = `${j.title} ${j.company} ${j.category} ${j.type} ${j.pay} ${j.description}`.toLowerCase();
+    return matchesCategory && matchesFilter && text.includes(jobsSearch.trim().toLowerCase());
+  });
+  const jobsCategoryCounts = allJobListings.reduce((acc, j) => {
+    acc[j.category] = (acc[j.category] ?? 0) + 1;
+    (j.filters ?? []).forEach((f) => { acc[f] = (acc[f] ?? 0) + 1; });
+    return acc;
+  }, {});
+  // ── End jobs computed ──────────────────────────────────────
   const deletedStaticItemSet = new Set(deletedStaticItems);
   const visibleInitialBusinesses = initialBusinesses.filter(
     (business) => !deletedStaticItemSet.has(`business:${business.id}`) && !hiddenStaticItemSet.has(`business:${business.id}`),
@@ -3138,7 +3876,7 @@ function App() {
     }
 
     await trackPublicItemClick("service", `lobby-highlight-${spotlightBusiness.id}`, `Lobby: Highlight ${spotlightBusiness.name}`);
-    navigateTo(categorySectionMap[spotlightBusiness.category] ?? "directory");
+    { const dest1 = categorySectionMap[spotlightBusiness.category] ?? "directory"; if (dest1 === "directory") directoryReturnRef.current = "lobby"; navigateTo(dest1); }
   };
   const categoryBusinessesFor = (section) =>
     paidBusinesses.filter((business) => categorySectionMap[business.category] === section);
@@ -3346,7 +4084,7 @@ function App() {
             onClick={async () => {
               if (lobbyCarouselBusiness) {
                 await trackPublicItemClick("service", `lobby-featured-${lobbyCarouselBusiness.id}`, `Lobby: Featured ${lobbyCarouselBusiness.name}`);
-                navigateTo(categorySectionMap[lobbyCarouselBusiness.category] ?? "directory");
+                { const dest2 = categorySectionMap[lobbyCarouselBusiness.category] ?? "directory"; if (dest2 === "directory") directoryReturnRef.current = "lobby"; navigateTo(dest2); }
               }
             }}
             aria-label={lobbyCarouselBusiness ? `Featured business ${lobbyCarouselBusiness.name}` : "About Abilene Vibes"}
@@ -3471,6 +4209,7 @@ function App() {
                 onClick={() => {
                   trackPublicItemClick("service", service.icon, service.label);
                   if (service.page) {
+                    if (service.page === "directory") directoryReturnRef.current = "more";
                     navigateTo(service.page);
                   }
                 }}
@@ -4377,6 +5116,963 @@ function App() {
               </button>
             </div>
           </form>
+        </div>
+      </main>,
+    );
+  }
+
+  if (page === "marketplace") {
+    return withSplash(
+      <main className="app marketplace-page" style={{ "--marketplace-bg": `url("${appAsset("marketplace-neon-bg.png")}")` }}>
+        <div className="marketplace-fixed-bg" aria-hidden="true" />
+        <div className="marketplace-shell">
+          <button className="back-button" onClick={() => navigateTo("more")}>
+            Back to services
+          </button>
+          <section className="marketplace-hero" aria-labelledby="marketplace-title">
+            <p className="eyebrow">Buy &amp; sell local</p>
+            <h1 id="marketplace-title">Marketplace</h1>
+            <div className="marketplace-search">
+              <span aria-hidden="true">🔍</span>
+              <input
+                type="search"
+                value={marketplaceSearch}
+                onChange={(e) => setMarketplaceSearch(e.target.value)}
+                placeholder="Search Marketplace"
+                aria-label="Search Marketplace"
+              />
+            </div>
+            <button
+              className="marketplace-top-sell-button"
+              type="button"
+              onClick={() => navigateTo("sell-item")}
+            >
+              <span aria-hidden="true">●</span>
+              Sell Item
+            </button>
+            <div className="marketplace-filter-row marketplace-action-row" aria-label="Marketplace quick actions">
+              {["Featured", "New Today", "Deal", "Near Me"].map((f) => (
+                <button
+                  key={f}
+                  className={marketplaceFilter === f ? "is-active" : ""}
+                  type="button"
+                  onClick={() => setMarketplaceFilter(marketplaceFilter === f ? "All" : f)}
+                >
+                  {f === "Featured" && "🔥 "}
+                  {f === "New Today" && "🆕 "}
+                  {f === "Deal" && "💰 "}
+                  {f === "Near Me" && "📍 "}
+                  {f} ({marketplaceCategoryCounts[f] ?? 0})
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="marketplace-section" aria-labelledby="marketplace-category-title">
+            <div className="marketplace-section-heading">
+              <h2 id="marketplace-category-title">Categories</h2>
+              <div className="marketplace-category-actions">
+                <button
+                  className="marketplace-category-sell-button"
+                  type="button"
+                  onClick={() => navigateTo("sell-item")}
+                >
+                  <span aria-hidden="true">+</span>
+                  Sell Item
+                </button>
+                <button type="button" onClick={() => setMarketplaceFilter("All")}>All</button>
+              </div>
+            </div>
+            <div className="marketplace-category-grid">
+              {marketplaceCategories.map((cat) => (
+                <button
+                  key={cat.label}
+                  className={marketplaceFilter === cat.label ? "is-active" : ""}
+                  type="button"
+                  onClick={() => setMarketplaceFilter(cat.label)}
+                >
+                  <span aria-hidden="true">{cat.icon}</span>
+                  {cat.label} ({marketplaceCategoryCounts[cat.label] ?? 0})
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="marketplace-section" aria-labelledby="marketplace-listing-title">
+            <div className="marketplace-section-heading">
+              <h2 id="marketplace-listing-title">New Today ({marketplaceCategoryCounts["New Today"] ?? 0})</h2>
+              <span>{filteredMarketplaceListings.length} shown</span>
+            </div>
+            <div className="marketplace-listing-grid">
+              {filteredMarketplaceListings.map((l) => (
+                <article key={marketplaceListingKey(l)} className="marketplace-card">
+                  <button className="marketplace-card-open" type="button" onClick={() => openListing(l)}>
+                    <div className="marketplace-photo">
+                      {l.image ? <img src={l.image} alt="" /> : <span>{l.icon}</span>}
+                      <span className="event-type marketplace-card-tag">
+                        {l.tag === "New Today" && "New"}
+                        {l.tag === "Featured" && "Featured"}
+                        {l.tag === "Deal" && "Deal"}
+                        {l.tag === "Near Me" && "Near Me"}
+                      </span>
+                    </div>
+                    <div className="marketplace-card-copy">
+                      <span className="event-type marketplace-tag">
+                        {l.tag === "New Today" && "🆕 New"}
+                        {l.tag === "Featured" && "🔥 Featured"}
+                        {l.tag === "Deal" && "💰 Deal"}
+                        {l.tag === "Near Me" && "📍 Near Me"}
+                      </span>
+                      <h3>{l.title} <strong>{l.price}</strong></h3>
+                      {l.description && <p className="marketplace-description">{l.description}</p>}
+                      <p className="marketplace-meta">
+                        <span>{l.location}</span>
+                        <span>{l.posted}</span>
+                      </p>
+                      {l.contact && <p className="marketplace-contact">Phone: {l.contact}</p>}
+                    </div>
+                  </button>
+                  <button
+                    className={`marketplace-like-button${isLiked("marketplace", marketplaceListingKey(l)) ? " is-liked" : ""}`}
+                    type="button"
+                    onClick={() => handleLike("marketplace", marketplaceListingKey(l))}
+                    aria-label={`Like ${l.title}`}
+                  >
+                    ♥ {likeCountFor("marketplace", marketplaceListingKey(l))}
+                  </button>
+                  {isListingOwner(l) ? (
+                    <div className="marketplace-owner-actions">
+                      <button className="directory-link" type="button" onClick={(e) => handleMarkSold(e, l)}>
+                        Mark as Sold
+                      </button>
+                      <button className="directory-link danger-link" type="button" onClick={(e) => handleDeleteListing(e, l)}>
+                        Delete
+                      </button>
+                    </div>
+                  ) : (
+                    l.contact && (
+                      <a className="directory-link marketplace-contact-seller" href={marketplaceContactHref(l.contact)}>
+                        Contact Seller
+                      </a>
+                    )
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="marketplace-section my-marketplace-section" aria-labelledby="my-marketplace-title">
+            <div className="marketplace-section-heading">
+              <h2 id="my-marketplace-title">My Listings</h2>
+              <span>{myFilteredListings.length} shown</span>
+            </div>
+            <div className="marketplace-filter-row my-marketplace-tabs" aria-label="My listing status filters">
+              {["Active", "Sold", "Expired", "Hidden / Deleted"].map((tab) => (
+                <button
+                  key={tab}
+                  className={myListingTab === tab ? "is-active" : ""}
+                  type="button"
+                  onClick={() => setMyListingTab(tab)}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            {myMarketplaceListings.length ? (
+              <div className="admin-grid my-marketplace-grid">
+                {myFilteredListings.map((l) => (
+                  <article key={`mine-${marketplaceListingKey(l)}`} className="admin-card my-marketplace-card">
+                    {l.image && <img src={l.image} alt="" />}
+                    <span className={`event-type marketplace-admin-status marketplace-status-${l.status}`}>
+                      {l.status.toUpperCase()}
+                    </span>
+                    <h3>{l.title}</h3>
+                    <p>{l.price} · {l.category}</p>
+                    <p>{l.location}</p>
+                    {l.expiresAt && <p>Expires: {formatMarketplaceExpiry(l.expiresAt)}</p>}
+                    <div className="directory-actions">
+                      {l.status === "active" && (
+                        <button className="directory-link" type="button" onClick={(e) => handleMarkSold(e, l)}>
+                          Mark as Sold
+                        </button>
+                      )}
+                      {l.status !== "deleted" && (
+                        <button className="directory-link danger-link" type="button" onClick={(e) => handleDeleteListing(e, l)}>
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <section className="checkout-result-card service-empty-card">
+                <p className="eyebrow">Owner tools</p>
+                <h2>No listings from this device yet.</h2>
+                <p>Items you post will appear here so you can mark them as sold or delete them.</p>
+              </section>
+            )}
+          </section>
+          {editingListing && (
+            <div className="admin-modal-backdrop" role="presentation">
+              <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="marketplace-owner-edit-title">
+                <div className="admin-modal-heading">
+                  <p className="eyebrow">Marketplace</p>
+                  <h2 id="marketplace-owner-edit-title">Edit Listing</h2>
+                </div>
+                <form className="gallery-form" onSubmit={handleEditListingSubmit}>
+                  <div className="form-grid">
+                    <label className="form-field">
+                      <span>Title</span>
+                      <input name="title" type="text" defaultValue={editingListing.title} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Price</span>
+                      <input name="price" type="text" defaultValue={editingListing.price} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Category</span>
+                      <select name="category" defaultValue={editingListing.category} required>
+                        {marketplaceCategories.map((cat) => (
+                          <option key={cat.label} value={cat.label}>{cat.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span>Location</span>
+                      <input name="location" type="text" defaultValue={editingListing.location} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Contact</span>
+                      <input name="contact" type="text" defaultValue={editingListing.contact} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Change Photo</span>
+                      <input name="photo" type="file" accept="image/*" />
+                    </label>
+                  </div>
+                  <label className="form-field">
+                    <span>Description</span>
+                    <textarea name="description" rows="4" defaultValue={editingListing.description} required />
+                  </label>
+                  <div className="admin-modal-actions">
+                    <button className="primary-button admin-modal-primary" type="submit" disabled={editDeleteStatus === "saving"}>
+                      {editDeleteStatus === "saving" ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button className="directory-link" type="button" onClick={() => setEditingListing(null)}>
+                      Go Back
+                    </button>
+                  </div>
+                  {editDeleteStatus === "error" && <p className="form-error">Could not save listing.</p>}
+                </form>
+              </section>
+            </div>
+          )}
+          {deletingListing && (
+            <div className="admin-modal-backdrop" role="presentation">
+              <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="marketplace-owner-delete-title">
+                <div className="admin-modal-heading">
+                  <p className="eyebrow">Marketplace</p>
+                  <h2 id="marketplace-owner-delete-title">Delete Listing?</h2>
+                </div>
+                <p>Are you sure you want to delete this listing? It will no longer appear in Marketplace.</p>
+                <p>{deletingListing.title}</p>
+                <div className="admin-modal-actions">
+                  <button
+                    className="directory-link danger-link"
+                    type="button"
+                    onClick={confirmDeleteListing}
+                    disabled={editDeleteStatus === "saving"}
+                  >
+                    {editDeleteStatus === "saving" ? "Deleting..." : "Delete Listing"}
+                  </button>
+                  <button className="directory-link" type="button" onClick={() => setDeletingListing(null)}>
+                    Go Back
+                  </button>
+                </div>
+                {editDeleteStatus === "error" && <p className="form-error">Could not delete listing.</p>}
+              </section>
+            </div>
+          )}
+        </div>
+      </main>,
+    );
+  }
+
+  if (page === "marketplace-item") {
+    const listing = selectedListing;
+    return withSplash(
+      listing ? (
+        <main className="app marketplace-page" style={{ "--marketplace-bg": `url("${appAsset("marketplace-neon-bg.png")}")` }}>
+          <div className="marketplace-fixed-bg" aria-hidden="true" />
+          <div className="marketplace-shell">
+            <button className="back-button" onClick={() => navigateTo("marketplace")}>
+              Back to Marketplace
+            </button>
+            <article className="marketplace-detail-card">
+              <button
+                className="marketplace-detail-photo"
+                type="button"
+                onClick={() => listing.image && setImageViewerPhoto({ src: listing.image, title: listing.title })}
+                disabled={!listing.image}
+                aria-label={listing.image ? `Open ${listing.title} photo` : ""}
+              >
+                {listing.image ? <img src={listing.image} alt="" /> : <span aria-hidden="true">{listing.icon}</span>}
+              </button>
+              <div className="marketplace-detail-copy">
+                <span className="event-type marketplace-tag">
+                  {listing.tag === "New Today" && "🆕 New"}
+                  {listing.tag === "Featured" && "🔥 Featured"}
+                  {listing.tag === "Deal" && "💰 Deal"}
+                  {listing.tag === "Near Me" && "📍 Near Me"}
+                </span>
+                <h1>{listing.title} <strong>{listing.price}</strong></h1>
+                {listing.description && <p className="marketplace-detail-description">{listing.description}</p>}
+                <p>{listing.location}</p>
+                <p>{listing.posted}</p>
+                {listing.contact && <p>Contact: {listing.contact}</p>}
+                {listing.image && <p className="marketplace-zoom-note">Tap the photo to zoom.</p>}
+              </div>
+            </article>
+          </div>
+        </main>
+      ) : (
+        <main className="app marketplace-page" style={{ "--marketplace-bg": `url("${appAsset("marketplace-neon-bg.png")}")` }}>
+          <div className="marketplace-fixed-bg" aria-hidden="true" />
+          <div className="marketplace-shell">
+            <button className="back-button" onClick={() => navigateTo("marketplace")}>
+              Back to Marketplace
+            </button>
+            <section className="checkout-result-card">
+              <p className="eyebrow">Marketplace</p>
+              <h1>Open a listing again</h1>
+              <p>Select an item from Marketplace to view its full details.</p>
+            </section>
+          </div>
+        </main>
+      ),
+    );
+  }
+
+  if (page === "sell-item") {
+    return withSplash(
+      <main className="app marketplace-page" style={{ "--marketplace-bg": `url("${appAsset("marketplace-neon-bg.png")}")` }}>
+        <div className="marketplace-fixed-bg" aria-hidden="true" />
+        <div className="marketplace-shell">
+          <button className="back-button" onClick={() => navigateTo("marketplace")}>
+            Back to Marketplace
+          </button>
+          <section className="marketplace-hero sell-item-hero" aria-labelledby="sell-item-title">
+            <p className="eyebrow">Marketplace</p>
+            <h1 id="sell-item-title">Sell Item</h1>
+            <p className="events-intro">Post something for Abilene buyers to discover.</p>
+          </section>
+          <form className="business-form sell-item-form" onSubmit={handleSellItemSubmit}>
+            <div className="form-grid">
+              <label className="form-field">
+                <span>Item title</span>
+                <input name="title" type="text" placeholder='Samsung TV 65"' required />
+              </label>
+              <label className="form-field">
+                <span>Price</span>
+                <input name="price" type="text" placeholder="$350" required />
+              </label>
+              <label className="form-field">
+                <span>Category</span>
+                <select name="category" required defaultValue="">
+                  <option value="" disabled>Choose category</option>
+                  {marketplaceCategories.map((cat) => (
+                    <option key={cat.label} value={cat.label}>{cat.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="form-field">
+                <span>Location</span>
+                <input name="location" type="text" placeholder="Abilene, TX" required />
+              </label>
+              <label className="form-field">
+                <span>Contact</span>
+                <input name="contact" type="text" placeholder="Phone, email, or social" required />
+              </label>
+              <label className="form-field">
+                <span>Photo</span>
+                <input name="photo" type="file" accept="image/*" />
+              </label>
+            </div>
+            <label className="form-field">
+              <span>Description</span>
+              <textarea name="description" placeholder="Condition, details, pickup notes" rows="4" required />
+            </label>
+            <button className="marketplace-sell-button sell-item-submit" type="submit">
+              <span aria-hidden="true">●</span>
+              {sellItemStatus === "saving" ? "Posting..." : "Post Item"}
+            </button>
+            {sellItemStatus === "saved" && (
+              <p className="form-success compact-status">Item posted. It is now visible in Marketplace.</p>
+            )}
+            {sellItemStatus === "missing-config" && (
+              <p className="form-error compact-status">Marketplace publishing is not connected yet.</p>
+            )}
+            {sellItemStatus === "file-error" && (
+              <p className="form-error compact-status">Please upload a valid image under 15 MB.</p>
+            )}
+            {sellItemStatus === "error" && (
+              <p className="form-error compact-status">Sorry, the item could not be posted. Please try again.</p>
+            )}
+          </form>
+        </div>
+      </main>,
+    );
+  }
+
+  if (page === "job-detail" && selectedJob) {
+    const j = selectedJob;
+    const phoneHref = j.contact ? `tel:${j.contact.replace(/\D/g, "")}` : null;
+    const emailHref = j.email ? `mailto:${j.email}` : null;
+    return withSplash(
+      <main className="app jobs-page job-detail-page">
+        <div className="jobs-neon-bg" aria-hidden="true" />
+        <div className="marketplace-shell jobs-shell job-detail-shell">
+          <button
+            className="back-button"
+            onClick={() => { setSelectedJob(null); navigateTo("jobs"); }}
+          >
+            Back to Jobs
+          </button>
+
+          <div className="job-detail-hero-img">
+            {j.image
+              ? <img src={j.image} alt="" loading="lazy" />
+              : <div className="post-job-image-placeholder"><span aria-hidden="true">💼</span></div>
+            }
+            <span className="event-type marketplace-card-tag jobs-card-tag job-detail-tag">{j.tag}</span>
+          </div>
+
+          <section className="job-detail-header" aria-labelledby="job-detail-title">
+            <p className="eyebrow">{j.category}</p>
+            <h1 id="job-detail-title">{j.title}</h1>
+            <p className="job-detail-company">{j.company}</p>
+            <dl className="job-detail-meta">
+              <div className="job-detail-meta-item">
+                <dt>💵</dt><dd>{j.pay}</dd>
+              </div>
+              <div className="job-detail-meta-item">
+                <dt>📍</dt><dd>{j.location}</dd>
+              </div>
+              <div className="job-detail-meta-item">
+                <dt>💼</dt><dd>{j.type}</dd>
+              </div>
+              {j.schedule && (
+                <div className="job-detail-meta-item">
+                  <dt>🗓</dt><dd>{j.schedule}</dd>
+                </div>
+              )}
+              <div className="job-detail-meta-item">
+                <dt>📅</dt><dd>{j.posted}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="job-detail-section" aria-labelledby="jd-desc">
+            <h2 id="jd-desc" className="job-detail-section-title">About the Role</h2>
+            <p className="job-detail-body">{j.description}</p>
+          </section>
+
+          {j.requirements && (
+            <section className="job-detail-section" aria-labelledby="jd-req">
+              <h2 id="jd-req" className="job-detail-section-title">Requirements</h2>
+              <p className="job-detail-body">{j.requirements}</p>
+            </section>
+          )}
+
+          <section className="job-detail-section job-detail-contact-section" aria-labelledby="jd-contact">
+            <h2 id="jd-contact" className="job-detail-section-title">Contact</h2>
+            {j.contact && (
+              <p className="job-detail-contact-line">
+                <span aria-hidden="true">📞</span> {j.contact}
+              </p>
+            )}
+            {j.email && (
+              <p className="job-detail-contact-line">
+                <span aria-hidden="true">✉</span> {j.email}
+              </p>
+            )}
+          </section>
+
+          <div className="job-detail-actions">
+            {phoneHref && (
+              <a className="jobs-post-button job-detail-call-btn" href={phoneHref}>
+                <span aria-hidden="true">📞</span>
+                Call Employer
+              </a>
+            )}
+            {emailHref && (
+              <a className="directory-link jobs-apply-button job-detail-email-btn" href={emailHref}>
+                <span aria-hidden="true">✉</span>
+                Email Employer
+              </a>
+            )}
+            {j.location && (
+              <a
+                className="directory-link jobs-apply-button job-detail-map-btn"
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(j.location)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span aria-hidden="true">📍</span>
+                View Location
+              </a>
+            )}
+          </div>
+          <div className="job-detail-save-row">
+            {(() => { const isSaved = savedJobs.includes(j.id); return (
+              <button
+                type="button"
+                className={`jobs-detail-save-btn${isSaved ? " is-saved" : ""}`}
+                onClick={() => setSavedJobs((prev) => isSaved ? prev.filter((id) => id !== j.id) : [...prev, j.id])}
+              >
+                {isSaved ? "♥ Saved" : "♡ Save Job"}
+              </button>
+            ); })()}
+          </div>
+        </div>
+      </main>,
+    );
+  }
+
+  if (page === "post-job") {
+    const jobTypeOptions = ["Full Time", "Part Time", "Temporary", "Contract"];
+    const appMethodOptions = ["Phone", "Email", "Website", "In Person"];
+    const durationOptions = ["30 Days", "60 Days", "90 Days"];
+    const handlePostJobField = (field, value) =>
+      setPostJobForm((prev) => ({ ...prev, [field]: value }));
+    const handlePostJobImage = (e) => {
+      const file = e.target.files?.[0]; if (!file) return;
+      setPostJobForm((prev) => ({ ...prev, image: file }));
+      const r = new FileReader(); r.onload = (ev) => setPostJobImagePreview(ev.target.result); r.readAsDataURL(file);
+    };
+    const handlePostJobLogo = (e) => {
+      const file = e.target.files?.[0]; if (!file) return;
+      setPostJobForm((prev) => ({ ...prev, logo: file }));
+      const r = new FileReader(); r.onload = (ev) => setPostJobLogoPreview(ev.target.result); r.readAsDataURL(file);
+    };
+    const payLabel = [postJobForm.payMin, postJobForm.payMax].filter(Boolean).join(" – ") || "Pay not specified";
+    const previewData = {
+      title: postJobForm.title || "Job Title",
+      company: postJobForm.company || "Company Name",
+      pay: payLabel,
+      location: postJobForm.location || "Abilene, TX",
+      type: postJobForm.jobType || "Full Time",
+      description: postJobForm.description || "Job description will appear here.",
+    };
+    const handlePostFree = () => {
+      const newJob = {
+        id: `posted-${Date.now()}`,
+        title: postJobForm.title,
+        company: postJobForm.company,
+        pay: payLabel,
+        location: postJobForm.location,
+        type: postJobForm.jobType,
+        schedule: "",
+        posted: "Posted Today",
+        category: postJobForm.category || "Other",
+        tag: "New Today",
+        filters: [postJobForm.jobType, "New Today"],
+        image: postJobImagePreview,
+        description: postJobForm.description,
+        requirements: postJobForm.requirements,
+        contact: postJobForm.phone,
+        email: postJobForm.email,
+        appMethod: postJobForm.appMethod,
+        duration: postJobForm.duration,
+        plan: "free",
+      };
+      setPostedJobs((prev) => [newJob, ...prev]);
+      setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days" });
+      setPostJobImagePreview(null); setPostJobLogoPreview(null);
+      setPostJobPreview(false); setPostJobStep("form");
+      navigateTo("jobs");
+    };
+    return withSplash(
+      <main className="app jobs-page post-job-page">
+        <div className="jobs-neon-bg" aria-hidden="true" />
+        <div className="marketplace-shell jobs-shell post-job-shell">
+          <button className="back-button" onClick={() => { if (postJobStep !== "form") { setPostJobStep("preview"); } else { navigateTo("jobs"); } }}>
+            {postJobStep !== "form" ? "← Back to Preview" : "Back to Jobs"}
+          </button>
+
+          {/* ── PLAN SELECTION ── */}
+          {postJobStep === "plan" && (
+            <div className="post-job-plan-wrap">
+              <section className="marketplace-hero jobs-hero" aria-labelledby="plan-title">
+                <p className="eyebrow">Choose a Plan</p>
+                <h1 id="plan-title">How would you like to list?</h1>
+                <p className="events-intro">Pick a plan that fits your hiring needs.</p>
+              </section>
+              <div className="post-job-plans">
+                {/* FREE */}
+                <div className="post-job-plan-card post-job-plan-free">
+                  <p className="plan-badge plan-badge-free">FREE</p>
+                  <p className="plan-price">$0</p>
+                  <p className="plan-duration">{postJobForm.duration}</p>
+                  <ul className="plan-features">
+                    <li>Standard listing in Jobs &amp; Hiring</li>
+                    <li>Visible to all job seekers</li>
+                    <li className="plan-feature-no">Not featured</li>
+                  </ul>
+                  <button className="plan-btn plan-btn-free" type="button" onClick={handlePostFree}>
+                    Post Free
+                  </button>
+                </div>
+                {/* FEATURED */}
+                <div className="post-job-plan-card post-job-plan-featured">
+                  <p className="plan-badge plan-badge-featured">FEATURED</p>
+                  <p className="plan-price">$19</p>
+                  <p className="plan-duration">{postJobForm.duration}</p>
+                  <ul className="plan-features">
+                    <li>⭐ Featured badge</li>
+                    <li>Higher placement in results</li>
+                    <li>More visibility to job seekers</li>
+                  </ul>
+                  <button className="plan-btn plan-btn-featured" type="button"
+                    onClick={() => { setSelectedCategory("Jobs & Hiring"); navigateTo("promote"); }}>
+                    Choose Featured
+                  </button>
+                </div>
+                {/* PREMIUM */}
+                <div className="post-job-plan-card post-job-plan-premium">
+                  <p className="plan-badge plan-badge-premium">PREMIUM</p>
+                  <p className="plan-price">$59</p>
+                  <p className="plan-duration">{postJobForm.duration}</p>
+                  <ul className="plan-features">
+                    <li>🏆 Premium badge</li>
+                    <li>Highest placement</li>
+                    <li>Maximum visibility</li>
+                  </ul>
+                  <button className="plan-btn plan-btn-premium" type="button"
+                    onClick={() => { setSelectedCategory("Jobs & Hiring"); navigateTo("promote"); }}>
+                    Choose Premium
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── PREVIEW ── */}
+          {postJobStep === "preview" && (
+            <div className="post-job-preview-wrap">
+              <section className="marketplace-hero jobs-hero" aria-labelledby="preview-title">
+                <p className="eyebrow">Preview</p>
+                <h1 id="preview-title">Your Job Listing</h1>
+                <p className="events-intro">This is how your post will appear to job seekers.</p>
+              </section>
+              <article className="marketplace-card jobs-card post-job-preview-card">
+                <div className="marketplace-photo jobs-photo">
+                  {postJobImagePreview
+                    ? <img src={postJobImagePreview} alt="" />
+                    : <div className="post-job-image-placeholder"><span aria-hidden="true">💼</span></div>
+                  }
+                  <span className="event-type marketplace-card-tag jobs-card-tag">New Today</span>
+                </div>
+                <div className="marketplace-card-copy jobs-card-copy">
+                  {postJobLogoPreview && <img src={postJobLogoPreview} alt="Company logo" className="post-job-logo-thumb-preview" />}
+                  <h3>{previewData.title} <strong>{previewData.pay}</strong></h3>
+                  <p className="jobs-company">{previewData.company}</p>
+                  <p className="marketplace-meta jobs-meta">
+                    <span>{previewData.location}</span>
+                    <span>{previewData.type}</span>
+                    <span>Posted Today</span>
+                  </p>
+                  <p className="marketplace-description">{previewData.description}</p>
+                  {postJobForm.requirements && <p className="post-job-requirements"><strong>Requirements:</strong> {postJobForm.requirements}</p>}
+                  {postJobForm.appMethod && <p className="marketplace-meta jobs-meta"><span>Apply via: {postJobForm.appMethod}</span></p>}
+                  {postJobForm.email && <p className="marketplace-meta jobs-meta"><span>✉ {postJobForm.email}</span></p>}
+                  {postJobForm.phone && <p className="marketplace-meta jobs-meta"><span>📞 {postJobForm.phone}</span></p>}
+                </div>
+              </article>
+              <div className="post-job-preview-actions">
+                <button className="back-button" type="button" onClick={() => setPostJobStep("form")}>← Edit Listing</button>
+                <button className="jobs-post-button post-job-promote-btn" type="button" onClick={() => setPostJobStep("plan")}>
+                  <span aria-hidden="true">🚀</span> Choose Plan
+                </button>
+              </div>
+              <p className="post-job-promote-note">Choose a plan on the next screen. Free posting goes live instantly.</p>
+            </div>
+          )}
+
+          {/* ── FORM ── */}
+          {postJobStep === "form" && (
+            <>
+              <section className="marketplace-hero jobs-hero" aria-labelledby="post-job-title">
+                <p className="eyebrow">For employers</p>
+                <h1 id="post-job-title">Post a Job</h1>
+                <p className="events-intro">Fill in the details, preview, then choose a plan.</p>
+              </section>
+              <form className="business-form post-job-form"
+                onSubmit={(e) => { e.preventDefault(); setPostJobStep("preview"); window.scrollTo(0, 0); }}>
+                <div className="form-grid">
+                  <label className="form-field">
+                    <span>Job title <span className="form-required" aria-hidden="true">*</span></span>
+                    <input type="text" value={postJobForm.title}
+                      onChange={(e) => handlePostJobField("title", e.target.value)}
+                      placeholder="e.g. Delivery Driver" required />
+                  </label>
+                  <label className="form-field">
+                    <span>Company / Business name <span className="form-required" aria-hidden="true">*</span></span>
+                    <input type="text" value={postJobForm.company}
+                      onChange={(e) => handlePostJobField("company", e.target.value)}
+                      placeholder="e.g. Abilene Delivery Co." required />
+                  </label>
+                  <label className="form-field">
+                    <span>Job category <span className="form-required" aria-hidden="true">*</span></span>
+                    <select value={postJobForm.category}
+                      onChange={(e) => handlePostJobField("category", e.target.value)} required>
+                      <option value="" disabled>Choose category</option>
+                      {jobsCategories.map((cat) => <option key={cat} value={cat}>{jobsCategoryIcon(cat)} {cat}</option>)}
+                    </select>
+                  </label>
+                  <label className="form-field">
+                    <span>Job type <span className="form-required" aria-hidden="true">*</span></span>
+                    <select value={postJobForm.jobType}
+                      onChange={(e) => handlePostJobField("jobType", e.target.value)} required>
+                      <option value="" disabled>Choose type</option>
+                      {jobTypeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </label>
+                  <label className="form-field">
+                    <span>Pay minimum</span>
+                    <input type="text" value={postJobForm.payMin}
+                      onChange={(e) => handlePostJobField("payMin", e.target.value)} placeholder="e.g. $16/hr" />
+                  </label>
+                  <label className="form-field">
+                    <span>Pay maximum</span>
+                    <input type="text" value={postJobForm.payMax}
+                      onChange={(e) => handlePostJobField("payMax", e.target.value)} placeholder="e.g. $20/hr" />
+                  </label>
+                  <label className="form-field">
+                    <span>Location <span className="form-required" aria-hidden="true">*</span></span>
+                    <input type="text" value={postJobForm.location}
+                      onChange={(e) => handlePostJobField("location", e.target.value)}
+                      placeholder="Abilene, TX" required />
+                  </label>
+                  <label className="form-field">
+                    <span>Application method</span>
+                    <select value={postJobForm.appMethod}
+                      onChange={(e) => handlePostJobField("appMethod", e.target.value)}>
+                      {appMethodOptions.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </label>
+                  <label className="form-field">
+                    <span>Contact phone</span>
+                    <input type="tel" value={postJobForm.phone}
+                      onChange={(e) => handlePostJobField("phone", e.target.value)}
+                      placeholder="(325) 555-0000" />
+                  </label>
+                  <label className="form-field">
+                    <span>Contact email</span>
+                    <input type="email" value={postJobForm.email}
+                      onChange={(e) => handlePostJobField("email", e.target.value)}
+                      placeholder="hiring@yourbusiness.com" />
+                  </label>
+                  <label className="form-field post-job-full">
+                    <span>Listing duration</span>
+                    <div className="post-job-duration-row">
+                      {durationOptions.map((d) => (
+                        <button key={d} type="button"
+                          className={`post-job-duration-btn${postJobForm.duration === d ? " is-active" : ""}`}
+                          onClick={() => handlePostJobField("duration", d)}>{d}</button>
+                      ))}
+                    </div>
+                  </label>
+                </div>
+                <label className="form-field">
+                  <span>Job description <span className="form-required" aria-hidden="true">*</span></span>
+                  <textarea value={postJobForm.description}
+                    onChange={(e) => handlePostJobField("description", e.target.value)}
+                    placeholder="Describe the role, daily duties, work environment..." rows="5" required />
+                </label>
+                <label className="form-field">
+                  <span>Requirements</span>
+                  <textarea value={postJobForm.requirements}
+                    onChange={(e) => handlePostJobField("requirements", e.target.value)}
+                    placeholder="Experience, skills, license, certifications..." rows="3" />
+                </label>
+                <div className="post-job-media-row">
+                  <label className="form-field post-job-media-field">
+                    <span>Job photo (optional)</span>
+                    <input type="file" accept="image/*" onChange={handlePostJobImage} />
+                    {postJobImagePreview && (
+                      <div className="post-job-img-thumb-wrap">
+                        <img src={postJobImagePreview} alt="Preview" className="post-job-img-thumb" />
+                        <button type="button" className="post-job-img-remove"
+                          onClick={() => { setPostJobForm((p) => ({ ...p, image: null })); setPostJobImagePreview(null); }}>
+                          ✕ Remove
+                        </button>
+                      </div>
+                    )}
+                  </label>
+                  <label className="form-field post-job-media-field">
+                    <span>Company logo (optional)</span>
+                    <input type="file" accept="image/*" onChange={handlePostJobLogo} />
+                    {postJobLogoPreview && (
+                      <div className="post-job-img-thumb-wrap">
+                        <img src={postJobLogoPreview} alt="Logo preview" className="post-job-img-thumb post-job-logo-thumb" />
+                        <button type="button" className="post-job-img-remove"
+                          onClick={() => { setPostJobForm((p) => ({ ...p, logo: null })); setPostJobLogoPreview(null); }}>
+                          ✕ Remove
+                        </button>
+                      </div>
+                    )}
+                  </label>
+                </div>
+                <div className="post-job-form-actions">
+                  <button className="jobs-post-button post-job-preview-btn" type="submit">
+                    <span aria-hidden="true">👁</span> Preview Job
+                  </button>
+                </div>
+                <p className="post-job-form-note">After preview you choose a plan. Free listings go live instantly.</p>
+              </form>
+            </>
+          )}
+        </div>
+      </main>,
+    );
+  }
+
+
+  if (page === "jobs") {
+    return withSplash(
+      <main className="app jobs-page">
+        <div className="jobs-neon-bg" aria-hidden="true" />
+        <div className="marketplace-shell jobs-shell">
+          <button className="back-button" onClick={() => navigateTo("more")}>
+            Back to services
+          </button>
+          <section className="marketplace-hero jobs-hero" aria-labelledby="jobs-title">
+            <p className="eyebrow">Work local</p>
+            <h1 id="jobs-title">Jobs &amp; Hiring</h1>
+            <p className="events-intro">Find local jobs or post that your business is hiring.</p>
+            <div className="marketplace-search jobs-search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                type="search"
+                value={jobsSearch}
+                onChange={(e) => setJobsSearch(e.target.value)}
+                placeholder="Search jobs, companies, skills..."
+                aria-label="Search jobs, companies, skills"
+              />
+            </div>
+            <button
+              className="jobs-post-button"
+              type="button"
+              onClick={() => navigateTo("post-job")}
+            >
+              <span aria-hidden="true">+</span>
+              Post a Job / We&apos;re Hiring
+            </button>
+            <div className="marketplace-filter-row jobs-filter-row" aria-label="Jobs quick filters">
+              {jobsFilters.map((f) => (
+                <button
+                  key={f}
+                  className={jobsFilter === f ? "is-active" : ""}
+                  type="button"
+                  onClick={() => { setJobsFilter(jobsFilter === f ? "All" : f); setJobsCategoryFilter("All"); }}
+                >
+                  {jobsFilterIcon(f)}{f} ({jobsCategoryCounts[f] ?? 0})
+                </button>
+              ))}
+              <button type="button" className={jobsFilter === "All" && jobsCategoryFilter === "All" ? "is-active" : ""} onClick={() => { setJobsFilter("All"); setJobsCategoryFilter("All"); }}>All</button>
+            </div>
+          </section>
+          <section className="marketplace-section jobs-section" aria-labelledby="job-category-title">
+            <div className="marketplace-section-heading">
+              <h2 id="job-category-title">Job Categories</h2>
+              <button type="button" onClick={() => { setJobsFilter("All"); setJobsCategoryFilter("All"); }}>All</button>
+            </div>
+            <div className="marketplace-category-grid jobs-category-grid">
+              {jobsCategories.map((cat) => (
+                <button
+                  key={cat}
+                  className={jobsCategoryFilter === cat ? "is-active" : ""}
+                  type="button"
+                  onClick={() => { setJobsCategoryFilter(jobsCategoryFilter === cat ? "All" : cat); setJobsFilter("All"); }}
+                >
+                  <span aria-hidden="true">{jobsCategoryIcon(cat)}</span>
+                  {cat} ({jobsCategoryCounts[cat] ?? 0})
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="marketplace-section jobs-section" aria-labelledby="new-jobs-title">
+            <div className="marketplace-section-heading">
+              <h2 id="new-jobs-title">{jobsShowSaved ? `Saved Jobs (${filteredJobListings.length})` : `Find a Job (${filteredJobListings.length} shown)`}</h2>
+              <button type="button"
+                className={`jobs-saved-toggle${jobsShowSaved ? " is-active" : ""}`}
+                onClick={() => setJobsShowSaved((v) => !v)}
+                aria-pressed={jobsShowSaved}>
+                {jobsShowSaved ? "♥ Saved" : "♡ Saved"}
+              </button>
+            </div>
+            <div className="marketplace-listing-grid jobs-listing-grid">
+              {filteredJobListings.length === 0 && (
+                <p className="jobs-empty">{jobsShowSaved ? "No saved jobs yet. Tap ♡ on any listing to save it." : "No jobs match your search."}</p>
+              )}
+              {filteredJobListings.map((j) => {
+                const isSaved = savedJobs.includes(j.id);
+                const isFeatured = j.tag === "Featured" || j.plan === "featured";
+                const isPremium = j.tag === "Premium" || j.plan === "premium";
+                return (
+                  <article key={jobsListingKey(j)} className={`marketplace-card jobs-card${isFeatured ? " jobs-card-featured" : ""}${isPremium ? " jobs-card-premium" : ""}`}>
+                    <div className="marketplace-photo jobs-photo">
+                      {j.image
+                        ? <img src={j.image} alt="" loading="lazy" />
+                        : <div className="post-job-image-placeholder"><span aria-hidden="true">💼</span></div>
+                      }
+                      <span className={`event-type marketplace-card-tag jobs-card-tag${isPremium ? " jobs-tag-premium" : isFeatured ? " jobs-tag-featured" : ""}`}>{j.tag}</span>
+                      <button
+                        className={`jobs-heart-btn${isSaved ? " is-saved" : ""}`}
+                        type="button"
+                        aria-label={isSaved ? "Unsave job" : "Save job"}
+                        onClick={(e) => { e.stopPropagation(); setSavedJobs((prev) => isSaved ? prev.filter((id) => id !== j.id) : [...prev, j.id]); }}
+                      >{isSaved ? "♥" : "♡"}</button>
+                    </div>
+                    <div className="marketplace-card-copy jobs-card-copy">
+                      <h3>{j.title} <strong>{j.pay}</strong></h3>
+                      <p className="jobs-company">{j.company}</p>
+                      <p className="marketplace-meta jobs-meta">
+                        <span>{j.location}</span>
+                        <span>{j.type}</span>
+                        <span>{j.posted}</span>
+                      </p>
+                      <p className="marketplace-description">{j.description}</p>
+                      <div className="jobs-card-actions">
+                        <button className="directory-link jobs-apply-button" type="button"
+                          onClick={() => { setSelectedJob(j); navigateTo("job-detail"); }}>
+                          View &amp; Apply
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+          <section className="marketplace-section jobs-section">
+            <div className="marketplace-section-heading">
+              <h2>Post a Job / We&apos;re Hiring</h2>
+            </div>
+            <section className="checkout-result-card service-empty-card">
+              <p className="eyebrow">For businesses</p>
+              <h2>Promote your open positions</h2>
+              <p>List your business in Abilene Vibes and reach local job seekers today.</p>
+              <button
+                className="jobs-post-button"
+                type="button"
+                style={{ marginTop: "12px" }}
+                onClick={() => navigateTo("post-job")}
+              >
+                <span aria-hidden="true">+</span>
+                Get Listed
+              </button>
+            </section>
+          </section>
         </div>
       </main>,
     );
