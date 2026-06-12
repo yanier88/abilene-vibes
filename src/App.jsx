@@ -736,188 +736,6 @@ const jobsFilterIcon = (f) => {
   const icons = { "New Today": "🆕 ", "Full Time": "💼 ", "Part Time": "⏰ ", "Near Me": "📍 ", "Good Pay": "💵 ", "No Experience": "🧰 " };
   return icons[f] ?? "";
 };
-const starterJobListings = [
-  {
-    id: "restaurant-server",
-    title: "Restaurant Server",
-    company: "Abilene Restaurant",
-    pay: "Hourly + Tips",
-    location: "Abilene, TX",
-    type: "Evening Shift",
-    schedule: "Mon – Sat, 4 pm – 11 pm",
-    posted: "Posted Today",
-    category: "Restaurant & Food",
-    tag: "New Today",
-    filters: ["New Today", "Part Time", "Near Me", "Good Pay", "No Experience"],
-    image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=80",
-    description: "Dinner service, guest support, table care, and team closing duties. Greet guests, take orders accurately, serve food and beverages, and ensure a great dining experience from start to finish.",
-    requirements: "Friendly attitude, ability to stand for long periods. Prior experience a plus but not required.",
-    contact: "(325) 555-0412",
-    email: "hiring@abilenerestaurant.com",
-  },
-  {
-    id: "construction-laborer",
-    title: "Construction Laborer",
-    company: "Abilene Build Crew",
-    pay: "$17-$22/hr",
-    location: "Abilene, TX",
-    type: "Full Time",
-    schedule: "Mon – Fri, 7 am – 4 pm",
-    posted: "Posted Yesterday",
-    category: "Construction",
-    tag: "Good Pay",
-    filters: ["Full Time", "Good Pay", "No Experience"],
-    image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=800&q=80",
-    description: "Site cleanup, materials handling, framing support, and general construction help on residential and commercial projects across Abilene.",
-    requirements: "Reliable and punctual. Steel-toed boots required. No experience needed — will train.",
-    contact: "(325) 555-0517",
-    email: "jobs@abilenebuilds.com",
-  },
-  {
-    id: "cashier-sales-associate",
-    title: "Cashier / Sales Associate",
-    company: "Local Retail Store",
-    pay: "Starting at $14/hr",
-    location: "Abilene, TX",
-    type: "Part Time",
-    schedule: "Flexible — weekdays and weekends available",
-    posted: "Posted Today",
-    category: "Retail",
-    tag: "New Today",
-    filters: ["New Today", "Part Time", "Near Me"],
-    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80",
-    description: "Help customers find what they need, run checkout, organize merchandise, and keep the sales floor clean and stocked.",
-    requirements: "Customer service mindset, basic math skills, reliable transportation.",
-    contact: "(325) 555-0221",
-    email: "store@localretailabilene.com",
-  },
-  {
-    id: "delivery-driver",
-    title: "Delivery Driver",
-    company: "Local Delivery Service",
-    pay: "$18/hr",
-    location: "Abilene, TX",
-    type: "Full Time",
-    schedule: "Mon – Fri, 8 am – 5 pm",
-    posted: "Posted Today",
-    category: "Driving & Delivery",
-    tag: "New Today",
-    filters: ["New Today", "Full Time", "Near Me", "Good Pay"],
-    image: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=80",
-    description: "Drive local delivery routes, handle packages carefully, and ensure on-time drop-offs to residential and business customers throughout Abilene.",
-    requirements: "Valid TX driver's license, clean driving record, ability to lift up to 50 lbs.",
-    contact: "(325) 555-0318",
-    email: "dispatch@localdeliveryabilene.com",
-  },
-  {
-    id: "medical-assistant",
-    title: "Medical Assistant",
-    company: "Abilene Health Clinic",
-    pay: "$17-$20/hr",
-    location: "Abilene, TX",
-    type: "Full Time",
-    schedule: "Mon – Fri, 8 am – 5 pm",
-    posted: "Posted Today",
-    category: "Health Care",
-    tag: "New Today",
-    filters: ["New Today", "Full Time", "Near Me", "Good Pay"],
-    image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80",
-    description: "Patient intake, recording vitals, scheduling appointments, and clinical support in a fast-paced local health clinic.",
-    requirements: "Medical Assistant certification preferred. Strong communication skills, compassion for patients.",
-    contact: "(325) 555-0720",
-    email: "careers@abilenehealthclinic.com",
-  },
-  {
-    id: "office-admin",
-    title: "Office Administrator",
-    company: "Local Business Office",
-    pay: "$16/hr",
-    location: "Abilene, TX",
-    type: "Part Time",
-    schedule: "Mon – Wed – Fri, 9 am – 2 pm",
-    posted: "Posted 2 days ago",
-    category: "Office/Admin",
-    tag: "Part Time",
-    filters: ["Part Time", "Near Me", "No Experience"],
-    image: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=800&q=80",
-    description: "Answer phones, manage scheduling, handle filing, follow up with customers, and provide general daily office support.",
-    requirements: "Basic computer skills (Word, email), organized, professional demeanor. No prior experience required.",
-    contact: "(325) 555-0614",
-    email: "office@localbizabilene.com",
-  },
-  {
-    id: "warehouse-associate",
-    title: "Warehouse Associate",
-    company: "Abilene Distribution",
-    pay: "$15-$17/hr",
-    location: "Abilene, TX",
-    type: "Full Time",
-    schedule: "Mon – Fri, 6 am – 2:30 pm",
-    posted: "Posted Today",
-    category: "Warehouse",
-    tag: "New Today",
-    filters: ["New Today", "Full Time", "Near Me", "No Experience"],
-    image: "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=800&q=80",
-    description: "Receive inbound shipments, sort, pack, and ship orders in a clean organized warehouse facility.",
-    requirements: "Ability to lift up to 60 lbs, stand for extended periods, follow safety protocols. No experience needed.",
-    contact: "(325) 555-0832",
-    email: "warehouse@abilenedist.com",
-  },
-  {
-    id: "customer-service-rep",
-    title: "Customer Service Rep",
-    company: "Local Business",
-    pay: "$14-$16/hr",
-    location: "Abilene, TX",
-    type: "Full Time",
-    schedule: "Mon – Fri, 9 am – 5 pm",
-    posted: "Posted Today",
-    category: "Customer Service",
-    tag: "New Today",
-    filters: ["New Today", "Full Time", "Near Me", "No Experience"],
-    image: "https://images.unsplash.com/photo-1521737711867-e3b97375f902?auto=format&fit=crop&w=800&q=80",
-    description: "Answer inbound calls and messages, resolve customer issues, and help clients get the help they need quickly and professionally.",
-    requirements: "Good communication skills, patience, basic computer proficiency. Training provided.",
-    contact: "(325) 555-0941",
-    email: "support@localbizabilene.com",
-  },
-  {
-    id: "manufacturing-operator",
-    title: "Production Operator",
-    company: "Abilene Manufacturing Co.",
-    pay: "$16-$19/hr",
-    location: "Abilene, TX",
-    type: "Full Time",
-    schedule: "Day shift: Mon – Fri, 6 am – 2 pm",
-    posted: "Posted Today",
-    category: "Manufacturing",
-    tag: "New Today",
-    filters: ["New Today", "Full Time", "Near Me", "Good Pay", "No Experience"],
-    image: "https://images.unsplash.com/photo-1565043589221-1a6fd9ae45c7?auto=format&fit=crop&w=800&q=80",
-    description: "Operate and monitor production equipment, perform quality checks, and help keep assembly lines running efficiently and safely.",
-    requirements: "Attention to detail, physical stamina, ability to follow instructions. Manufacturing experience a plus.",
-    contact: "(325) 555-1020",
-    email: "hr@abilenemanufacturing.com",
-  },
-  {
-    id: "skilled-trades-electrician",
-    title: "Electrician Helper",
-    company: "West Texas Electric",
-    pay: "$18-$24/hr",
-    location: "Abilene, TX",
-    type: "Full Time",
-    schedule: "Mon – Fri, 7 am – 4 pm",
-    posted: "Posted Today",
-    category: "Skilled Trades",
-    tag: "Good Pay",
-    filters: ["Full Time", "Good Pay", "No Experience"],
-    image: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=800&q=80",
-    description: "Assist a licensed electrician with residential and commercial wiring, panel work, and electrical installations across the Abilene area.",
-    requirements: "Valid driver's license, willingness to learn, basic hand tool knowledge. Apprenticeship path available.",
-    contact: "(325) 555-1137",
-    email: "apply@westtexaselectric.com",
-  },
-];
 const jobsListingKey = (j) => j.id ?? `${j.title}:${j.company}`;
 const marketplaceListingKey = (l) => l.id ?? `starter:${l.title}:${l.price}`;
 const marketplaceContactHref = (contact) => `tel:${contact.replace(/\D/g, "")}`;
@@ -1194,6 +1012,7 @@ const adminTabs = [
   { id: "businesses", label: "Businesses" },
   { id: "payments", label: "Payments" },
   { id: "reviews", label: "Reviews" },
+  { id: "jobs", label: "Jobs & Hiring" },
   { id: "analytics", label: "Analytics" },
 ];
 
@@ -1976,6 +1795,8 @@ function App() {
   const [publishedBusinesses, setPublishedBusinesses] = useState([]);
   const [hiddenBusinesses, setHiddenBusinesses] = useState([]);
   const [pendingReviews, setPendingReviews] = useState([]);
+  const [adminJobListings, setAdminJobListings] = useState([]);
+  const [editingJob, setEditingJob] = useState(null);
   const [publishedEvents, setPublishedEvents] = useState([]);
   const [hiddenEvents, setHiddenEvents] = useState([]);
   const [deletedStaticItems, setDeletedStaticItems] = useState([]);
@@ -2229,6 +2050,39 @@ function App() {
           if (!error && data) setMarketplaceListings(data.map(mapListingFromDb));
         });
     });
+
+    supabase
+      .from("job_listings")
+      .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,duration,plan,image_data,logo_data,expires_at")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setPostedJobs(
+            data.map((row) => ({
+              id: row.id,
+              title: row.title,
+              company: row.company,
+              pay: row.pay_label || "Pay not specified",
+              location: row.location,
+              type: row.job_type,
+              schedule: "",
+              posted: "Posted Today",
+              category: row.category,
+              tag: row.plan === "free" ? "New Today" : row.plan === "featured" ? "Featured" : "Premium",
+              filters: [row.job_type, "New Today"],
+              image: row.image_data,
+              description: row.description,
+              requirements: row.requirements,
+              contact: row.phone,
+              email: row.email,
+              appMethod: row.app_method,
+              duration: row.duration,
+              plan: row.plan,
+            })),
+          );
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -2672,6 +2526,7 @@ function App() {
       interactionResult,
       publishedEventResult,
       hiddenEventResult,
+      jobListingsResult,
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
@@ -2727,6 +2582,10 @@ function App() {
         .select("id,created_at,title,place,event_date,event_time,event_type,image_url,image_data,status")
         .eq("status", "hidden")
         .order("event_date", { ascending: true }),
+      supabase
+        .from("job_listings")
+        .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,duration,plan,status,expires_at")
+        .order("created_at", { ascending: false }),
     ]);
 
     if (
@@ -2741,7 +2600,8 @@ function App() {
       approvedReviewResult.error ||
       interactionResult.error ||
       publishedEventResult.error ||
-      hiddenEventResult.error
+      hiddenEventResult.error ||
+      jobListingsResult.error
     ) {
       setAdminStatus("error");
       return;
@@ -2756,6 +2616,7 @@ function App() {
     setHiddenStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type !== "deleted").map((item) => item.item_key));
     setDeletedStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type === "deleted").map((item) => item.item_key));
     setPendingReviews(reviewResult.data ?? []);
+    setAdminJobListings(jobListingsResult.data ?? []);
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
     setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
@@ -2938,6 +2799,42 @@ function App() {
     }
 
     setApprovedGalleryPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
+    await loadAdminData();
+  };
+
+  const handleDeleteJob = async (id) => {
+    if (!supabase || !adminSession) return;
+    if (!window.confirm("Permanently delete this job listing?")) return;
+    setAdminStatus("saving");
+    const { error } = await supabase.from("job_listings").delete().eq("id", id);
+    if (error) { setAdminStatus("error"); return; }
+    await loadAdminData();
+  };
+
+  const handleSaveJob = async () => {
+    if (!supabase || !adminSession || !editingJob) return;
+    setAdminStatus("saving");
+    const { error } = await supabase
+      .from("job_listings")
+      .update({
+        title: editingJob.title,
+        company: editingJob.company,
+        category: editingJob.category,
+        job_type: editingJob.job_type,
+        pay_label: editingJob.pay_label,
+        location: editingJob.location,
+        phone: editingJob.phone,
+        email: editingJob.email,
+        description: editingJob.description,
+        requirements: editingJob.requirements,
+        app_method: editingJob.app_method,
+        duration: editingJob.duration,
+        plan: editingJob.plan,
+        status: editingJob.status,
+      })
+      .eq("id", editingJob.id);
+    if (error) { setAdminStatus("error"); return; }
+    setEditingJob(null);
     await loadAdminData();
   };
 
@@ -3811,7 +3708,6 @@ function App() {
   // ── Jobs computed ─────────────────────────────────────────
   const allJobListings = [
     ...postedJobs.map((j) => ({ ...j, tag: j.plan === "free" ? "New Today" : j.plan === "featured" ? "Featured" : "Premium", filters: [j.jobType, "New Today"] })),
-    ...starterJobListings,
   ];
   const filteredJobListings = (jobsShowSaved ? allJobListings.filter((j) => savedJobs.includes(j.id)) : allJobListings).filter((j) => {
     const matchesCategory = jobsCategoryFilter === "All" || j.category === jobsCategoryFilter;
@@ -5662,8 +5558,8 @@ function App() {
       type: postJobForm.jobType || "Full Time",
       description: postJobForm.description || "Job description will appear here.",
     };
-    const handlePostFree = () => {
-      const newJob = {
+    const handlePostFree = async () => {
+      const localFallbackJob = {
         id: `posted-${Date.now()}`,
         title: postJobForm.title,
         company: postJobForm.company,
@@ -5684,7 +5580,68 @@ function App() {
         duration: postJobForm.duration,
         plan: "free",
       };
-      setPostedJobs((prev) => [newJob, ...prev]);
+
+      if (supabase) {
+        const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
+        const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+        const { data, error } = await supabase
+          .from("job_listings")
+          .insert({
+            title: postJobForm.title,
+            company: postJobForm.company,
+            category: postJobForm.category || "Other",
+            job_type: postJobForm.jobType || "Full Time",
+            pay_label: payLabel,
+            location: postJobForm.location || "Abilene, TX",
+            phone: postJobForm.phone,
+            email: postJobForm.email,
+            description: postJobForm.description,
+            requirements: postJobForm.requirements,
+            app_method: postJobForm.appMethod || "Phone",
+            duration: postJobForm.duration || "30 Days",
+            plan: "free",
+            status: "approved",
+            image_data: postJobImagePreview,
+            logo_data: postJobLogoPreview,
+            expires_at: expiresAt,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error("[Jobs] Supabase insert error:", error.message);
+          // Fall back to in-memory so the user still sees their post
+          setPostedJobs((prev) => [localFallbackJob, ...prev]);
+        } else if (data) {
+          const savedJob = {
+            id: data.id,
+            title: data.title,
+            company: data.company,
+            pay: data.pay_label || "Pay not specified",
+            location: data.location,
+            type: data.job_type,
+            schedule: "",
+            posted: "Posted Today",
+            category: data.category,
+            tag: "New Today",
+            filters: [data.job_type, "New Today"],
+            image: data.image_data,
+            description: data.description,
+            requirements: data.requirements,
+            contact: data.phone,
+            email: data.email,
+            appMethod: data.app_method,
+            duration: data.duration,
+            plan: data.plan,
+          };
+          setPostedJobs((prev) => [savedJob, ...prev]);
+        }
+      } else {
+        // No Supabase configured — local-only fallback
+        setPostedJobs((prev) => [localFallbackJob, ...prev]);
+      }
+
       setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days" });
       setPostJobImagePreview(null); setPostJobLogoPreview(null);
       setPostJobPreview(false); setPostJobStep("form");
@@ -6720,6 +6677,148 @@ function App() {
                     </div>
                   </>
                 ) : null}
+              </section>
+
+              {/* ── Jobs & Hiring admin section ── */}
+              <section className="admin-section admin-tab-jobs" id="admin-jobs" aria-labelledby="admin-jobs-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">All listings</p>
+                  <h2 id="admin-jobs-title">Jobs &amp; Hiring</h2>
+                </div>
+
+                {/* Edit modal */}
+                {editingJob && (
+                  <div className="admin-modal-overlay">
+                    <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-job-edit-title">
+                      <div className="business-form-heading">
+                        <p className="eyebrow">Edit</p>
+                        <h2 id="admin-job-edit-title">Job Listing</h2>
+                      </div>
+                      <div className="form-grid">
+                        {[
+                          { label: "Title",        field: "title" },
+                          { label: "Company",      field: "company" },
+                          { label: "Category",     field: "category" },
+                          { label: "Job Type",     field: "job_type" },
+                          { label: "Pay",          field: "pay_label" },
+                          { label: "Location",     field: "location" },
+                          { label: "Phone",        field: "phone" },
+                          { label: "Email",        field: "email" },
+                          { label: "App Method",   field: "app_method" },
+                          { label: "Duration",     field: "duration" },
+                        ].map(({ label, field }) => (
+                          <label className="form-field" key={field}>
+                            <span>{label}</span>
+                            <input
+                              type="text"
+                              value={editingJob[field] ?? ""}
+                              onChange={(e) => setEditingJob((prev) => ({ ...prev, [field]: e.target.value }))}
+                            />
+                          </label>
+                        ))}
+                        <label className="form-field">
+                          <span>Plan</span>
+                          <select
+                            value={editingJob.plan ?? "free"}
+                            onChange={(e) => setEditingJob((prev) => ({ ...prev, plan: e.target.value }))}
+                          >
+                            <option value="free">free</option>
+                            <option value="featured">featured</option>
+                            <option value="premium">premium</option>
+                          </select>
+                        </label>
+                        <label className="form-field">
+                          <span>Status</span>
+                          <select
+                            value={editingJob.status ?? "approved"}
+                            onChange={(e) => setEditingJob((prev) => ({ ...prev, status: e.target.value }))}
+                          >
+                            <option value="approved">approved</option>
+                            <option value="pending">pending</option>
+                            <option value="rejected">rejected</option>
+                            <option value="hidden">hidden</option>
+                          </select>
+                        </label>
+                        <label className="form-field form-field-full">
+                          <span>Description</span>
+                          <textarea
+                            rows={4}
+                            value={editingJob.description ?? ""}
+                            onChange={(e) => setEditingJob((prev) => ({ ...prev, description: e.target.value }))}
+                          />
+                        </label>
+                        <label className="form-field form-field-full">
+                          <span>Requirements</span>
+                          <textarea
+                            rows={3}
+                            value={editingJob.requirements ?? ""}
+                            onChange={(e) => setEditingJob((prev) => ({ ...prev, requirements: e.target.value }))}
+                          />
+                        </label>
+                      </div>
+                      <div className="directory-actions" style={{ marginTop: "1rem" }}>
+                        <button
+                          className="primary-button admin-modal-primary"
+                          type="button"
+                          onClick={handleSaveJob}
+                          disabled={adminStatus === "saving"}
+                        >
+                          {adminStatus === "saving" ? "Saving…" : "Save Changes"}
+                        </button>
+                        <button
+                          className="directory-link"
+                          type="button"
+                          onClick={() => setEditingJob(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </section>
+                  </div>
+                )}
+
+                {adminJobListings.length ? (
+                  <div className="admin-grid">
+                    {adminJobListings.map((job) => (
+                      <article className="admin-card" key={job.id}>
+                        <span className="event-type">{job.plan} — {job.status}</span>
+                        <h3>{job.title}</h3>
+                        <p>{job.company}</p>
+                        {job.category && <p>Category: {job.category}</p>}
+                        {job.job_type && <p>Type: {job.job_type}</p>}
+                        {job.pay_label && <p>Pay: {job.pay_label}</p>}
+                        {job.location && <p>Location: {job.location}</p>}
+                        {job.phone && <p>Phone: {job.phone}</p>}
+                        {job.email && <p>Email: {job.email}</p>}
+                        {job.app_method && <p>Apply via: {job.app_method}</p>}
+                        {job.duration && <p>Duration: {job.duration}</p>}
+                        {job.description && <p style={{ fontSize: "0.85em", opacity: 0.8 }}>{job.description.slice(0, 120)}{job.description.length > 120 ? "…" : ""}</p>}
+                        <p style={{ fontSize: "0.8em", opacity: 0.6 }}>
+                          Posted: {new Date(job.created_at).toLocaleDateString()}
+                          {job.expires_at ? ` · Expires: ${new Date(job.expires_at).toLocaleDateString()}` : ""}
+                        </p>
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => setEditingJob({ ...job })}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => handleDeleteJob(job.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No job listings yet.</p>
+                )}
               </section>
 
               <section className="admin-section admin-tab-analytics" id="admin-analytics" aria-labelledby="admin-report-title">
