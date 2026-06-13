@@ -1902,6 +1902,7 @@ function App() {
 
   const loadJobsPublic = useCallback(() => {
     if (!supabase) return;
+    console.log("[loadJobsPublic] fetching from Supabase...");
     supabase
       .from("job_listings")
       .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,duration,plan,image_data,logo_data,expires_at")
@@ -2140,7 +2141,7 @@ function App() {
         });
 
     const channels = [
-      mkChannel("rt-job_listings",         "job_listings",         () => { loadJobsPublic();       reloadAdmin(); }),
+      mkChannel("rt-job_listings",         "job_listings",         () => { console.log("[Realtime] job_listings event → calling loadJobsPublic"); loadJobsPublic();       reloadAdmin(); }),
       mkChannel("rt-business_submissions",  "business_submissions",  () => { loadBusinessesPublic(); reloadAdmin(); }),
       mkChannel("rt-gallery_submissions",   "gallery_submissions",   () => { loadGalleryPublic();    reloadAdmin(); }),
       mkChannel("rt-event_submissions",     "event_submissions",     () => { loadEventsPublic();     reloadAdmin(); }),
@@ -6872,7 +6873,11 @@ function App() {
                           <button
                             className="directory-link"
                             type="button"
-                            onClick={() => setEditingJob({ ...job })}
+                            onClick={() => {
+                              console.log("[Edit] click received, job.id:", job.id, "job.title:", job.title);
+                              setEditingJob({ ...job });
+                              console.log("[Edit] setEditingJob called");
+                            }}
                           >
                             Edit
                           </button>
@@ -7246,18 +7251,4 @@ function App() {
 
   return withSplash(
     <main className="app home-page">
-      <section className="home-hero" aria-label="Abilene Vibes">
-        <div className="home-hero-frame">
-          <img
-            className="home-hero-image"
-            src={appAsset("home-correcta.jpg")}
-            alt=""
-          />
-          <button className="home-hero-button" onClick={() => navigateTo("lobby")} aria-label="Explore Abilene" />
-        </div>
-      </section>
-    </main>,
-  );
-}
-
-export default App;
+      <section className="home-hero" aria-labe
