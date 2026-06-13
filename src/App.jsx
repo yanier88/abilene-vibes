@@ -6759,7 +6759,7 @@ function App() {
 
                 {/* Edit modal */}
                 {editingJob && (
-                  <div className="admin-modal-overlay">
+                  <div className="admin-modal-backdrop">
                     <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-job-edit-title">
                       <div className="business-form-heading">
                         <p className="eyebrow">Edit</p>
