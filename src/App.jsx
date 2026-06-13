@@ -1785,6 +1785,7 @@ function App() {
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
   const [gallerySubmissionError, setGallerySubmissionError] = useState("");
   const [adminSession, setAdminSession] = useState(null);
+  const adminSessionRef = useRef(null); // keeps current value without triggering Realtime re-sub
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminStatus, setAdminStatus] = useState("");
@@ -2031,6 +2032,9 @@ function App() {
     });
   }, [supabase]);
 
+  // Keep adminSessionRef in sync so Realtime callbacks always see the latest value
+  useEffect(() => { adminSessionRef.current = adminSession; }, [adminSession]);
+
   useEffect(() => {
     const weatherUrl =
       "https://api.open-meteo.com/v1/forecast?latitude=32.4487&longitude=-99.7331&current=temperature_2m,is_day&temperature_unit=fahrenheit&timezone=America%2FChicago";
@@ -2108,71 +2112,49 @@ function App() {
   }, [loadBusinessesPublic, loadGalleryPublic, loadMarketplacePublic, loadJobsPublic]);
 
   // ── Supabase Realtime: auto-refresh on any table change ─────────────────
+  // adminSession intentionally excluded from deps — use adminSessionRef.current
+  // so auth state changes never tear down and rebuild the channels.
   useEffect(() => {
     if (!supabase) return;
 
-    const reloadAdmin = () => { if (adminSession) loadAdminData(); };
+    console.log("[Realtime] Initializing subscriptions...");
+
+    // Reads the ref — always current, never stale, never causes re-sub
+    const reloadAdmin = () => {
+      if (adminSessionRef.current) loadAdminData(adminSessionRef.current);
+    };
+
+    const mkChannel = (name, table, handler) =>
+      supabase
+        .channel(name)
+        .on("postgres_changes", { event: "*", schema: "public", table }, (payload) => {
+          console.log(`[Realtime] ${table} change received:`, payload.eventType, payload);
+          handler();
+        })
+        .subscribe((status, err) => {
+          if (err) {
+            console.error(`[Realtime] ${name} error:`, err);
+          } else {
+            console.log(`[Realtime] ${name} status:`, status);
+          }
+        });
 
     const channels = [
-      supabase
-        .channel("rt-job_listings")
-        .on("postgres_changes", { event: "*", schema: "public", table: "job_listings" }, () => {
-          loadJobsPublic();
-          reloadAdmin();
-        })
-        .subscribe(),
-
-      supabase
-        .channel("rt-business_submissions")
-        .on("postgres_changes", { event: "*", schema: "public", table: "business_submissions" }, () => {
-          loadBusinessesPublic();
-          reloadAdmin();
-        })
-        .subscribe(),
-
-      supabase
-        .channel("rt-gallery_submissions")
-        .on("postgres_changes", { event: "*", schema: "public", table: "gallery_submissions" }, () => {
-          loadGalleryPublic();
-          reloadAdmin();
-        })
-        .subscribe(),
-
-      supabase
-        .channel("rt-event_submissions")
-        .on("postgres_changes", { event: "*", schema: "public", table: "event_submissions" }, () => {
-          loadEventsPublic();
-          reloadAdmin();
-        })
-        .subscribe(),
-
-      supabase
-        .channel("rt-business_reviews")
-        .on("postgres_changes", { event: "*", schema: "public", table: "business_reviews" }, () => {
-          loadReviewsPublic();
-          reloadAdmin();
-        })
-        .subscribe(),
-
-      supabase
-        .channel("rt-marketplace_listings")
-        .on("postgres_changes", { event: "*", schema: "public", table: "marketplace_listings" }, () => {
-          loadMarketplacePublic();
-        })
-        .subscribe(),
-
-      supabase
-        .channel("rt-local_news_items")
-        .on("postgres_changes", { event: "*", schema: "public", table: "local_news_items" }, () => {
-          loadNewsPublic();
-        })
-        .subscribe(),
+      mkChannel("rt-job_listings",         "job_listings",         () => { loadJobsPublic();       reloadAdmin(); }),
+      mkChannel("rt-business_submissions",  "business_submissions",  () => { loadBusinessesPublic(); reloadAdmin(); }),
+      mkChannel("rt-gallery_submissions",   "gallery_submissions",   () => { loadGalleryPublic();    reloadAdmin(); }),
+      mkChannel("rt-event_submissions",     "event_submissions",     () => { loadEventsPublic();     reloadAdmin(); }),
+      mkChannel("rt-business_reviews",      "business_reviews",      () => { loadReviewsPublic();    reloadAdmin(); }),
+      mkChannel("rt-marketplace_listings",  "marketplace_listings",  () => { loadMarketplacePublic(); }),
+      mkChannel("rt-local_news_items",      "local_news_items",      () => { loadNewsPublic(); }),
     ];
 
     return () => {
+      console.log("[Realtime] Cleaning up subscriptions.");
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
-  }, [supabase, adminSession, loadJobsPublic, loadBusinessesPublic, loadGalleryPublic, loadEventsPublic, loadReviewsPublic, loadMarketplacePublic, loadNewsPublic]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, loadJobsPublic, loadBusinessesPublic, loadGalleryPublic, loadEventsPublic, loadReviewsPublic, loadMarketplacePublic, loadNewsPublic]);
 
   useEffect(() => {
     if (!supabase) {
@@ -7279,3 +7261,4 @@ function App() {
 }
 
 export default App;
+                                                                                                                                                                                                                                               
