@@ -1896,6 +1896,141 @@ function App() {
     };
   }, []);
 
+
+  // ── Public data loaders (called by useEffect + Realtime subscriptions) ────
+
+  const loadJobsPublic = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("job_listings")
+      .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,duration,plan,image_data,logo_data,expires_at")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setPostedJobs(
+            data.map((row) => ({
+              id: row.id,
+              title: row.title,
+              company: row.company,
+              pay: row.pay_label || "Pay not specified",
+              location: row.location,
+              type: row.job_type,
+              schedule: "",
+              posted: "Posted Today",
+              category: row.category,
+              tag: row.plan === "free" ? "New Today" : row.plan === "featured" ? "Featured" : "Premium",
+              filters: [row.job_type, "New Today"],
+              image: row.image_data,
+              description: row.description,
+              requirements: row.requirements,
+              contact: row.phone,
+              email: row.email,
+              appMethod: row.app_method,
+              duration: row.duration,
+              plan: row.plan,
+            })),
+          );
+        }
+      });
+  }, [supabase]);
+
+  const loadBusinessesPublic = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("business_submissions")
+      .select("id,business_name,category,phone,address,social,description,image_data,plan,payment_status,placement_source,placement_expires_at")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setBusinesses(data.map(businessSubmissionToBusiness));
+        }
+      });
+  }, [supabase]);
+
+  const loadGalleryPublic = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("gallery_submissions")
+      .select("id,title,image_data")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setApprovedGalleryPhotos(
+            data.map((photo) => ({
+              id: photo.id,
+              title: photo.title,
+              image: photo.image_data,
+            })),
+          );
+        }
+      });
+  }, [supabase]);
+
+  const loadEventsPublic = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("event_submissions")
+      .select("id,title,place,event_date,event_time,event_type,image_url,image_data,status")
+      .eq("status", "approved")
+      .order("event_date", { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setApprovedEvents(data.map(eventSubmissionToEvent));
+        }
+      });
+  }, [supabase]);
+
+  const loadNewsPublic = useCallback(() => {
+    if (!supabase) return;
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 7);
+    weekStart.setHours(0, 0, 0, 0);
+    supabase
+      .from("local_news_items")
+      .select("id,title,summary,image_url,source_name,source_url,original_url,published_at,news_category,mood_label,verification_status")
+      .eq("status", "approved")
+      .gte("published_at", weekStart.toISOString())
+      .order("published_at", { ascending: false })
+      .limit(20)
+      .then(({ data, error }) => {
+        if (error || !data) { setLocalNewsItems([]); return; }
+        setLocalNewsItems(data);
+      });
+  }, [supabase]);
+
+  const loadReviewsPublic = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("business_reviews")
+      .select("id,created_at,business_id,business_name,reviewer_name,rating,comment")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error || !data) return;
+        const nextReviews = data.reduce((groups, review) => {
+          groups[review.business_id] = [...(groups[review.business_id] ?? []), review];
+          return groups;
+        }, {});
+        setApprovedReviews(nextReviews);
+      });
+  }, [supabase]);
+
+  const loadMarketplacePublic = useCallback(() => {
+    if (!supabase) return;
+    supabase.rpc("expire_marketplace_listings").then(() => {
+      supabase
+        .from("marketplace_listings")
+        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
+        .order("created_at", { ascending: false })
+        .then(({ data, error }) => {
+          if (!error && data) setMarketplaceListings(data.map(mapListingFromDb));
+        });
+    });
+  }, [supabase]);
+
   useEffect(() => {
     const weatherUrl =
       "https://api.open-meteo.com/v1/forecast?latitude=32.4487&longitude=-99.7331&current=temperature_2m,is_day&temperature_unit=fahrenheit&timezone=America%2FChicago";
@@ -1946,73 +2081,20 @@ function App() {
         );
       });
 
-    supabase
-      .from("business_reviews")
-      .select("id,created_at,business_id,business_name,reviewer_name,rating,comment")
-      .eq("status", "approved")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error || !data) {
-          return;
-        }
-
-        const nextReviews = data.reduce((groups, review) => {
-          groups[review.business_id] = [...(groups[review.business_id] ?? []), review];
-          return groups;
-        }, {});
-
-        setApprovedReviews(nextReviews);
-      });
-
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - 7);
-    weekStart.setHours(0, 0, 0, 0);
-
-    supabase
-      .from("local_news_items")
-      .select("id,title,summary,image_url,source_name,source_url,original_url,published_at,news_category,mood_label,verification_status")
-      .eq("status", "approved")
-      .gte("published_at", weekStart.toISOString())
-      .order("published_at", { ascending: false })
-      .limit(20)
-      .then(({ data, error }) => {
-        if (error || !data) {
-          setLocalNewsItems([]);
-          return;
-        }
-
-        setLocalNewsItems(data);
-      });
-
-    supabase
-      .from("event_submissions")
-      .select("id,title,place,event_date,event_time,event_type,image_url,image_data,status")
-      .eq("status", "approved")
-      .order("event_date", { ascending: true })
-      .then(({ data, error }) => {
-        if (!error && data) {
-          setApprovedEvents(data.map(eventSubmissionToEvent));
-        }
-      });
-  }, [visitorKey]);
+    loadReviewsPublic();
+    loadNewsPublic();
+    loadEventsPublic();
+  }, [visitorKey, loadReviewsPublic, loadNewsPublic, loadEventsPublic]);
 
   useEffect(() => {
     if (!supabase) {
       return;
     }
 
-    supabase
-      .from("business_submissions")
-      .select("id,business_name,category,phone,address,social,description,image_data,plan,payment_status,placement_source,placement_expires_at")
-      .eq("status", "approved")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) {
-          const approvedBusinesses = data.map(businessSubmissionToBusiness);
-
-          setBusinesses(approvedBusinesses);
-        }
-      });
+    loadBusinessesPublic();
+    loadGalleryPublic();
+    loadMarketplacePublic();
+    loadJobsPublic();
 
     supabase
       .from("hidden_static_items")
@@ -2023,67 +2105,74 @@ function App() {
           setDeletedStaticItems(data.filter((item) => item.item_type === "deleted").map((item) => item.item_key));
         }
       });
+  }, [loadBusinessesPublic, loadGalleryPublic, loadMarketplacePublic, loadJobsPublic]);
 
-    supabase
-      .from("gallery_submissions")
-      .select("id,title,image_data")
-      .eq("status", "approved")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) {
-          setApprovedGalleryPhotos(
-            data.map((photo) => ({
-              id: photo.id,
-              title: photo.title,
-              image: photo.image_data,
-            })),
-          );
-        }
-      });
+  // ── Supabase Realtime: auto-refresh on any table change ─────────────────
+  useEffect(() => {
+    if (!supabase) return;
 
-    supabase.rpc("expire_marketplace_listings").then(() => {
+    const reloadAdmin = () => { if (adminSession) loadAdminData(); };
+
+    const channels = [
       supabase
-        .from("marketplace_listings")
-        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
-        .order("created_at", { ascending: false })
-        .then(({ data, error }) => {
-          if (!error && data) setMarketplaceListings(data.map(mapListingFromDb));
-        });
-    });
+        .channel("rt-job_listings")
+        .on("postgres_changes", { event: "*", schema: "public", table: "job_listings" }, () => {
+          loadJobsPublic();
+          reloadAdmin();
+        })
+        .subscribe(),
 
-    supabase
-      .from("job_listings")
-      .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,duration,plan,image_data,logo_data,expires_at")
-      .eq("status", "approved")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) {
-          setPostedJobs(
-            data.map((row) => ({
-              id: row.id,
-              title: row.title,
-              company: row.company,
-              pay: row.pay_label || "Pay not specified",
-              location: row.location,
-              type: row.job_type,
-              schedule: "",
-              posted: "Posted Today",
-              category: row.category,
-              tag: row.plan === "free" ? "New Today" : row.plan === "featured" ? "Featured" : "Premium",
-              filters: [row.job_type, "New Today"],
-              image: row.image_data,
-              description: row.description,
-              requirements: row.requirements,
-              contact: row.phone,
-              email: row.email,
-              appMethod: row.app_method,
-              duration: row.duration,
-              plan: row.plan,
-            })),
-          );
-        }
-      });
-  }, []);
+      supabase
+        .channel("rt-business_submissions")
+        .on("postgres_changes", { event: "*", schema: "public", table: "business_submissions" }, () => {
+          loadBusinessesPublic();
+          reloadAdmin();
+        })
+        .subscribe(),
+
+      supabase
+        .channel("rt-gallery_submissions")
+        .on("postgres_changes", { event: "*", schema: "public", table: "gallery_submissions" }, () => {
+          loadGalleryPublic();
+          reloadAdmin();
+        })
+        .subscribe(),
+
+      supabase
+        .channel("rt-event_submissions")
+        .on("postgres_changes", { event: "*", schema: "public", table: "event_submissions" }, () => {
+          loadEventsPublic();
+          reloadAdmin();
+        })
+        .subscribe(),
+
+      supabase
+        .channel("rt-business_reviews")
+        .on("postgres_changes", { event: "*", schema: "public", table: "business_reviews" }, () => {
+          loadReviewsPublic();
+          reloadAdmin();
+        })
+        .subscribe(),
+
+      supabase
+        .channel("rt-marketplace_listings")
+        .on("postgres_changes", { event: "*", schema: "public", table: "marketplace_listings" }, () => {
+          loadMarketplacePublic();
+        })
+        .subscribe(),
+
+      supabase
+        .channel("rt-local_news_items")
+        .on("postgres_changes", { event: "*", schema: "public", table: "local_news_items" }, () => {
+          loadNewsPublic();
+        })
+        .subscribe(),
+    ];
+
+    return () => {
+      channels.forEach((ch) => supabase.removeChannel(ch));
+    };
+  }, [supabase, adminSession, loadJobsPublic, loadBusinessesPublic, loadGalleryPublic, loadEventsPublic, loadReviewsPublic, loadMarketplacePublic, loadNewsPublic]);
 
   useEffect(() => {
     if (!supabase) {
