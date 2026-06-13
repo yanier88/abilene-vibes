@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:github": "vite build --mode github-pages",
+    "build:admin": "vite build --config vite.admin.config.js",
     "build:android": "vite build && cap sync android",
     "android:open": "cap open android",
     "lint": "eslint .",
@@ -31,5 +32,4 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
     "vite": "^8.0.12"
-  }
-}
+  

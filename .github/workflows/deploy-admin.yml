@@ -1,0 +1,46 @@
+name: Deploy Admin to abilene-vibes-admin
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'admin.html'
+      - 'vite.admin.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build admin
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build:admin
+
+      - name: Deploy to abilene-vibes-admin
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.ADMIN_DEPLOY_TOKEN }}
+          external_repository: yanier88/abilene-vibes-admin
+          publish_branch: main
+          publish_dir: ./dist-admin
+          force_orphan: true
