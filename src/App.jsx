@@ -2150,26 +2150,9 @@ function App() {
       mkChannel("rt-local_news_items",      "local_news_items",      () => { loadNewsPublic(); }),
     ];
 
-    // On Android, WebSocket pauses when the app goes to background.
-    // Re-fetch all public data when the app returns to foreground.
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        console.log("[Visibility] App foregrounded — refreshing all public data");
-        loadJobsPublic();
-        loadBusinessesPublic();
-        loadGalleryPublic();
-        loadEventsPublic();
-        loadNewsPublic();
-        loadMarketplacePublic();
-        if (adminSessionRef.current) loadAdminData(adminSessionRef.current);
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-
     return () => {
       console.log("[Realtime] Cleaning up subscriptions.");
       channels.forEach((ch) => supabase.removeChannel(ch));
-      document.removeEventListener("visibilitychange", handleVisibility);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, loadJobsPublic, loadBusinessesPublic, loadGalleryPublic, loadEventsPublic, loadReviewsPublic, loadMarketplacePublic, loadNewsPublic]);
@@ -7247,4 +7230,25 @@ function App() {
             Back to lobby
           </button>
 
-          <section clas
+          <section className="legal-header" aria-labelledby={`${page}-title`}>
+            <p className="eyebrow">{legalPage.eyebrow}</p>
+            <h1 id={`${page}-title`}>{legalPage.title}</h1>
+            <p className="events-intro">{legalPage.intro}</p>
+          </section>
+
+          <section className="legal-list" aria-label={legalPage.title}>
+            {legalPage.items.map((item) => (
+              <article className="legal-card" key={item.title}>
+                <h2>{item.title}</h2>
+                <p>{item.copy}</p>
+              </article>
+            ))}
+          </section>
+        </div>
+      </main>,
+    );
+  }
+
+  return withSplash(
+    <main className="app home-page">
+      <section className="home-hero" aria-labe
