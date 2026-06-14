@@ -39,7 +39,7 @@ grant select, insert, update, delete
 
 -- ── Policies ────────────────────────────────────────────────
 
--- Anyone can read approved, non-expired free and featured listings
+-- Anyone can read approved, non-expired free, featured, and premium listings
 drop policy if exists "Allow public approved job reads" on public.job_listings;
 create policy "Allow public approved job reads"
 on public.job_listings
@@ -47,18 +47,18 @@ for select
 to anon
 using (
   status = 'approved'
-  and plan IN ('free', 'featured')
+  and plan IN ('free', 'featured', 'premium')
   and (expires_at is null or expires_at > now())
 );
 
--- Anyone can insert a free or featured listing (goes live immediately)
+-- Anyone can insert a free, featured, or premium listing (goes live immediately)
 drop policy if exists "Allow public free job inserts" on public.job_listings;
 create policy "Allow public free job inserts"
 on public.job_listings
 for insert
 to anon
 with check (
-  plan   IN ('free', 'featured')
+  plan   IN ('free', 'featured', 'premium')
   and status = 'approved'
   and length(title)   > 0
   and length(company) > 0

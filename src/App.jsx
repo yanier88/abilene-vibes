@@ -3780,7 +3780,7 @@ function App() {
   // ── End marketplace computed ──────────────────────────────
 
   // ── Jobs computed ─────────────────────────────────────────
-  const jobPlanOrder = { featured: 0, premium: 1, free: 2 };
+  const jobPlanOrder = { premium: 0, featured: 1, free: 2 };
   const allJobListings = [
     ...postedJobs.map((j) => ({ ...j, tag: j.plan === "free" ? "New Today" : j.plan === "featured" ? "Featured" : "Premium", filters: [j.jobType, "New Today"] })),
   ].sort((a, b) => (jobPlanOrder[a.plan] ?? 2) - (jobPlanOrder[b.plan] ?? 2));
@@ -5831,6 +5831,101 @@ function App() {
       }
     };
 
+    const handlePostPremium = async () => {
+      setPostJobError(null);
+      setPostJobPublishing(true);
+      const localFallbackJob = {
+        id: `posted-${Date.now()}`,
+        title: postJobForm.title,
+        company: postJobForm.company,
+        pay: payLabel,
+        location: postJobForm.location || "Abilene, TX",
+        type: postJobForm.jobType || "Full Time",
+        schedule: "",
+        posted: "Posted Today",
+        category: postJobForm.category || "Other",
+        tag: "Premium",
+        filters: [postJobForm.jobType, "New Today"],
+        image: postJobImagePreview,
+        description: postJobForm.description,
+        requirements: postJobForm.requirements,
+        contact: postJobForm.phone,
+        email: postJobForm.email,
+        appMethod: postJobForm.appMethod,
+        duration: postJobForm.duration,
+        plan: "premium",
+      };
+      try {
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        if (supabase) {
+          const { data, error } = await supabase
+            .from("job_listings")
+            .insert({
+              title: postJobForm.title,
+              company: postJobForm.company,
+              category: postJobForm.category || "Other",
+              job_type: postJobForm.jobType || "Full Time",
+              pay_label: payLabel,
+              location: postJobForm.location || "Abilene, TX",
+              phone: postJobForm.phone,
+              email: postJobForm.email,
+              description: postJobForm.description,
+              requirements: postJobForm.requirements,
+              app_method: postJobForm.appMethod || "Phone",
+              duration: postJobForm.duration || "30 Days",
+              plan: "premium",
+              status: "approved",
+              image_data: postJobImagePreview,
+              logo_data: postJobLogoPreview,
+              expires_at: expiresAt,
+            })
+            .select()
+            .single();
+          if (error) {
+            console.error("[Jobs] Supabase insert error (premium):", error.message);
+            setPostedJobs((prev) => [localFallbackJob, ...prev]);
+          } else if (data) {
+            const savedJob = {
+              id: data.id,
+              title: data.title,
+              company: data.company,
+              pay: data.pay_label || payLabel,
+              location: data.location,
+              type: data.job_type,
+              schedule: "",
+              posted: "Posted Today",
+              category: data.category,
+              tag: "Premium",
+              filters: [data.job_type, "New Today"],
+              image: data.image_data,
+              description: data.description,
+              requirements: data.requirements,
+              contact: data.phone,
+              email: data.email,
+              appMethod: data.app_method,
+              duration: data.duration,
+              plan: "premium",
+            };
+            setPostedJobs((prev) => [savedJob, ...prev]);
+          } else {
+            setPostedJobs((prev) => [localFallbackJob, ...prev]);
+          }
+        } else {
+          setPostedJobs((prev) => [localFallbackJob, ...prev]);
+        }
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days" });
+        setPostJobImagePreview(null); setPostJobLogoPreview(null);
+        setPostJobPreview(false); setPostJobStep("form");
+        setPostJobError(null);
+        navigateTo("jobs");
+      } catch (err) {
+        console.error("[Jobs] Unexpected error publishing premium job:", err);
+        setPostJobError(err?.message || "Error al publicar. Verifica tu conexión e intenta de nuevo.");
+      } finally {
+        setPostJobPublishing(false);
+      }
+    };
+
     return withSplash(
       <main className="app jobs-page post-job-page">
         <div className="jobs-neon-bg" aria-hidden="true" />
@@ -5888,10 +5983,10 @@ function App() {
                     <li>Highest placement</li>
                     <li>Maximum visibility</li>
                   </ul>
-                  <button className="plan-btn plan-btn-premium" type="button"
-                    onClick={() => { setSelectedCategory("Jobs & Hiring"); navigateTo("promote"); }}>
-                    Choose Premium
+                  <button className="plan-btn plan-btn-premium" type="button" onClick={handlePostPremium} disabled={postJobPublishing}>
+                    {postJobPublishing ? "Publishing…" : "Post Premium"}
                   </button>
+                  {postJobError && <p className="post-job-error" role="alert">{postJobError}</p>}
                 </div>
               </div>
             </div>
