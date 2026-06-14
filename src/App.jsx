@@ -752,6 +752,14 @@ const formatMarketplacePosted = (dateStr) => {
   if (hours < 24) return `Posted ${hours} hour${hours === 1 ? "" : "s"} ago`;
   return "Posted today";
 };
+const formatJobPosted = (dateStr) => {
+  if (!dateStr) return "Posted Today";
+  const d = new Date(dateStr);
+  const days = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (days === 0) return "Posted Today";
+  if (days === 1) return "Posted Yesterday";
+  return `Posted ${days} days ago`;
+};
 const formatMarketplaceExpiry = (dateStr) => {
   if (!dateStr) return "Current paid period end";
   const d = typeof dateStr === "number" ? new Date(dateStr * 1000) : new Date(dateStr);
@@ -1826,7 +1834,7 @@ function App() {
   const [postJobForm, setPostJobForm] = useState({
     title: "", company: "", category: "", jobType: "", payMin: "", payMax: "",
     location: "Abilene, TX", phone: "", email: "", description: "", requirements: "",
-    image: null, logo: null, appMethod: "Phone", duration: "30 Days",
+    image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "",
   });
   const [postJobPreview, setPostJobPreview] = useState(false);
   const [postJobImagePreview, setPostJobImagePreview] = useState(null);
@@ -1835,7 +1843,10 @@ function App() {
   const [postJobError, setPostJobError] = useState(null);
   const [postJobPublishing, setPostJobPublishing] = useState(false);
   const [postedJobs, setPostedJobs] = useState([]);
-  const [savedJobs, setSavedJobs] = useState([]);
+  const [savedJobs, setSavedJobs] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem("av_saved_jobs") ?? "[]"); }
+    catch { return []; }
+  });
   const [jobsShowSaved, setJobsShowSaved] = useState(false);
   const imageViewerPhotoRef = useRef(null);
   const pageRef = useRef(page);
@@ -1906,7 +1917,7 @@ function App() {
     if (!supabase) return;
     supabase
       .from("job_listings")
-      .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,duration,plan,image_data,logo_data,expires_at")
+      .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,apply_url,duration,plan,image_data,logo_data,expires_at")
       .eq("status", "approved")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -1920,8 +1931,8 @@ function App() {
               location: row.location,
               type: row.job_type,
               schedule: "",
-              posted: "Posted Today",
               category: row.category,
+              posted: formatJobPosted(row.created_at),
               tag: row.plan === "free" ? "New Today" : row.plan === "featured" ? "Featured" : "Premium",
               filters: [row.job_type, "New Today"],
               image: row.image_data,
@@ -1930,6 +1941,7 @@ function App() {
               contact: row.phone,
               email: row.email,
               appMethod: row.app_method,
+              applyUrl: row.apply_url,
               duration: row.duration,
               plan: row.plan,
             })),
@@ -2112,6 +2124,12 @@ function App() {
         }
       });
   }, [loadBusinessesPublic, loadGalleryPublic, loadMarketplacePublic, loadJobsPublic]);
+
+  // ── Persist saved jobs across sessions ──────────────────────────────────
+  useEffect(() => {
+    try { window.localStorage.setItem("av_saved_jobs", JSON.stringify(savedJobs)); }
+    catch { /* ignore */ }
+  }, [savedJobs]);
 
   // ── Supabase Realtime: auto-refresh on any table change ─────────────────
   // adminSession intentionally excluded from deps — use adminSessionRef.current
@@ -3782,7 +3800,7 @@ function App() {
   // ── Jobs computed ─────────────────────────────────────────
   const jobPlanOrder = { premium: 0, featured: 1, free: 2 };
   const allJobListings = [
-    ...postedJobs.map((j) => ({ ...j, tag: j.plan === "free" ? "New Today" : j.plan === "featured" ? "Featured" : "Premium", filters: [j.jobType, "New Today"] })),
+    ...postedJobs.map((j) => ({ ...j, tag: j.plan === "free" ? "New Today" : j.plan === "featured" ? "Featured" : "Premium", filters: [j.type, "New Today"] })),
   ].sort((a, b) => (jobPlanOrder[a.plan] ?? 2) - (jobPlanOrder[b.plan] ?? 2));
   const filteredJobListings = (jobsShowSaved ? allJobListings.filter((j) => savedJobs.includes(j.id)) : allJobListings).filter((j) => {
     const matchesCategory = jobsCategoryFilter === "All" || j.category === jobsCategoryFilter;
@@ -5580,6 +5598,12 @@ function App() {
                 Email Employer
               </a>
             )}
+            {j.applyUrl && (
+              <a className="directory-link jobs-apply-button" href={j.applyUrl} target="_blank" rel="noopener noreferrer">
+                <span aria-hidden="true">🌐</span>
+                Apply on Website
+              </a>
+            )}
             {j.location && (
               <a
                 className="directory-link jobs-apply-button job-detail-map-btn"
@@ -5654,6 +5678,7 @@ function App() {
         contact: postJobForm.phone,
         email: postJobForm.email,
         appMethod: postJobForm.appMethod,
+        applyUrl: postJobForm.applyUrl,
         duration: postJobForm.duration,
         plan: "free",
       };
@@ -5677,6 +5702,7 @@ function App() {
               description: postJobForm.description,
               requirements: postJobForm.requirements,
               app_method: postJobForm.appMethod || "Phone",
+              apply_url: postJobForm.applyUrl || null,
               duration: postJobForm.duration || "30 Days",
               plan: "free",
               status: "approved",
@@ -5710,6 +5736,7 @@ function App() {
               contact: data.phone,
               email: data.email,
               appMethod: data.app_method,
+              applyUrl: data.apply_url,
               duration: data.duration,
               plan: data.plan,
             };
@@ -5723,7 +5750,7 @@ function App() {
           setPostedJobs((prev) => [localFallbackJob, ...prev]);
         }
 
-        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days" });
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
         setPostJobPreview(false); setPostJobStep("form");
         setPostJobError(null);
@@ -5757,6 +5784,7 @@ function App() {
         contact: postJobForm.phone,
         email: postJobForm.email,
         appMethod: postJobForm.appMethod,
+        applyUrl: postJobForm.applyUrl,
         duration: postJobForm.duration,
         plan: "featured",
       };
@@ -5777,6 +5805,7 @@ function App() {
               description: postJobForm.description,
               requirements: postJobForm.requirements,
               app_method: postJobForm.appMethod || "Phone",
+              apply_url: postJobForm.applyUrl || null,
               duration: postJobForm.duration || "30 Days",
               plan: "featured",
               status: "approved",
@@ -5808,6 +5837,7 @@ function App() {
               contact: data.phone,
               email: data.email,
               appMethod: data.app_method,
+              applyUrl: data.apply_url,
               duration: data.duration,
               plan: "featured",
             };
@@ -5818,7 +5848,7 @@ function App() {
         } else {
           setPostedJobs((prev) => [localFallbackJob, ...prev]);
         }
-        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days" });
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
         setPostJobPreview(false); setPostJobStep("form");
         setPostJobError(null);
@@ -5852,6 +5882,7 @@ function App() {
         contact: postJobForm.phone,
         email: postJobForm.email,
         appMethod: postJobForm.appMethod,
+        applyUrl: postJobForm.applyUrl,
         duration: postJobForm.duration,
         plan: "premium",
       };
@@ -5872,6 +5903,7 @@ function App() {
               description: postJobForm.description,
               requirements: postJobForm.requirements,
               app_method: postJobForm.appMethod || "Phone",
+              apply_url: postJobForm.applyUrl || null,
               duration: postJobForm.duration || "30 Days",
               plan: "premium",
               status: "approved",
@@ -5903,6 +5935,7 @@ function App() {
               contact: data.phone,
               email: data.email,
               appMethod: data.app_method,
+              applyUrl: data.apply_url,
               duration: data.duration,
               plan: "premium",
             };
@@ -5913,7 +5946,7 @@ function App() {
         } else {
           setPostedJobs((prev) => [localFallbackJob, ...prev]);
         }
-        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days" });
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
         setPostJobPreview(false); setPostJobStep("form");
         setPostJobError(null);
@@ -6096,6 +6129,14 @@ function App() {
                       {appMethodOptions.map((m) => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </label>
+                  {postJobForm.appMethod === "Website" && (
+                    <label className="form-field form-field-full">
+                      <span>Application website URL</span>
+                      <input type="url" value={postJobForm.applyUrl}
+                        onChange={(e) => handlePostJobField("applyUrl", e.target.value)}
+                        placeholder="https://yourcompany.com/apply" />
+                    </label>
+                  )}
                   <label className="form-field">
                     <span>Contact phone</span>
                     <input type="tel" value={postJobForm.phone}
