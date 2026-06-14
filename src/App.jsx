@@ -1832,6 +1832,8 @@ function App() {
   const [postJobImagePreview, setPostJobImagePreview] = useState(null);
   const [postJobLogoPreview, setPostJobLogoPreview] = useState(null);
   const [postJobStep, setPostJobStep] = useState("form"); // "form" | "preview" | "plan"
+  const [postJobError, setPostJobError] = useState(null);
+  const [postJobPublishing, setPostJobPublishing] = useState(false);
   const [postedJobs, setPostedJobs] = useState([]);
   const [savedJobs, setSavedJobs] = useState([]);
   const [jobsShowSaved, setJobsShowSaved] = useState(false);
@@ -2223,8 +2225,9 @@ function App() {
       }
 
       if (currentPage === "post-job") {
-        pageRef.current = "jobs";
-        navigateTo("jobs", { replace: true });
+        if (postJobStep === "plan") { setPostJobStep("preview"); }
+        else if (postJobStep === "preview") { setPostJobStep("form"); }
+        else { pageRef.current = "jobs"; navigateTo("jobs", { replace: true }); }
         return;
       }
 
@@ -5630,6 +5633,8 @@ function App() {
       description: postJobForm.description || "Job description will appear here.",
     };
     const handlePostFree = async () => {
+      setPostJobError(null);
+      setPostJobPublishing(true);
       const localFallbackJob = {
         id: `posted-${Date.now()}`,
         title: postJobForm.title,
@@ -5652,78 +5657,89 @@ function App() {
         plan: "free",
       };
 
-      if (supabase) {
-        const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
-        const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+      try {
+        if (supabase) {
+          const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
+          const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
-        const { data, error } = await supabase
-          .from("job_listings")
-          .insert({
-            title: postJobForm.title,
-            company: postJobForm.company,
-            category: postJobForm.category || "Other",
-            job_type: postJobForm.jobType || "Full Time",
-            pay_label: payLabel,
-            location: postJobForm.location || "Abilene, TX",
-            phone: postJobForm.phone,
-            email: postJobForm.email,
-            description: postJobForm.description,
-            requirements: postJobForm.requirements,
-            app_method: postJobForm.appMethod || "Phone",
-            duration: postJobForm.duration || "30 Days",
-            plan: "free",
-            status: "approved",
-            image_data: postJobImagePreview,
-            logo_data: postJobLogoPreview,
-            expires_at: expiresAt,
-          })
-          .select()
-          .single();
+          const { data, error } = await supabase
+            .from("job_listings")
+            .insert({
+              title: postJobForm.title,
+              company: postJobForm.company,
+              category: postJobForm.category || "Other",
+              job_type: postJobForm.jobType || "Full Time",
+              pay_label: payLabel,
+              location: postJobForm.location || "Abilene, TX",
+              phone: postJobForm.phone,
+              email: postJobForm.email,
+              description: postJobForm.description,
+              requirements: postJobForm.requirements,
+              app_method: postJobForm.appMethod || "Phone",
+              duration: postJobForm.duration || "30 Days",
+              plan: "free",
+              status: "approved",
+              image_data: postJobImagePreview,
+              logo_data: postJobLogoPreview,
+              expires_at: expiresAt,
+            })
+            .select()
+            .single();
 
-        if (error) {
-          console.error("[Jobs] Supabase insert error:", error.message);
-          // Fall back to in-memory so the user still sees their post
+          if (error) {
+            console.error("[Jobs] Supabase insert error:", error.message);
+            // Fall back to in-memory so the user still sees their post
+            setPostedJobs((prev) => [localFallbackJob, ...prev]);
+          } else if (data) {
+            const savedJob = {
+              id: data.id,
+              title: data.title,
+              company: data.company,
+              pay: data.pay_label || "Pay not specified",
+              location: data.location,
+              type: data.job_type,
+              schedule: "",
+              posted: "Posted Today",
+              category: data.category,
+              tag: "New Today",
+              filters: [data.job_type, "New Today"],
+              image: data.image_data,
+              description: data.description,
+              requirements: data.requirements,
+              contact: data.phone,
+              email: data.email,
+              appMethod: data.app_method,
+              duration: data.duration,
+              plan: data.plan,
+            };
+            setPostedJobs((prev) => [savedJob, ...prev]);
+          } else {
+            // insert succeeded but returned no row — use local fallback
+            setPostedJobs((prev) => [localFallbackJob, ...prev]);
+          }
+        } else {
+          // No Supabase configured — local-only fallback
           setPostedJobs((prev) => [localFallbackJob, ...prev]);
-        } else if (data) {
-          const savedJob = {
-            id: data.id,
-            title: data.title,
-            company: data.company,
-            pay: data.pay_label || "Pay not specified",
-            location: data.location,
-            type: data.job_type,
-            schedule: "",
-            posted: "Posted Today",
-            category: data.category,
-            tag: "New Today",
-            filters: [data.job_type, "New Today"],
-            image: data.image_data,
-            description: data.description,
-            requirements: data.requirements,
-            contact: data.phone,
-            email: data.email,
-            appMethod: data.app_method,
-            duration: data.duration,
-            plan: data.plan,
-          };
-          setPostedJobs((prev) => [savedJob, ...prev]);
         }
-      } else {
-        // No Supabase configured — local-only fallback
-        setPostedJobs((prev) => [localFallbackJob, ...prev]);
-      }
 
-      setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days" });
-      setPostJobImagePreview(null); setPostJobLogoPreview(null);
-      setPostJobPreview(false); setPostJobStep("form");
-      navigateTo("jobs");
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days" });
+        setPostJobImagePreview(null); setPostJobLogoPreview(null);
+        setPostJobPreview(false); setPostJobStep("form");
+        setPostJobError(null);
+        navigateTo("jobs");
+      } catch (err) {
+        console.error("[Jobs] Unexpected error publishing free job:", err);
+        setPostJobError(err?.message || "Error al publicar. Verifica tu conexión e intenta de nuevo.");
+      } finally {
+        setPostJobPublishing(false);
+      }
     };
     return withSplash(
       <main className="app jobs-page post-job-page">
         <div className="jobs-neon-bg" aria-hidden="true" />
         <div className="marketplace-shell jobs-shell post-job-shell">
-          <button className="back-button" onClick={() => { if (postJobStep !== "form") { setPostJobStep("preview"); } else { navigateTo("jobs"); } }}>
-            {postJobStep !== "form" ? "← Back to Preview" : "Back to Jobs"}
+          <button className="back-button" onClick={() => { if (postJobStep === "plan") { setPostJobStep("preview"); } else if (postJobStep === "preview") { setPostJobStep("form"); } else { navigateTo("jobs"); } }}>
+            {postJobStep === "plan" ? "← Back to Preview" : postJobStep === "preview" ? "← Back to Form" : "Back to Jobs"}
           </button>
 
           {/* ── PLAN SELECTION ── */}
@@ -5745,9 +5761,10 @@ function App() {
                     <li>Visible to all job seekers</li>
                     <li className="plan-feature-no">Not featured</li>
                   </ul>
-                  <button className="plan-btn plan-btn-free" type="button" onClick={handlePostFree}>
-                    Post Free
+                  <button className="plan-btn plan-btn-free" type="button" onClick={handlePostFree} disabled={postJobPublishing}>
+                    {postJobPublishing ? "Publishing…" : "Post Free"}
                   </button>
+                  {postJobError && <p className="post-job-error" role="alert">{postJobError}</p>}
                 </div>
                 {/* FEATURED */}
                 <div className="post-job-plan-card post-job-plan-featured">
