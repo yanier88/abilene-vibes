@@ -1851,9 +1851,19 @@ function App() {
   });
   const [jobsShowSaved, setJobsShowSaved] = useState(false);
   const imageViewerPhotoRef = useRef(null);
+  // Single ref that always mirrors current React state for the backButton handler.
+  // Updated after every relevant render — handler reads .current directly, no stale closures.
+  const backHandlerStateRef = useRef({ page, imageViewerPhoto: null, postJobStep: "form" });
   const pageRef = useRef(page);
   const previousPageRef = useRef(page);
   const directoryReturnRef = useRef("lobby"); // tracks where directory was opened from
+  // Tracks page for the Capacitor backButton handler ONLY — not updated by popstate/URL sync
+  // so that browser history.back() firing popstate before backButton doesn't corrupt it.
+  const backButtonPageRef = useRef(page);
+  // Boolean flag: true ONLY while the user is viewing a marketplace listing detail.
+  // Set by openListing(), cleared by Back or the UI "Back to Marketplace" button.
+  // Immune to all popstate/URL/pageRef race conditions.
+  const inListingDetailRef = useRef(false);
 
   useEffect(() => {
     if (previousPageRef.current === "news" && page === "lobby") {
@@ -1871,6 +1881,11 @@ function App() {
   useEffect(() => {
     imageViewerPhotoRef.current = imageViewerPhoto;
   }, [imageViewerPhoto]);
+
+  // Keep backHandlerStateRef in sync after every relevant render.
+  useEffect(() => {
+    backHandlerStateRef.current = { page, imageViewerPhoto, postJobStep };
+  }, [page, imageViewerPhoto, postJobStep]);
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -2051,6 +2066,32 @@ function App() {
   // Keep adminSessionRef in sync so Realtime callbacks always see the latest value
   useEffect(() => { adminSessionRef.current = adminSession; }, [adminSession]);
 
+  // Refs so the popstate listener can read current modal state without stale closure
+  const editingJobRef = useRef(null);
+  const editingListingRef = useRef(null);
+  useEffect(() => { editingJobRef.current = editingJob; }, [editingJob]);
+  useEffect(() => { editingListingRef.current = editingListing; }, [editingListing]);
+
+  // Admin back-button trap for mobile browsers (Android physical back button).
+  // When the admin is logged in, keep one "sentinel" entry above the real history so
+  // pressing Back pops that entry (triggering popstate) instead of leaving the page.
+  // The listener closes any open modal and immediately repushes the sentinel.
+  useEffect(() => {
+    if (!adminSession) return;
+    history.pushState({ adminModal: true }, '');
+    const onPopState = () => {
+      if (editingJobRef.current) {
+        setEditingJob(null);
+      } else if (editingListingRef.current) {
+        setEditingListing(null);
+      }
+      // Repush sentinel so the next back press is also intercepted
+      history.pushState({ adminModal: true }, '');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [adminSession]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const weatherUrl =
       "https://api.open-meteo.com/v1/forecast?latitude=32.4487&longitude=-99.7331&current=temperature_2m,is_day&temperature_unit=fahrenheit&timezone=America%2FChicago";
@@ -2200,6 +2241,7 @@ function App() {
 
   const navigateTo = useCallback((nextPage, options = {}) => {
     pageRef.current = nextPage;
+    backButtonPageRef.current = nextPage; // intentional nav only — immune to popstate race
     setPage(nextPage);
 
     if (options.replace) {
@@ -2215,57 +2257,74 @@ function App() {
     let backButtonListener;
 
     CapacitorApp.addListener("backButton", () => {
-      const currentPage = pageRef.current;
+      // Read exclusively from backHandlerStateRef — always reflects latest React state,
+      // immune to stale closures, popstate races, and indirect ref timing issues.
+      const { page: currentPage, imageViewerPhoto: currentPhoto, postJobStep: currentPostJobStep } =
+        backHandlerStateRef.current;
 
-      if (imageViewerPhotoRef.current) {
+      // 1. Zoom overlay — close it, stay on current page.
+      if (currentPhoto) {
         setImageViewerPhoto(null);
         return;
       }
 
+      // 2. Home screen — exit app.
       if (currentPage === "home") {
         CapacitorApp.exitApp();
         return;
       }
 
+      // 3. Lobby — go home.
       if (currentPage === "lobby") {
         navigateTo("home");
         return;
       }
 
+      // 4. Marketplace detail — always back to marketplace list.
+      if (currentPage === "marketplace-item") {
+        navigateTo("marketplace", { replace: true });
+        return;
+      }
+
+      // 5. Sell item form — back to marketplace list.
+      if (currentPage === "sell-item") {
+        navigateTo("marketplace", { replace: true });
+        return;
+      }
+
+      // 6. Top-level tabs — back to Service page.
       if (
         currentPage === "news" ||
         currentPage === "marketplace" ||
-        currentPage === "marketplace-item" ||
-        currentPage === "sell-item" ||
         currentPage === "jobs"
       ) {
-        pageRef.current = "more";
         navigateTo("more", { replace: true });
         return;
       }
 
+      // 7. Post-job wizard — step back or exit to jobs.
       if (currentPage === "post-job") {
-        if (postJobStep === "plan") { setPostJobStep("preview"); }
-        else if (postJobStep === "preview") { setPostJobStep("form"); }
-        else { pageRef.current = "jobs"; navigateTo("jobs", { replace: true }); }
+        if (currentPostJobStep === "plan") { setPostJobStep("preview"); }
+        else if (currentPostJobStep === "preview") { setPostJobStep("form"); }
+        else { navigateTo("jobs", { replace: true }); }
         return;
       }
 
+      // 8. Job detail — back to jobs.
       if (currentPage === "job-detail") {
-        pageRef.current = "jobs";
         navigateTo("jobs", { replace: true });
         return;
       }
 
-      // Directory: return to wherever it was opened from (set at navigation time)
+      // 9. Directory — return to wherever it was opened from.
       if (currentPage === "directory") {
         const ret = directoryReturnRef.current;
-        directoryReturnRef.current = "lobby"; // reset for next time
-        pageRef.current = ret;
+        directoryReturnRef.current = "lobby";
         navigateTo(ret, { replace: true });
         return;
       }
 
+      // Default — back to lobby.
       navigateTo("lobby", { replace: true });
     }).then((listener) => {
       backButtonListener = listener;
@@ -3631,6 +3690,7 @@ function App() {
 
   const openListing = (l) => {
     setSelectedListing(l);
+    inListingDetailRef.current = true;
     navigateTo("marketplace-item");
   };
 
@@ -5406,7 +5466,7 @@ function App() {
         <main className="app marketplace-page" style={{ "--marketplace-bg": `url("${appAsset("marketplace-neon-bg.png")}")` }}>
           <div className="marketplace-fixed-bg" aria-hidden="true" />
           <div className="marketplace-shell">
-            <button className="back-button" onClick={() => navigateTo("marketplace")}>
+            <button className="back-button" onClick={() => { inListingDetailRef.current = false; navigateTo("marketplace"); }}>
               Back to Marketplace
             </button>
             <article className="marketplace-detail-card">
