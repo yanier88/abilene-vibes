@@ -747,10 +747,18 @@ const isMarketplaceToday = (dateStr) => {
 const formatMarketplacePosted = (dateStr) => {
   if (!dateStr) return "Posted today";
   const d = new Date(dateStr);
-  const hours = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60));
+  const diffMs = Date.now() - d.getTime();
+  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   if (hours < 1) return "Posted just now";
   if (hours < 24) return `Posted ${hours} hour${hours === 1 ? "" : "s"} ago`;
-  return "Posted today";
+  if (days === 1) return "Posted yesterday";
+  if (days < 7) return `Posted ${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks === 1) return "Posted 1 week ago";
+  if (weeks < 5) return `Posted ${weeks} weeks ago`;
+  const months = Math.floor(days / 30);
+  return `Posted ${months} month${months === 1 ? "" : "s"} ago`;
 };
 const formatJobPosted = (dateStr) => {
   if (!dateStr) return "Posted Today";
@@ -766,24 +774,39 @@ const formatMarketplaceExpiry = (dateStr) => {
   if (Number.isNaN(d.getTime())) return "Current paid period end";
   return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 };
-const mapListingFromDb = (row) => ({
-  id: row.id,
-  title: row.title,
-  price: row.price,
-  category: row.category,
-  location: row.location,
-  contact: row.contact,
-  description: row.description,
-  image: row.image_data,
-  status: row.status,
-  ownerUserId: row.owner_user_id,
-  expiresAt: row.expires_at,
-  soldAt: row.sold_at,
-  deletedAt: row.deleted_at,
-  posted: formatMarketplacePosted(row.created_at),
-  tag: isMarketplaceToday(row.created_at) ? "New Today" : "Near Me",
-  icon: marketplaceCategories.find((c) => c.label === row.category)?.icon ?? "📦",
-});
+// Parse image_data: plain string = 1-photo (legacy), JSON array string = multi-photo.
+const parseListingImages = (raw) => {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) return arr.filter(Boolean);
+  } catch {}
+  return [raw]; // legacy single-photo string
+};
+
+const mapListingFromDb = (row) => {
+  const imgs = parseListingImages(row.image_data);
+  return {
+    id: row.id,
+    title: row.title,
+    price: row.price,
+    category: row.category,
+    location: row.location,
+    contact: row.contact,
+    description: row.description,
+    image: imgs[0] || null,   // first photo — backward compat for all existing code
+    images: imgs,             // all photos
+    status: row.status,
+    ownerUserId: row.owner_user_id,
+    expiresAt: row.expires_at,
+    soldAt: row.sold_at,
+    deletedAt: row.deleted_at,
+    createdAt: row.created_at,
+    posted: formatMarketplacePosted(row.created_at),
+    tag: isMarketplaceToday(row.created_at) ? "New Today" : "Near Me",
+    icon: marketplaceCategories.find((c) => c.label === row.category)?.icon ?? "📦",
+  };
+};
 
 const promoteCategories = [
   { label: "Food trucks", icon: "foodTruck" },
@@ -1808,6 +1831,7 @@ function App() {
   const [adminJobListings, setAdminJobListings] = useState([]);
   const [adminMarketplaceListings, setAdminMarketplaceListings] = useState([]);
   const [editingJob, setEditingJob] = useState(null);
+  const [editJobPage, setEditJobPage] = useState(false);
   const [publishedEvents, setPublishedEvents] = useState([]);
   const [hiddenEvents, setHiddenEvents] = useState([]);
   const [deletedStaticItems, setDeletedStaticItems] = useState([]);
@@ -1825,10 +1849,14 @@ function App() {
   const [marketplaceFilter, setMarketplaceFilter] = useState("All");
   const [myListingTab, setMyListingTab] = useState("Active");
   const [sellItemStatus, setSellItemStatus] = useState("");
+  const [sellDuration, setSellDuration] = useState("30");
   const [ownerUserId, setOwnerUserId] = useState("");
   const [editingListing, setEditingListing] = useState(null);
   const [deletingListing, setDeletingListing] = useState(null);
   const [editDeleteStatus, setEditDeleteStatus] = useState("");
+  const [sellItemPhotos, setSellItemPhotos] = useState([]);       // [{file, preview}] for sell form
+  const [listingGalleryIndex, setListingGalleryIndex] = useState(0); // current photo index in detail view
+  const [editListingPhotos, setEditListingPhotos] = useState([]); // existing photo data URLs in edit modal
   const [jobsSearch, setJobsSearch] = useState("");
   const [jobsFilter, setJobsFilter] = useState("All");
   const [jobsCategoryFilter, setJobsCategoryFilter] = useState("All");
@@ -1849,8 +1877,13 @@ function App() {
     try { return JSON.parse(window.localStorage.getItem("av_saved_jobs") ?? "[]"); }
     catch { return []; }
   });
+  const [savedMarketListings, setSavedMarketListings] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem("av_saved_market") ?? "[]"); }
+    catch { return []; }
+  });
   const [jobsShowSaved, setJobsShowSaved] = useState(false);
   const imageViewerPhotoRef = useRef(null);
+  const gallerySwipeTouchRef = useRef(null); // tracks touchstart X for marketplace-item swipe
   // Single ref that always mirrors current React state for the backButton handler.
   // Updated after every relevant render — handler reads .current directly, no stale closures.
   const backHandlerStateRef = useRef({ page, imageViewerPhoto: null, postJobStep: "form" });
@@ -2071,6 +2104,12 @@ function App() {
   const editingListingRef = useRef(null);
   useEffect(() => { editingJobRef.current = editingJob; }, [editingJob]);
   useEffect(() => { editingListingRef.current = editingListing; }, [editingListing]);
+  // Reset gallery slide index when a new listing is opened.
+  useEffect(() => { setListingGalleryIndex(0); }, [selectedListing]);
+  // Populate existing photos when edit modal opens.
+  useEffect(() => {
+    if (editingListing) setEditListingPhotos(editingListing.images ?? (editingListing.image ? [editingListing.image] : []));
+  }, [editingListing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Admin back-button trap for mobile browsers (Android physical back button).
   // When the admin is logged in, keep one "sentinel" entry above the real history so
@@ -2082,6 +2121,7 @@ function App() {
     const onPopState = () => {
       if (editingJobRef.current) {
         setEditingJob(null);
+        setEditJobPage(false);
       } else if (editingListingRef.current) {
         setEditingListing(null);
       }
@@ -2173,6 +2213,12 @@ function App() {
     try { window.localStorage.setItem("av_saved_jobs", JSON.stringify(savedJobs)); }
     catch { /* ignore */ }
   }, [savedJobs]);
+
+  // ── Persist saved market listings across sessions ────────────────────────
+  useEffect(() => {
+    try { window.localStorage.setItem("av_saved_market", JSON.stringify(savedMarketListings)); }
+    catch { /* ignore */ }
+  }, [savedMarketListings]);
 
   // ── Supabase Realtime: auto-refresh on any table change ─────────────────
   // adminSession intentionally excluded from deps — use adminSessionRef.current
@@ -2738,7 +2784,7 @@ function App() {
         .order("event_date", { ascending: true }),
       supabase
         .from("job_listings")
-        .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,duration,plan,status,expires_at")
+        .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,apply_url,duration,plan,status,image_data,logo_data,expires_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("marketplace_listings")
@@ -2988,13 +3034,16 @@ function App() {
         description: editingJob.description,
         requirements: editingJob.requirements,
         app_method: editingJob.app_method,
+        apply_url: editingJob.apply_url || null,
         duration: editingJob.duration,
         plan: editingJob.plan,
         status: editingJob.status,
       })
       .eq("id", editingJob.id);
     if (error) { setAdminStatus("error"); return; }
+    setAdminStatus("");
     setEditingJob(null);
+    setEditJobPage(false);
     await loadAdminData();
   };
 
@@ -3659,7 +3708,7 @@ function App() {
   );
   const allMarketplaceListings = [
     ...marketplaceListings,
-    ...visibleStarterListings,
+    // starter listings removed — only real Supabase listings shown
   ];
   const activeMarketplaceListings = allMarketplaceListings.filter(
     (l) => (l.status ?? "active") === "active" && (!l.expiresAt || new Date(l.expiresAt) > new Date()),
@@ -3680,7 +3729,7 @@ function App() {
   const myMarketplaceListings = marketplaceListings.filter((l) => isListingOwner(l));
   const myFilteredListings = myMarketplaceListings.filter((l) =>
     myListingTab === "Active"
-      ? l.status === "active"
+      ? l.status === "active" && (!l.expiresAt || new Date(l.expiresAt) > new Date())
       : myListingTab === "Sold"
       ? l.status === "sold"
       : myListingTab === "Expired"
@@ -3778,7 +3827,6 @@ function App() {
     if (!supabase || !editingListing || !(adminSession || isListingOwner(editingListing))) return;
     const form = e.currentTarget;
     const data = new FormData(form);
-    const photo = data.get("photo");
     const update = {
       title: data.get("title").trim(),
       price: data.get("price").trim(),
@@ -3790,7 +3838,12 @@ function App() {
     if (isStarterOrLegacyListing(editingListing)) update.owner_user_id = effectiveOwnerId;
     setEditDeleteStatus("saving");
     try {
-      if (photo && photo.size) update.image_data = await optimizeGalleryImage(photo);
+      // Combine kept existing photos with newly added photos.
+      const newFiles = data.getAll("newPhotos").filter((f) => f && f.size > 0);
+      const newCompressed = await Promise.all(newFiles.map((f) => optimizeGalleryImage(f)));
+      const allPhotos = [...editListingPhotos, ...newCompressed].slice(0, 5);
+      update.image_data = allPhotos.length === 0 ? "" : JSON.stringify(allPhotos);
+
       const { data: result, error } = adminSession
         ? await supabase.from("marketplace_listings").update(update).eq("id", editingListing.id)
         : await supabase.rpc("owner_update_marketplace_listing", {
@@ -3802,19 +3855,20 @@ function App() {
             new_location: update.location,
             new_contact: update.contact,
             new_description: update.description,
-            new_image_data: update.image_data ?? null,
+            new_image_data: update.image_data,
           });
       if (error || (!adminSession && result !== true)) { setEditDeleteStatus("error"); return; }
+      const newImgs = parseListingImages(update.image_data);
       setMarketplaceListings((items) =>
         items.map((i) =>
           i.id === editingListing.id
-            ? { ...i, ...update, ownerUserId: update.owner_user_id ?? i.ownerUserId, image: update.image_data ?? i.image }
+            ? { ...i, ...update, ownerUserId: update.owner_user_id ?? i.ownerUserId, image: newImgs[0] ?? null, images: newImgs }
             : i,
         ),
       );
       setSelectedListing((prev) =>
         prev?.id === editingListing.id
-          ? { ...prev, ...update, ownerUserId: update.owner_user_id ?? prev.ownerUserId, image: update.image_data ?? prev.image }
+          ? { ...prev, ...update, ownerUserId: update.owner_user_id ?? prev.ownerUserId, image: newImgs[0] ?? null, images: newImgs }
           : prev,
       );
       setEditDeleteStatus("");
@@ -3829,15 +3883,32 @@ function App() {
     e.preventDefault();
     const form = e.currentTarget;
     const data = new FormData(form);
-    const photo = data.get("photo");
     setSellItemStatus("saving");
     if (!supabase) { setSellItemStatus("missing-config"); return; }
-    if (photo && photo.size && (!photo.type.startsWith("image/") || photo.size > 15 * 1024 * 1024)) {
-      setSellItemStatus("file-error");
-      return;
-    }
+    // ── Limit checks (bypass for admin) ──────────────────────
+    if (!adminSession) {
+    const myActiveListings = marketplaceListings.filter(
+      (l) => isListingOwner(l) && l.status === "active" && (!l.expiresAt || new Date(l.expiresAt) > new Date()),
+    );
+    if (myActiveListings.length >= 10) { setSellItemStatus("limit-active"); return; }
+    // Use local date string so it matches the user's timezone (not UTC)
+    const now = new Date();
+    const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const postedTodayCount = marketplaceListings.filter((l) => {
+      if (!isListingOwner(l) || !l.createdAt) return false;
+      const created = new Date(l.createdAt);
+      const localCreated = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}-${String(created.getDate()).padStart(2, "0")}`;
+      return localCreated === localToday;
+    }).length;
+    if (postedTodayCount >= 2) { setSellItemStatus("limit-daily"); return; }
+    } // end !adminSession limit checks
+    // ── Compute expiry ────────────────────────────────────────
+    const durationDays = Number(sellDuration) || 30;
+    const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
     try {
-      const imageData = photo && photo.size ? await optimizeGalleryImage(photo) : "";
+      // sellItemPhotos holds pre-compressed base64 strings (set during onChange).
+      // Save as JSON array; parseListingImages handles old single-string rows on load.
+      const imageData = sellItemPhotos.length === 0 ? "" : JSON.stringify(sellItemPhotos);
       const { data: row, error } = await supabase
         .from("marketplace_listings")
         .insert({
@@ -3850,6 +3921,7 @@ function App() {
           image_data: imageData,
           status: "active",
           owner_user_id: effectiveOwnerId,
+          expires_at: expiresAt,
         })
         .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
         .single();
@@ -3858,6 +3930,7 @@ function App() {
       setMarketplaceSearch("");
       setMarketplaceFilter("All");
       setSellItemStatus("saved");
+      setSellItemPhotos([]);
       form.reset();
       navigateTo("marketplace");
     } catch {
@@ -5288,14 +5361,20 @@ function App() {
                       {l.contact && <p className="marketplace-contact">Phone: {l.contact}</p>}
                     </div>
                   </button>
-                  <button
-                    className={`marketplace-like-button${isLiked("marketplace", marketplaceListingKey(l)) ? " is-liked" : ""}`}
-                    type="button"
-                    onClick={() => handleLike("marketplace", marketplaceListingKey(l))}
-                    aria-label={`Like ${l.title}`}
-                  >
-                    ♥ {likeCountFor("marketplace", marketplaceListingKey(l))}
-                  </button>
+                  {(() => {
+                    const mKey = marketplaceListingKey(l);
+                    const isSavedM = savedMarketListings.includes(mKey);
+                    return (
+                      <button
+                        className={`marketplace-like-button${isSavedM ? " is-liked" : ""}`}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSavedMarketListings((prev) => isSavedM ? prev.filter((k) => k !== mKey) : [...prev, mKey]); }}
+                        aria-label={isSavedM ? `Unsave ${l.title}` : `Save ${l.title}`}
+                      >
+                        {isSavedM ? "♥" : "♡"}
+                      </button>
+                    );
+                  })()}
                   {isListingOwner(l) ? (
                     <div className="marketplace-owner-actions">
                       <button className="directory-link" type="button" onClick={(e) => handleMarkSold(e, l)}>
@@ -5316,10 +5395,27 @@ function App() {
               ))}
             </div>
           </section>
-          <section className="marketplace-section my-marketplace-section" aria-labelledby="my-marketplace-title">
-            <div className="marketplace-section-heading">
-              <h2 id="my-marketplace-title">My Listings</h2>
-              <span>{myFilteredListings.length} shown</span>
+          <section className="marketplace-section my-marketplace-section" aria-labelledby="my-marketplace-title" style={{ borderTop: "2px solid #ff00cc55", paddingTop: 18, marginTop: 24 }}>
+            <div className="marketplace-section-heading" style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                <h2 id="my-marketplace-title" style={{ display: "flex", alignItems: "center", gap: 10, color: "#ff00cc", textShadow: "0 0 16px #ff00cc99" }}>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    width: 34, height: 34, borderRadius: "50%",
+                    background: "radial-gradient(circle at 35% 35%, #00eaffcc, #0077ffaa)",
+                    boxShadow: "0 0 10px #00d4ff99, 0 0 22px #00d4ff44, inset 0 1px 2px #ffffff44",
+                    border: "1.5px solid #00d4ffbb", flexShrink: 0,
+                  }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle cx="12" cy="8" r="4" fill="#ffffff" opacity="0.95"/>
+                      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" opacity="0.95"/>
+                    </svg>
+                  </span>
+                  My Listings
+                </h2>
+                <span>{myFilteredListings.length} shown</span>
+              </div>
+              <p style={{ margin: 0, fontSize: "0.82rem", color: "#00d4ff", letterSpacing: "0.04em", textShadow: "0 0 8px #00d4ff66" }}>Your posted items</p>
             </div>
             <div className="marketplace-filter-row my-marketplace-tabs" aria-label="My listing status filters">
               {["Active", "Sold", "Expired", "Hidden / Deleted"].map((tab) => (
@@ -5406,10 +5502,42 @@ function App() {
                       <span>Contact</span>
                       <input name="contact" type="text" defaultValue={editingListing.contact} required />
                     </label>
-                    <label className="form-field">
-                      <span>Change Photo</span>
-                      <input name="photo" type="file" accept="image/*" />
-                    </label>
+                    {/* Current photos with delete buttons */}
+                    {editListingPhotos.length > 0 && (
+                      <div className="form-field" style={{ gridColumn: "1 / -1" }}>
+                        <span>Current photos</span>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+                          {editListingPhotos.map((src, i) => (
+                            <div key={i} style={{ position: "relative" }}>
+                              <img
+                                src={src}
+                                alt=""
+                                style={{ width: 72, height: 54, objectFit: "cover", borderRadius: 8, border: "2px solid #ff00cc61" }}
+                              />
+                              <button
+                                type="button"
+                                aria-label="Remove photo"
+                                style={{
+                                  position: "absolute", top: -6, right: -6,
+                                  width: 20, height: 20, borderRadius: "50%",
+                                  background: "#ff00cc", color: "#fff", border: "none",
+                                  fontSize: 11, cursor: "pointer", lineHeight: 1,
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                }}
+                                onClick={() => setEditListingPhotos((prev) => prev.filter((_, j) => j !== i))}
+                              >✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Add new photos (up to 5 total) */}
+                    {editListingPhotos.length < 5 && (
+                      <label className="form-field" style={{ gridColumn: "1 / -1" }}>
+                        <span>Add photos ({5 - editListingPhotos.length} remaining)</span>
+                        <input name="newPhotos" type="file" accept="image/*" multiple />
+                      </label>
+                    )}
                   </div>
                   <label className="form-field">
                     <span>Description</span>
@@ -5470,15 +5598,62 @@ function App() {
               Back to Marketplace
             </button>
             <article className="marketplace-detail-card">
-              <button
-                className="marketplace-detail-photo"
-                type="button"
-                onClick={() => listing.image && setImageViewerPhoto({ src: listing.image, title: listing.title })}
-                disabled={!listing.image}
-                aria-label={listing.image ? `Open ${listing.title} photo` : ""}
-              >
-                {listing.image ? <img src={listing.image} alt="" /> : <span aria-hidden="true">{listing.icon}</span>}
-              </button>
+              {/* ── Photo gallery ── */}
+              {(() => {
+                const imgs = listing.images?.length ? listing.images : (listing.image ? [listing.image] : []);
+                const idx = Math.min(listingGalleryIndex, imgs.length - 1);
+                if (imgs.length === 0) {
+                  return (
+                    <div className="marketplace-detail-photo">
+                      <span aria-hidden="true">{listing.icon}</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <div
+                      style={{ overflow: "hidden", borderRadius: 20, width: "100%" }}
+                      onTouchStart={(ev) => { gallerySwipeTouchRef.current = ev.touches[0].clientX; }}
+                      onTouchEnd={(ev) => {
+                        if (gallerySwipeTouchRef.current === null) return;
+                        const dx = ev.changedTouches[0].clientX - gallerySwipeTouchRef.current;
+                        gallerySwipeTouchRef.current = null;
+                        if (Math.abs(dx) < 40) return;
+                        if (dx < 0 && idx < imgs.length - 1) setListingGalleryIndex(idx + 1);
+                        if (dx > 0 && idx > 0) setListingGalleryIndex(idx - 1);
+                      }}
+                    >
+                      <button
+                        className="marketplace-detail-photo"
+                        type="button"
+                        onClick={() => setImageViewerPhoto({ src: imgs[idx], title: listing.title })}
+                        aria-label={`Open ${listing.title} photo ${idx + 1}`}
+                        style={{ width: "100%" }}
+                      >
+                        <img src={imgs[idx]} alt="" style={{ objectFit: "contain", background: "#ffffff08" }} />
+                      </button>
+                    </div>
+                    {/* Dot indicators */}
+                    {imgs.length > 1 && (
+                      <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 8 }}>
+                        {imgs.map((_, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            aria-label={`Photo ${i + 1}`}
+                            onClick={() => setListingGalleryIndex(i)}
+                            style={{
+                              width: 8, height: 8, borderRadius: "50%", border: "none", padding: 0, cursor: "pointer",
+                              background: i === idx ? "#ff00cc" : "#ffffff55",
+                              boxShadow: i === idx ? "0 0 6px #ff00cc" : "none",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="marketplace-detail-copy">
                 <span className="event-type marketplace-tag">
                   {listing.tag === "New Today" && "🆕 New"}
@@ -5488,10 +5663,50 @@ function App() {
                 </span>
                 <h1>{listing.title} <strong>{listing.price}</strong></h1>
                 {listing.description && <p className="marketplace-detail-description">{listing.description}</p>}
-                <p>{listing.location}</p>
+                {listing.location && <p>{listing.location}</p>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const query = listing.location || (listing.title + ", Abilene TX");
+                    window.open(mapSearchUrl(query), "_system");
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    background: "#00d4ff22", border: "2px solid #00d4ff",
+                    borderRadius: 10, color: "#31f1ff", fontWeight: 700,
+                    fontSize: "1rem", padding: "12px 16px", cursor: "pointer",
+                    width: "100%", textAlign: "left", marginTop: 8,
+                  }}
+                >
+                  📍 Get Directions
+                </button>
+                {(() => {
+                  const mKey = marketplaceListingKey(listing);
+                  const isSavedM = savedMarketListings.includes(mKey);
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setSavedMarketListings((prev) => isSavedM ? prev.filter((k) => k !== mKey) : [...prev, mKey])}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        background: isSavedM ? "#ff00cc22" : "#ffffff11",
+                        border: `2px solid ${isSavedM ? "#ff00cc" : "#ffffff44"}`,
+                        borderRadius: 10, color: isSavedM ? "#ff00cc" : "#ffffff99",
+                        fontWeight: 700, fontSize: "1rem", padding: "12px 16px",
+                        cursor: "pointer", width: "100%", textAlign: "left", marginTop: 8,
+                      }}
+                    >
+                      {isSavedM ? "♥ Saved" : "♡ Save"}
+                    </button>
+                  );
+                })()}
                 <p>{listing.posted}</p>
                 {listing.contact && <p>Contact: {listing.contact}</p>}
-                {listing.image && <p className="marketplace-zoom-note">Tap the photo to zoom.</p>}
+                {listing.image && (
+                  <p className="marketplace-zoom-note">
+                    Tap the photo to zoom{(listing.images?.length ?? 1) > 1 ? " · Swipe to see more" : ""}.
+                  </p>
+                )}
               </div>
             </article>
           </div>
@@ -5554,14 +5769,68 @@ function App() {
                 <span>Contact</span>
                 <input name="contact" type="text" placeholder="Phone, email, or social" required />
               </label>
-              <label className="form-field">
-                <span>Photo</span>
-                <input name="photo" type="file" accept="image/*" />
+              <label className="form-field" style={{ gridColumn: "1 / -1" }}>
+                <span>Photos ({sellItemPhotos.length}/5 added{sellItemPhotos.length >= 5 ? " — limit reached" : ""})</span>
+                <input
+                  name="photos"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  disabled={sellItemPhotos.length >= 5}
+                  onChange={async (ev) => {
+                    const files = Array.from(ev.target.files ?? []);
+                    ev.target.value = ""; // reset so same files can be re-selected
+                    const remaining = 5 - sellItemPhotos.length;
+                    if (remaining <= 0 || files.length === 0) return;
+                    if (files.length > remaining) {
+                      setSellItemStatus("photo-limit");
+                    }
+                    const toAdd = files.slice(0, remaining);
+                    // Compress immediately so preview = final stored data; lets user remove before submit.
+                    const compressed = await Promise.all(toAdd.map((f) => optimizeGalleryImage(f)));
+                    setSellItemPhotos((prev) => [...prev, ...compressed]);
+                  }}
+                />
               </label>
+              {sellItemPhotos.length > 0 && (
+                <div style={{ gridColumn: "1 / -1", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {sellItemPhotos.map((dataUrl, i) => (
+                    <div key={i} style={{ position: "relative" }}>
+                      <img
+                        src={dataUrl}
+                        alt=""
+                        style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 8, border: "2px solid #ff00cc61" }}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Remove photo"
+                        style={{
+                          position: "absolute", top: -6, right: -6,
+                          width: 20, height: 20, borderRadius: "50%",
+                          background: "#ff00cc", color: "#fff", border: "none",
+                          fontSize: 12, cursor: "pointer", lineHeight: 1,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                        onClick={() => setSellItemPhotos((prev) => prev.filter((_, j) => j !== i))}
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <label className="form-field">
               <span>Description</span>
               <textarea name="description" placeholder="Condition, details, pickup notes" rows="4" required />
+            </label>
+            <label className="form-field">
+              <span>Listing duration</span>
+              <select
+                value={sellDuration}
+                onChange={(e) => setSellDuration(e.target.value)}
+              >
+                <option value="30">30 days</option>
+                <option value="60">60 days</option>
+              </select>
             </label>
             <button className="marketplace-sell-button sell-item-submit" type="submit">
               <span aria-hidden="true">●</span>
@@ -5575,6 +5844,15 @@ function App() {
             )}
             {sellItemStatus === "file-error" && (
               <p className="form-error compact-status">Please upload a valid image under 15 MB.</p>
+            )}
+            {sellItemStatus === "photo-limit" && (
+              <p className="form-error compact-status">Maximum 5 photos allowed. Only the first ones were added.</p>
+            )}
+            {sellItemStatus === "limit-active" && (
+              <p className="form-error compact-status">You have reached the limit of 10 active listings. Mark some as Sold or delete them to post new ones.</p>
+            )}
+            {sellItemStatus === "limit-daily" && (
+              <p className="form-error compact-status">You can only post 2 listings per day. Come back tomorrow to post more.</p>
             )}
             {sellItemStatus === "error" && (
               <p className="form-error compact-status">Sorry, the item could not be posted. Please try again.</p>
@@ -6570,6 +6848,110 @@ function App() {
     );
   }
 
+  if (page === "admin" && editJobPage && editingJob) {
+    return withSplash(
+      <main className="app admin-page">
+        <div className="admin-shell">
+          <button className="back-button" onClick={() => { setEditJobPage(false); setEditingJob(null); setAdminStatus(""); }}>
+            ← Back to Jobs
+          </button>
+          <section className="admin-header" aria-labelledby="edit-job-title">
+            <p className="eyebrow">Admin · Jobs &amp; Hiring</p>
+            <h1 id="edit-job-title">Edit Job Listing</h1>
+          </section>
+          <section className="admin-section" style={{ display: "grid", gap: "14px" }}>
+            {[
+              { label: "Title",             field: "title" },
+              { label: "Company",           field: "company" },
+              { label: "Category",          field: "category" },
+              { label: "Job Type",          field: "job_type" },
+              { label: "Pay",               field: "pay_label" },
+              { label: "Location",          field: "location" },
+              { label: "Phone",             field: "phone" },
+              { label: "Email",             field: "email" },
+              { label: "App Method",        field: "app_method" },
+              { label: "Apply Website URL", field: "apply_url" },
+              { label: "Duration",          field: "duration" },
+            ].map(({ label, field }) => (
+              <label className="form-field" key={field}>
+                <span>{label}</span>
+                <input
+                  type="text"
+                  className="business-input"
+                  value={editingJob[field] ?? ""}
+                  onChange={(e) => setEditingJob((prev) => ({ ...prev, [field]: e.target.value }))}
+                />
+              </label>
+            ))}
+            <label className="form-field">
+              <span>Plan</span>
+              <select
+                className="business-input"
+                value={editingJob.plan ?? "free"}
+                onChange={(e) => setEditingJob((prev) => ({ ...prev, plan: e.target.value }))}
+              >
+                <option value="free">free</option>
+                <option value="featured">featured</option>
+                <option value="premium">premium</option>
+              </select>
+            </label>
+            <label className="form-field">
+              <span>Status</span>
+              <select
+                className="business-input"
+                value={editingJob.status ?? "approved"}
+                onChange={(e) => setEditingJob((prev) => ({ ...prev, status: e.target.value }))}
+              >
+                <option value="approved">approved</option>
+                <option value="pending">pending</option>
+                <option value="rejected">rejected</option>
+                <option value="hidden">hidden</option>
+              </select>
+            </label>
+            <label className="form-field">
+              <span>Description</span>
+              <textarea
+                className="business-input"
+                rows={5}
+                value={editingJob.description ?? ""}
+                onChange={(e) => setEditingJob((prev) => ({ ...prev, description: e.target.value }))}
+              />
+            </label>
+            <label className="form-field">
+              <span>Requirements</span>
+              <textarea
+                className="business-input"
+                rows={4}
+                value={editingJob.requirements ?? ""}
+                onChange={(e) => setEditingJob((prev) => ({ ...prev, requirements: e.target.value }))}
+              />
+            </label>
+            {adminStatus === "error" && (
+              <p className="form-error">Could not save. Try again.</p>
+            )}
+            <div className="directory-actions" style={{ marginTop: "8px" }}>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={handleSaveJob}
+                disabled={adminStatus === "saving"}
+              >
+                {adminStatus === "saving" ? "Saving…" : "Save Changes"}
+              </button>
+              <button
+                className="directory-link"
+                type="button"
+                onClick={() => { setEditJobPage(false); setEditingJob(null); setAdminStatus(""); }}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   if (page === "admin") {
     return withSplash(
       <main className="app admin-page">
@@ -6582,6 +6964,7 @@ function App() {
             <p className="eyebrow">Private</p>
             <h1 id="admin-title">Admin Panel</h1>
             <p className="events-intro">Review submitted photos and businesses before they appear in Abilene Vibes.</p>
+            <p style={{ color: "#ff0", fontWeight: 900, fontSize: "13px", letterSpacing: "0.1em", marginTop: "8px" }}>JOBS EDIT SCREEN FIX VERSION 1</p>
           </section>
 
           {!supabase && (
@@ -6862,7 +7245,6 @@ function App() {
                   <p className="legal-disclaimer">No events to manage.</p>
                 )}
               </section>
-
               <section className="admin-section admin-tab-gallery" id="admin-photos" aria-labelledby="admin-gallery-title">
                 <div className="business-form-heading">
                   <p className="eyebrow">Pending</p>
@@ -7081,97 +7463,6 @@ function App() {
                   <h2 id="admin-jobs-title">Jobs &amp; Hiring</h2>
                 </div>
 
-                {/* Edit modal */}
-                {editingJob && (
-                  <div className="admin-modal-backdrop">
-                    <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-job-edit-title">
-                      <div className="business-form-heading">
-                        <p className="eyebrow">Edit</p>
-                        <h2 id="admin-job-edit-title">Job Listing</h2>
-                      </div>
-                      <div className="form-grid">
-                        {[
-                          { label: "Title",        field: "title" },
-                          { label: "Company",      field: "company" },
-                          { label: "Category",     field: "category" },
-                          { label: "Job Type",     field: "job_type" },
-                          { label: "Pay",          field: "pay_label" },
-                          { label: "Location",     field: "location" },
-                          { label: "Phone",        field: "phone" },
-                          { label: "Email",        field: "email" },
-                          { label: "App Method",   field: "app_method" },
-                          { label: "Duration",     field: "duration" },
-                        ].map(({ label, field }) => (
-                          <label className="form-field" key={field}>
-                            <span>{label}</span>
-                            <input
-                              type="text"
-                              value={editingJob[field] ?? ""}
-                              onChange={(e) => setEditingJob((prev) => ({ ...prev, [field]: e.target.value }))}
-                            />
-                          </label>
-                        ))}
-                        <label className="form-field">
-                          <span>Plan</span>
-                          <select
-                            value={editingJob.plan ?? "free"}
-                            onChange={(e) => setEditingJob((prev) => ({ ...prev, plan: e.target.value }))}
-                          >
-                            <option value="free">free</option>
-                            <option value="featured">featured</option>
-                            <option value="premium">premium</option>
-                          </select>
-                        </label>
-                        <label className="form-field">
-                          <span>Status</span>
-                          <select
-                            value={editingJob.status ?? "approved"}
-                            onChange={(e) => setEditingJob((prev) => ({ ...prev, status: e.target.value }))}
-                          >
-                            <option value="approved">approved</option>
-                            <option value="pending">pending</option>
-                            <option value="rejected">rejected</option>
-                            <option value="hidden">hidden</option>
-                          </select>
-                        </label>
-                        <label className="form-field form-field-full">
-                          <span>Description</span>
-                          <textarea
-                            rows={4}
-                            value={editingJob.description ?? ""}
-                            onChange={(e) => setEditingJob((prev) => ({ ...prev, description: e.target.value }))}
-                          />
-                        </label>
-                        <label className="form-field form-field-full">
-                          <span>Requirements</span>
-                          <textarea
-                            rows={3}
-                            value={editingJob.requirements ?? ""}
-                            onChange={(e) => setEditingJob((prev) => ({ ...prev, requirements: e.target.value }))}
-                          />
-                        </label>
-                      </div>
-                      <div className="directory-actions" style={{ marginTop: "1rem" }}>
-                        <button
-                          className="primary-button admin-modal-primary"
-                          type="button"
-                          onClick={handleSaveJob}
-                          disabled={adminStatus === "saving"}
-                        >
-                          {adminStatus === "saving" ? "Saving…" : "Save Changes"}
-                        </button>
-                        <button
-                          className="directory-link"
-                          type="button"
-                          onClick={() => setEditingJob(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </section>
-                  </div>
-                )}
-
                 {adminJobListings.length ? (
                   <div className="admin-grid">
                     {adminJobListings.map((job) => (
@@ -7196,9 +7487,9 @@ function App() {
                           <button
                             className="directory-link"
                             type="button"
-                            onClick={() => setEditingJob({ ...job })}
+                            onClick={() => { setEditingJob({ ...job }); setEditJobPage(true); }}
                           >
-                            Edit
+                            EDIT JOB NEW FLOW
                           </button>
                           <button
                             className="directory-link danger-link"
