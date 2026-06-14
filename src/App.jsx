@@ -1021,6 +1021,7 @@ const adminTabs = [
   { id: "payments", label: "Payments" },
   { id: "reviews", label: "Reviews" },
   { id: "jobs", label: "Jobs & Hiring" },
+  { id: "marketplace", label: "Marketplace" },
   { id: "analytics", label: "Analytics" },
 ];
 
@@ -1805,6 +1806,7 @@ function App() {
   const [hiddenBusinesses, setHiddenBusinesses] = useState([]);
   const [pendingReviews, setPendingReviews] = useState([]);
   const [adminJobListings, setAdminJobListings] = useState([]);
+  const [adminMarketplaceListings, setAdminMarketplaceListings] = useState([]);
   const [editingJob, setEditingJob] = useState(null);
   const [publishedEvents, setPublishedEvents] = useState([]);
   const [hiddenEvents, setHiddenEvents] = useState([]);
@@ -2619,6 +2621,7 @@ function App() {
       publishedEventResult,
       hiddenEventResult,
       jobListingsResult,
+      adminMarketplaceResult,
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
@@ -2678,6 +2681,10 @@ function App() {
         .from("job_listings")
         .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,duration,plan,status,expires_at")
         .order("created_at", { ascending: false }),
+      supabase
+        .from("marketplace_listings")
+        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
+        .order("created_at", { ascending: false }),
     ]);
 
     if (
@@ -2693,7 +2700,8 @@ function App() {
       interactionResult.error ||
       publishedEventResult.error ||
       hiddenEventResult.error ||
-      jobListingsResult.error
+      jobListingsResult.error ||
+      adminMarketplaceResult.error
     ) {
       setAdminStatus("error");
       return;
@@ -2709,6 +2717,7 @@ function App() {
     setDeletedStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type === "deleted").map((item) => item.item_key));
     setPendingReviews(reviewResult.data ?? []);
     setAdminJobListings(jobListingsResult.data ?? []);
+    setAdminMarketplaceListings(adminMarketplaceResult.data ?? []);
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
     setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
@@ -5277,6 +5286,11 @@ function App() {
                     <p>{l.location}</p>
                     {l.expiresAt && <p>Expires: {formatMarketplaceExpiry(l.expiresAt)}</p>}
                     <div className="directory-actions">
+                      {l.status !== "deleted" && (
+                        <button className="directory-link" type="button" onClick={() => setEditingListing({ ...l })}>
+                          Edit
+                        </button>
+                      )}
                       {l.status === "active" && (
                         <button className="directory-link" type="button" onClick={(e) => handleMarkSold(e, l)}>
                           Mark as Sold
@@ -7139,6 +7153,171 @@ function App() {
                   </div>
                 ) : (
                   <p className="legal-disclaimer">No job listings yet.</p>
+                )}
+              </section>
+
+              {/* ── Marketplace admin section ── */}
+              <section className="admin-section admin-tab-marketplace" id="admin-marketplace" aria-labelledby="admin-marketplace-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">All listings</p>
+                  <h2 id="admin-marketplace-title">Marketplace</h2>
+                </div>
+
+                {/* Edit modal (reuses editingListing + handleEditListingSubmit) */}
+                {editingListing && adminSession && (
+                  <div className="admin-modal-backdrop">
+                    <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-marketplace-edit-title">
+                      <div className="business-form-heading">
+                        <p className="eyebrow">Edit</p>
+                        <h2 id="admin-marketplace-edit-title">Marketplace Listing</h2>
+                      </div>
+                      <form onSubmit={handleEditListingSubmit}>
+                        <div className="form-grid">
+                          {[
+                            { label: "Title",       name: "title",       defaultValue: editingListing.title ?? "" },
+                            { label: "Price",       name: "price",       defaultValue: editingListing.price ?? "" },
+                            { label: "Location",    name: "location",    defaultValue: editingListing.location ?? "" },
+                            { label: "Contact",     name: "contact",     defaultValue: editingListing.contact ?? "" },
+                          ].map(({ label, name, defaultValue }) => (
+                            <label className="form-field" key={name}>
+                              <span>{label}</span>
+                              <input type="text" name={name} defaultValue={defaultValue} />
+                            </label>
+                          ))}
+                          <label className="form-field">
+                            <span>Category</span>
+                            <select name="category" defaultValue={editingListing.category ?? ""}>
+                              {marketplaceCategories.map((c) => (
+                                <option key={c.label} value={c.label}>{c.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="form-field">
+                            <span>Status</span>
+                            <select
+                              value={editingListing.status ?? "active"}
+                              onChange={(e) => setEditingListing((prev) => ({ ...prev, status: e.target.value }))}
+                              name="_status_ui"
+                            >
+                              {["active", "sold", "expired", "hidden", "deleted"].map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="form-field form-field-full">
+                            <span>Description</span>
+                            <textarea rows={4} name="description" defaultValue={editingListing.description ?? ""} />
+                          </label>
+                          <label className="form-field form-field-full">
+                            <span>Replace photo (optional)</span>
+                            <input type="file" name="photo" accept="image/*" />
+                          </label>
+                        </div>
+                        <div className="directory-actions" style={{ marginTop: "1rem" }}>
+                          <button
+                            className="primary-button admin-modal-primary"
+                            type="submit"
+                            disabled={editDeleteStatus === "saving"}
+                          >
+                            {editDeleteStatus === "saving" ? "Saving…" : "Save Changes"}
+                          </button>
+                          {editingListing.status !== editingListing._origStatus && (
+                            <button
+                              className="directory-link"
+                              type="button"
+                              onClick={() => setListingStatus(editingListing, editingListing.status)}
+                              disabled={editDeleteStatus === "saving"}
+                            >
+                              Change Status Only
+                            </button>
+                          )}
+                          <button className="directory-link" type="button" onClick={() => setEditingListing(null)}>
+                            Cancel
+                          </button>
+                        </div>
+                        {editDeleteStatus === "error" && <p className="form-error">Error saving. Try again.</p>}
+                      </form>
+                    </section>
+                  </div>
+                )}
+
+                {adminMarketplaceListings.length ? (
+                  <div className="admin-grid">
+                    {adminMarketplaceListings.map((listing) => (
+                      <article className="admin-card" key={listing.id}>
+                        {listing.image_data && (
+                          <img
+                            src={listing.image_data}
+                            alt={listing.title}
+                            style={{ width: "100%", maxHeight: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }}
+                          />
+                        )}
+                        <span className={`event-type marketplace-admin-status marketplace-status-${listing.status}`}>
+                          {listing.status}
+                        </span>
+                        <h3>{listing.title}</h3>
+                        {listing.price && <p>Price: {listing.price}</p>}
+                        {listing.category && <p>Category: {listing.category}</p>}
+                        {listing.location && <p>Location: {listing.location}</p>}
+                        {listing.contact && <p>Contact: {listing.contact}</p>}
+                        {listing.owner_user_id && <p style={{ fontSize: "0.8em", opacity: 0.6 }}>Owner: {listing.owner_user_id}</p>}
+                        {listing.description && (
+                          <p style={{ fontSize: "0.85em", opacity: 0.8 }}>
+                            {listing.description.slice(0, 120)}{listing.description.length > 120 ? "…" : ""}
+                          </p>
+                        )}
+                        <p style={{ fontSize: "0.8em", opacity: 0.6 }}>
+                          Posted: {new Date(listing.created_at).toLocaleDateString()}
+                          {listing.expires_at ? ` · Expires: ${new Date(listing.expires_at).toLocaleDateString()}` : ""}
+                          {listing.sold_at ? ` · Sold: ${new Date(listing.sold_at).toLocaleDateString()}` : ""}
+                        </p>
+                        <div className="directory-actions">
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => setEditingListing({ ...mapListingFromDb(listing), _origStatus: listing.status })}
+                          >
+                            Edit
+                          </button>
+                          {listing.status !== "sold" && (
+                            <button
+                              className="directory-link"
+                              type="button"
+                              onClick={() => setListingStatus(mapListingFromDb(listing), "sold")}
+                            >
+                              Mark Sold
+                            </button>
+                          )}
+                          {listing.status === "hidden" ? (
+                            <button
+                              className="directory-link"
+                              type="button"
+                              onClick={() => setListingStatus(mapListingFromDb(listing), "active")}
+                            >
+                              Unhide
+                            </button>
+                          ) : listing.status === "active" ? (
+                            <button
+                              className="directory-link"
+                              type="button"
+                              onClick={() => setListingStatus(mapListingFromDb(listing), "hidden")}
+                            >
+                              Hide
+                            </button>
+                          ) : null}
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => setListingStatus(mapListingFromDb(listing), "deleted")}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No marketplace listings yet.</p>
                 )}
               </section>
 

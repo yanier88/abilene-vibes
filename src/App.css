@@ -1959,6 +1959,8 @@
 .admin-panel-view-businesses .admin-tab-businesses,
 .admin-panel-view-payments .admin-tab-payments,
 .admin-panel-view-reviews .admin-tab-reviews,
+.admin-panel-view-jobs .admin-tab-jobs,
+.admin-panel-view-marketplace .admin-tab-marketplace,
 .admin-panel-view-analytics .admin-tab-analytics {
   display: grid;
 }
