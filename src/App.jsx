@@ -1907,13 +1907,25 @@ function App() {
     catch { return []; }
   });
   const [rentalsShowSaved, setRentalsShowSaved] = useState(false);
+  const [postRentalForm, setPostRentalForm] = useState({
+    title: "", propertyType: "Apartment", price: "", deposit: "",
+    pricePerNight: "", pricePerWeek: "",
+    availableFrom: "", availableTo: "", maxGuests: "", houseRules: "", petsAllowed: false,
+    address: "Abilene, TX", bedrooms: "", bathrooms: "",
+    description: "", phone: "", email: "", externalUrl: "",
+    duration: "30 Days",
+  });
+  const [postRentalStep, setPostRentalStep] = useState("form"); // "form" | "preview"
+  const [postRentalPhotos, setPostRentalPhotos] = useState([]); // [{file, preview}]
+  const [postRentalError, setPostRentalError] = useState(null);
+  const [postRentalPublishing, setPostRentalPublishing] = useState(false);
   // ── End Rent & Housing state ──────────────────────────────
 
   const imageViewerPhotoRef = useRef(null);
   const gallerySwipeTouchRef = useRef(null); // tracks touchstart X for marketplace-item swipe
   // Single ref that always mirrors current React state for the backButton handler.
   // Updated after every relevant render — handler reads .current directly, no stale closures.
-  const backHandlerStateRef = useRef({ page, imageViewerPhoto: null, postJobStep: "form" });
+  const backHandlerStateRef = useRef({ page, imageViewerPhoto: null, postJobStep: "form", postRentalStep: "form" });
   const pageRef = useRef(page);
   const previousPageRef = useRef(page);
   const directoryReturnRef = useRef("lobby"); // tracks where directory was opened from
@@ -1944,8 +1956,8 @@ function App() {
 
   // Keep backHandlerStateRef in sync after every relevant render.
   useEffect(() => {
-    backHandlerStateRef.current = { page, imageViewerPhoto, postJobStep };
-  }, [page, imageViewerPhoto, postJobStep]);
+    backHandlerStateRef.current = { page, imageViewerPhoto, postJobStep, postRentalStep };
+  }, [page, imageViewerPhoto, postJobStep, postRentalStep]);
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -2412,9 +2424,18 @@ function App() {
         return;
       }
 
-      // 8b. Rental detail / post-rental — back to rentals.
-      if (currentPage === "rental-detail" || currentPage === "post-rental") {
+      // 8b. Rental detail — back to rentals.
+      if (currentPage === "rental-detail") {
         navigateTo("rentals", { replace: true });
+        return;
+      }
+      // 8c. post-rental: preview → form; form → rentals.
+      if (currentPage === "post-rental") {
+        if (backHandlerStateRef.current.postRentalStep === "preview") {
+          setPostRentalStep("form");
+        } else {
+          navigateTo("rentals", { replace: true });
+        }
         return;
       }
 
@@ -6901,18 +6922,488 @@ function App() {
   }
 
   if (page === "post-rental") {
+    const isShortTerm = postRentalForm.propertyType === "Short-Term";
+    const isForSale   = postRentalForm.propertyType === "For Sale";
+    const isCommercial = postRentalForm.propertyType === "Commercial";
+    const hasRooms    = ["Apartment","House","Room","For Sale"].includes(postRentalForm.propertyType);
+    const maxPhotos   = isShortTerm ? 8 : 5;
+
+    const handleRentalField = (field, value) =>
+      setPostRentalForm((prev) => ({ ...prev, [field]: value }));
+
+    const handleRentalPhotosAdd = async (files) => {
+      const remaining = maxPhotos - postRentalPhotos.length;
+      const toAdd = Array.from(files).slice(0, remaining);
+      for (const file of toAdd) {
+        try {
+          const compressed = await optimizeGalleryImage(file);
+          const reader = new FileReader();
+          reader.onload = (e) =>
+            setPostRentalPhotos((prev) =>
+              prev.length < maxPhotos ? [...prev, { preview: e.target.result }] : prev
+            );
+          reader.readAsDataURL(compressed);
+        } catch {
+          const reader = new FileReader();
+          reader.onload = (e) =>
+            setPostRentalPhotos((prev) =>
+              prev.length < maxPhotos ? [...prev, { preview: e.target.result }] : prev
+            );
+          reader.readAsDataURL(file);
+        }
+      }
+    };
+
+    const handleRentalPhotoRemove = (idx) =>
+      setPostRentalPhotos((prev) => prev.filter((_, i) => i !== idx));
+
+    const validateRental = () => {
+      if (!postRentalForm.title.trim())   return "Title is required.";
+      if (!postRentalForm.address.trim()) return "Address is required.";
+      if (isShortTerm) {
+        if (!postRentalForm.pricePerNight.trim() && !postRentalForm.pricePerWeek.trim())
+          return "Enter a price per night or per week.";
+      } else {
+        if (!postRentalForm.price.trim()) return "Price is required.";
+      }
+      if (!postRentalForm.phone.trim() && !postRentalForm.email.trim())
+        return "Enter at least a phone number or email.";
+      return null;
+    };
+
+    const handlePublishRental = async () => {
+      const err = validateRental();
+      if (err) { setPostRentalError(err); return; }
+      setPostRentalError(null);
+      setPostRentalPublishing(true);
+      try {
+        const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postRentalForm.duration] ?? 30;
+        const expires_at   = new Date(Date.now() + durationDays * 86400000).toISOString();
+        const image_data   = postRentalPhotos.map((p) => p.preview);
+        const record = {
+          title:         postRentalForm.title.trim(),
+          property_type: postRentalForm.propertyType,
+          address:       postRentalForm.address.trim(),
+          description:   postRentalForm.description.trim() || null,
+          phone:         postRentalForm.phone.trim()        || null,
+          email:         postRentalForm.email.trim()        || null,
+          external_url:  postRentalForm.externalUrl.trim()  || null,
+          duration:      postRentalForm.duration,
+          plan:          "free",
+          status:        "approved",
+          expires_at,
+          image_data,
+          pets_allowed:  postRentalForm.petsAllowed,
+        };
+        if (isShortTerm) {
+          record.price_per_night = postRentalForm.pricePerNight.trim() || null;
+          record.price_per_week  = postRentalForm.pricePerWeek.trim()  || null;
+          record.available_from  = postRentalForm.availableFrom        || null;
+          record.available_to    = postRentalForm.availableTo          || null;
+          record.max_guests      = postRentalForm.maxGuests.trim()     || null;
+          record.house_rules     = postRentalForm.houseRules.trim()    || null;
+        } else {
+          record.price   = postRentalForm.price.trim()   || null;
+          if (!isForSale && !isCommercial)
+            record.deposit = postRentalForm.deposit.trim() || null;
+          if (hasRooms) {
+            record.bedrooms   = postRentalForm.bedrooms   || null;
+            record.bathrooms  = postRentalForm.bathrooms  || null;
+          }
+        }
+        const { error } = await supabase.from("rental_listings").insert([record]);
+        if (error) throw error;
+        setPostRentalForm({
+          title:"", propertyType:"Apartment", price:"", deposit:"",
+          pricePerNight:"", pricePerWeek:"",
+          availableFrom:"", availableTo:"", maxGuests:"", houseRules:"", petsAllowed:false,
+          address:"Abilene, TX", bedrooms:"", bathrooms:"",
+          description:"", phone:"", email:"", externalUrl:"",
+          duration:"30 Days",
+        });
+        setPostRentalPhotos([]);
+        setPostRentalStep("form");
+        setPostRentalError(null);
+        loadRentalsPublic();
+        navigateTo("rentals");
+      } catch (e) {
+        setPostRentalError(e?.message ?? "Failed to publish. Try again.");
+      } finally {
+        setPostRentalPublishing(false);
+      }
+    };
+
+    // ── PREVIEW STEP ─────────────────────────────────────────
+    if (postRentalStep === "preview") {
+      return withSplash(
+        <main className="app jobs-page rentals-page post-rental-page">
+          <div className="jobs-neon-bg rentals-neon-bg" aria-hidden="true" />
+          <div className="marketplace-shell jobs-shell rentals-shell" style={{ paddingBottom:100 }}>
+            <button className="back-button" onClick={() => setPostRentalStep("form")}>← Edit</button>
+            <section className="marketplace-hero jobs-hero">
+              <p className="eyebrow">Preview your listing</p>
+              <h1>{postRentalForm.title || "Untitled"}</h1>
+              <p className="events-intro">{postRentalForm.propertyType} · {postRentalForm.address}</p>
+            </section>
+
+            {postRentalPhotos.length > 0 && (
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap", padding:"0 16px 16px" }}>
+                {postRentalPhotos.map((p, i) => (
+                  <img key={i} src={p.preview} alt="" style={{ width:90, height:70, objectFit:"cover", borderRadius:8 }} />
+                ))}
+              </div>
+            )}
+
+            <div style={{ padding:"0 16px" }}>
+              {isShortTerm ? (
+                <>
+                  {postRentalForm.pricePerNight && <p><strong>Per Night:</strong> {postRentalForm.pricePerNight}</p>}
+                  {postRentalForm.pricePerWeek  && <p><strong>Per Week:</strong> {postRentalForm.pricePerWeek}</p>}
+                  {postRentalForm.availableFrom  && (
+                    <p><strong>Available:</strong> {postRentalForm.availableFrom} – {postRentalForm.availableTo}</p>
+                  )}
+                  {postRentalForm.maxGuests  && <p><strong>Max Guests:</strong> {postRentalForm.maxGuests}</p>}
+                  {postRentalForm.houseRules && <p><strong>House Rules:</strong> {postRentalForm.houseRules}</p>}
+                  <p><strong>Pets:</strong> {postRentalForm.petsAllowed ? "Allowed ✅" : "Not allowed"}</p>
+                </>
+              ) : (
+                <>
+                  {postRentalForm.price   && <p><strong>{isForSale ? "Asking Price" : "Rent"}:</strong> {postRentalForm.price}</p>}
+                  {postRentalForm.deposit && <p><strong>Deposit:</strong> {postRentalForm.deposit}</p>}
+                  {postRentalForm.bedrooms  && <p><strong>Bedrooms:</strong> {postRentalForm.bedrooms}</p>}
+                  {postRentalForm.bathrooms && <p><strong>Bathrooms:</strong> {postRentalForm.bathrooms}</p>}
+                  <p><strong>Pets:</strong> {postRentalForm.petsAllowed ? "Allowed ✅" : "Not allowed"}</p>
+                </>
+              )}
+              {postRentalForm.description  && <p><strong>Description:</strong> {postRentalForm.description}</p>}
+              {postRentalForm.phone        && <p><strong>Phone:</strong> {postRentalForm.phone}</p>}
+              {postRentalForm.email        && <p><strong>Email:</strong> {postRentalForm.email}</p>}
+              {postRentalForm.externalUrl  && <p><strong>Link:</strong> {postRentalForm.externalUrl}</p>}
+              <p><strong>Duration:</strong> {postRentalForm.duration}</p>
+            </div>
+
+            {postRentalError && (
+              <p className="post-job-error" style={{ padding:"0 16px" }}>{postRentalError}</p>
+            )}
+
+            <div className="post-job-sticky-footer">
+              <button
+                className="post-job-submit-btn"
+                onClick={handlePublishRental}
+                disabled={postRentalPublishing}
+              >
+                {postRentalPublishing ? "Publishing…" : "✅ Publish Listing"}
+              </button>
+            </div>
+          </div>
+        </main>,
+      );
+    }
+
+    // ── FORM STEP ────────────────────────────────────────────
     return withSplash(
       <main className="app jobs-page rentals-page post-rental-page">
         <div className="jobs-neon-bg rentals-neon-bg" aria-hidden="true" />
-        <div className="marketplace-shell jobs-shell rentals-shell">
-          <button className="back-button" onClick={() => navigateTo("rentals")}>
-            ← Back to Rentals
-          </button>
+        <div className="marketplace-shell jobs-shell rentals-shell" style={{ paddingBottom:100 }}>
+          <button className="back-button" onClick={() => navigateTo("rentals")}>← Back to Rentals</button>
           <section className="marketplace-hero jobs-hero">
             <p className="eyebrow">List your property</p>
-            <h1>Post a Rental Listing</h1>
-            <p className="events-intro">Full posting form coming soon. Check back shortly!</p>
+            <h1>Post a Rental</h1>
           </section>
+
+          <form
+            className="post-job-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const err = validateRental();
+              if (err) { setPostRentalError(err); return; }
+              setPostRentalError(null);
+              setPostRentalStep("preview");
+            }}
+          >
+            {/* Property Type */}
+            <div className="post-job-field">
+              <label className="post-job-label">Property Type *</label>
+              <div className="jobs-filter-bar" style={{ flexWrap:"wrap", gap:8, marginTop:4 }}>
+                {rentalTypes.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`jobs-filter-chip${postRentalForm.propertyType === t ? " active" : ""}`}
+                    onClick={() => handleRentalField("propertyType", t)}
+                  >
+                    {rentalTypeIcon(t)} {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Title */}
+            <div className="post-job-field">
+              <label className="post-job-label">Listing Title *</label>
+              <input
+                className="post-job-input"
+                placeholder={isShortTerm ? "Cozy Guest Suite Near Downtown" : "2BR Apartment Available Now"}
+                value={postRentalForm.title}
+                onChange={(e) => handleRentalField("title", e.target.value)}
+              />
+            </div>
+
+            {/* Address */}
+            <div className="post-job-field">
+              <label className="post-job-label">Address / Neighborhood *</label>
+              <input
+                className="post-job-input"
+                placeholder="Abilene, TX"
+                value={postRentalForm.address}
+                onChange={(e) => handleRentalField("address", e.target.value)}
+              />
+            </div>
+
+            {/* SHORT-TERM fields */}
+            {isShortTerm && (
+              <>
+                <div className="post-job-field">
+                  <label className="post-job-label">Price Per Night *</label>
+                  <input
+                    className="post-job-input"
+                    placeholder="e.g. $85/night"
+                    value={postRentalForm.pricePerNight}
+                    onChange={(e) => handleRentalField("pricePerNight", e.target.value)}
+                  />
+                </div>
+                <div className="post-job-field">
+                  <label className="post-job-label">Price Per Week</label>
+                  <input
+                    className="post-job-input"
+                    placeholder="e.g. $450/wk"
+                    value={postRentalForm.pricePerWeek}
+                    onChange={(e) => handleRentalField("pricePerWeek", e.target.value)}
+                  />
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                  <div className="post-job-field">
+                    <label className="post-job-label">Available From</label>
+                    <input
+                      type="date"
+                      className="post-job-input"
+                      value={postRentalForm.availableFrom}
+                      onChange={(e) => handleRentalField("availableFrom", e.target.value)}
+                    />
+                  </div>
+                  <div className="post-job-field">
+                    <label className="post-job-label">Available To</label>
+                    <input
+                      type="date"
+                      className="post-job-input"
+                      value={postRentalForm.availableTo}
+                      onChange={(e) => handleRentalField("availableTo", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="post-job-field">
+                  <label className="post-job-label">Max Guests</label>
+                  <input
+                    className="post-job-input"
+                    placeholder="e.g. 4 guests"
+                    value={postRentalForm.maxGuests}
+                    onChange={(e) => handleRentalField("maxGuests", e.target.value)}
+                  />
+                </div>
+                <div className="post-job-field">
+                  <label className="post-job-label">House Rules</label>
+                  <textarea
+                    className="post-job-textarea"
+                    placeholder="No smoking, quiet after 10pm…"
+                    rows={3}
+                    value={postRentalForm.houseRules}
+                    onChange={(e) => handleRentalField("houseRules", e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* LONG-TERM pricing */}
+            {!isShortTerm && (
+              <>
+                <div className="post-job-field">
+                  <label className="post-job-label">{isForSale ? "Asking Price *" : "Monthly Rent *"}</label>
+                  <input
+                    className="post-job-input"
+                    placeholder={isForSale ? "e.g. $185,000" : "e.g. $900/mo"}
+                    value={postRentalForm.price}
+                    onChange={(e) => handleRentalField("price", e.target.value)}
+                  />
+                </div>
+                {!isForSale && !isCommercial && (
+                  <div className="post-job-field">
+                    <label className="post-job-label">Deposit</label>
+                    <input
+                      className="post-job-input"
+                      placeholder="e.g. $500 or First & Last"
+                      value={postRentalForm.deposit}
+                      onChange={(e) => handleRentalField("deposit", e.target.value)}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Bedrooms / Bathrooms */}
+            {hasRooms && (
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                <div className="post-job-field">
+                  <label className="post-job-label">Bedrooms</label>
+                  <select
+                    className="post-job-input"
+                    value={postRentalForm.bedrooms}
+                    onChange={(e) => handleRentalField("bedrooms", e.target.value)}
+                  >
+                    <option value="">—</option>
+                    {["Studio","1BR","2BR","3BR","4BR+"].map((v) => <option key={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div className="post-job-field">
+                  <label className="post-job-label">Bathrooms</label>
+                  <select
+                    className="post-job-input"
+                    value={postRentalForm.bathrooms}
+                    onChange={(e) => handleRentalField("bathrooms", e.target.value)}
+                  >
+                    <option value="">—</option>
+                    {["1","1.5","2","2.5","3+"].map((v) => <option key={v}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Pets */}
+            {(hasRooms || isShortTerm) && (
+              <div className="post-job-field" style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <input
+                  id="pr-pets"
+                  type="checkbox"
+                  checked={postRentalForm.petsAllowed}
+                  onChange={(e) => handleRentalField("petsAllowed", e.target.checked)}
+                  style={{ width:18, height:18 }}
+                />
+                <label htmlFor="pr-pets" className="post-job-label" style={{ margin:0 }}>
+                  🐾 Pets Allowed
+                </label>
+              </div>
+            )}
+
+            {/* Description */}
+            <div className="post-job-field">
+              <label className="post-job-label">Description</label>
+              <textarea
+                className="post-job-textarea"
+                placeholder="Describe the property, features, nearby landmarks…"
+                rows={4}
+                value={postRentalForm.description}
+                onChange={(e) => handleRentalField("description", e.target.value)}
+              />
+            </div>
+
+            {/* Photos */}
+            <div className="post-job-field">
+              <label className="post-job-label">
+                Photos ({postRentalPhotos.length}/{maxPhotos})
+              </label>
+              {postRentalPhotos.length < maxPhotos && (
+                <label className="post-job-image-btn" style={{ cursor:"pointer" }}>
+                  📷 Add Photos
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style={{ display:"none" }}
+                    onChange={(e) => handleRentalPhotosAdd(e.target.files)}
+                  />
+                </label>
+              )}
+              {postRentalPhotos.length > 0 && (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:8 }}>
+                  {postRentalPhotos.map((p, i) => (
+                    <div key={i} style={{ position:"relative" }}>
+                      <img
+                        src={p.preview}
+                        alt=""
+                        style={{ width:80, height:64, objectFit:"cover", borderRadius:8 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRentalPhotoRemove(i)}
+                        style={{
+                          position:"absolute", top:-6, right:-6,
+                          background:"#ff4444", color:"#fff", border:"none",
+                          borderRadius:"50%", width:20, height:20,
+                          fontSize:12, cursor:"pointer", lineHeight:"20px",
+                        }}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Contact */}
+            <div className="post-job-field">
+              <label className="post-job-label">Phone</label>
+              <input
+                type="tel"
+                className="post-job-input"
+                placeholder="(325) 555-0000"
+                value={postRentalForm.phone}
+                onChange={(e) => handleRentalField("phone", e.target.value)}
+              />
+            </div>
+            <div className="post-job-field">
+              <label className="post-job-label">Email</label>
+              <input
+                type="email"
+                className="post-job-input"
+                placeholder="you@example.com"
+                value={postRentalForm.email}
+                onChange={(e) => handleRentalField("email", e.target.value)}
+              />
+            </div>
+            <div className="post-job-field">
+              <label className="post-job-label">External Link</label>
+              <input
+                type="url"
+                className="post-job-input"
+                placeholder="Zillow, Realtor.com, Airbnb listing URL…"
+                value={postRentalForm.externalUrl}
+                onChange={(e) => handleRentalField("externalUrl", e.target.value)}
+              />
+            </div>
+
+            {/* Duration */}
+            <div className="post-job-field">
+              <label className="post-job-label">Listing Duration</label>
+              <div className="jobs-filter-bar" style={{ gap:8, marginTop:4 }}>
+                {["30 Days","60 Days","90 Days"].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={`jobs-filter-chip${postRentalForm.duration === d ? " active" : ""}`}
+                    onClick={() => handleRentalField("duration", d)}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {postRentalError && (
+              <p className="post-job-error">{postRentalError}</p>
+            )}
+
+            <button type="submit" className="post-job-submit-btn" style={{ marginTop:16 }}>
+              Preview Listing →
+            </button>
+          </form>
         </div>
       </main>,
     );
