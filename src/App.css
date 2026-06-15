@@ -1961,6 +1961,7 @@
 .admin-panel-view-reviews .admin-tab-reviews,
 .admin-panel-view-jobs .admin-tab-jobs,
 .admin-panel-view-marketplace .admin-tab-marketplace,
+.admin-panel-view-rentals .admin-tab-rentals,
 .admin-panel-view-analytics .admin-tab-analytics {
   display: grid;
 }

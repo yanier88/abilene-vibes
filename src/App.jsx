@@ -1058,6 +1058,7 @@ const adminTabs = [
   { id: "reviews", label: "Reviews" },
   { id: "jobs", label: "Jobs & Hiring" },
   { id: "marketplace", label: "Marketplace" },
+  { id: "rentals", label: "Rent & Housing" },
   { id: "analytics", label: "Analytics" },
 ];
 
@@ -1843,8 +1844,11 @@ function App() {
   const [pendingReviews, setPendingReviews] = useState([]);
   const [adminJobListings, setAdminJobListings] = useState([]);
   const [adminMarketplaceListings, setAdminMarketplaceListings] = useState([]);
+  const [adminRentalListings, setAdminRentalListings] = useState([]);
   const [editingJob, setEditingJob] = useState(null);
   const [editJobPage, setEditJobPage] = useState(false);
+  const [editingRental, setEditingRental] = useState(null);
+  const [editRentalPage, setEditRentalPage] = useState(false);
   const [publishedEvents, setPublishedEvents] = useState([]);
   const [hiddenEvents, setHiddenEvents] = useState([]);
   const [deletedStaticItems, setDeletedStaticItems] = useState([]);
@@ -2804,6 +2808,7 @@ function App() {
       hiddenEventResult,
       jobListingsResult,
       adminMarketplaceResult,
+      adminRentalResult,
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
@@ -2867,6 +2872,10 @@ function App() {
         .from("marketplace_listings")
         .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
         .order("created_at", { ascending: false }),
+      supabase
+        .from("rental_listings")
+        .select("id,created_at,expires_at,title,property_type,price,deposit,price_per_night,price_per_week,available_from,available_to,max_guests,house_rules,pets_allowed,address,bedrooms,bathrooms,description,phone,email,external_url,duration,plan,status,image_data")
+        .order("created_at", { ascending: false }),
     ]);
 
     if (
@@ -2883,7 +2892,8 @@ function App() {
       publishedEventResult.error ||
       hiddenEventResult.error ||
       jobListingsResult.error ||
-      adminMarketplaceResult.error
+      adminMarketplaceResult.error ||
+      adminRentalResult.error
     ) {
       setAdminStatus("error");
       return;
@@ -2900,6 +2910,7 @@ function App() {
     setPendingReviews(reviewResult.data ?? []);
     setAdminJobListings(jobListingsResult.data ?? []);
     setAdminMarketplaceListings(adminMarketplaceResult.data ?? []);
+    setAdminRentalListings(adminRentalResult.data ?? []);
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
     setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
@@ -3123,6 +3134,55 @@ function App() {
     setAdminStatus("");
     setEditingJob(null);
     setEditJobPage(false);
+    await loadAdminData();
+  };
+
+  const handleDeleteRental = async (id) => {
+    if (!supabase || !adminSession) return;
+    if (!window.confirm("Permanently delete this rental listing?")) return;
+    setAdminStatus("saving");
+    const { error } = await supabase.from("rental_listings").delete().eq("id", id);
+    if (error) { setAdminStatus("error"); return; }
+    await loadAdminData();
+  };
+
+  const handleSaveRental = async () => {
+    if (!supabase || !adminSession || !editingRental) return;
+    setAdminStatus("saving");
+    const isSTR = editingRental.property_type === "Short-Term";
+    const { error } = await supabase
+      .from("rental_listings")
+      .update({
+        title:          editingRental.title,
+        property_type:  editingRental.property_type,
+        address:        editingRental.address,
+        description:    editingRental.description    || null,
+        phone:          editingRental.phone          || null,
+        email:          editingRental.email          || null,
+        external_url:   editingRental.external_url   || null,
+        duration:       editingRental.duration,
+        plan:           editingRental.plan,
+        status:         editingRental.status,
+        pets_allowed:   editingRental.pets_allowed ?? false,
+        ...(isSTR ? {
+          price_per_night: editingRental.price_per_night || null,
+          price_per_week:  editingRental.price_per_week  || null,
+          available_from:  editingRental.available_from  || null,
+          available_to:    editingRental.available_to    || null,
+          max_guests:      editingRental.max_guests      || null,
+          house_rules:     editingRental.house_rules     || null,
+        } : {
+          price:     editingRental.price     || null,
+          deposit:   editingRental.deposit   || null,
+          bedrooms:  editingRental.bedrooms  || null,
+          bathrooms: editingRental.bathrooms || null,
+        }),
+      })
+      .eq("id", editingRental.id);
+    if (error) { setAdminStatus("error"); return; }
+    setAdminStatus("");
+    setEditingRental(null);
+    setEditRentalPage(false);
     await loadAdminData();
   };
 
@@ -7692,6 +7752,176 @@ function App() {
     );
   }
 
+  if (page === "admin" && editRentalPage && editingRental) {
+    const isSTR = editingRental.property_type === "Short-Term";
+    return withSplash(
+      <main className="app admin-page">
+        <div className="admin-shell">
+          <button className="back-button" onClick={() => { setEditRentalPage(false); setEditingRental(null); setAdminStatus(""); }}>
+            ← Back to Rentals
+          </button>
+          <section className="admin-header" aria-labelledby="edit-rental-title">
+            <p className="eyebrow">Admin · Rent &amp; Housing</p>
+            <h1 id="edit-rental-title">Edit Rental Listing</h1>
+          </section>
+          <section className="admin-section" style={{ display: "grid", gap: "14px" }}>
+            {[
+              { label: "Title",        field: "title" },
+              { label: "Address",      field: "address" },
+              { label: "Phone",        field: "phone" },
+              { label: "Email",        field: "email" },
+              { label: "Website URL",  field: "external_url" },
+            ].map(({ label, field }) => (
+              <label className="form-field" key={field}>
+                <span>{label}</span>
+                <input
+                  type="text"
+                  className="business-input"
+                  value={editingRental[field] ?? ""}
+                  onChange={(e) => setEditingRental((prev) => ({ ...prev, [field]: e.target.value }))}
+                />
+              </label>
+            ))}
+            <label className="form-field">
+              <span>Property Type</span>
+              <select
+                className="business-input"
+                value={editingRental.property_type ?? "Apartment"}
+                onChange={(e) => setEditingRental((prev) => ({ ...prev, property_type: e.target.value }))}
+              >
+                {["Apartment","House","Room","Commercial","For Sale","Short-Term"].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+            {isSTR ? (
+              <>
+                {[
+                  { label: "Price/Night ($)", field: "price_per_night" },
+                  { label: "Price/Week ($)",  field: "price_per_week" },
+                  { label: "Max Guests",      field: "max_guests" },
+                  { label: "Available From",  field: "available_from" },
+                  { label: "Available To",    field: "available_to" },
+                ].map(({ label, field }) => (
+                  <label className="form-field" key={field}>
+                    <span>{label}</span>
+                    <input
+                      type="text"
+                      className="business-input"
+                      value={editingRental[field] ?? ""}
+                      onChange={(e) => setEditingRental((prev) => ({ ...prev, [field]: e.target.value }))}
+                    />
+                  </label>
+                ))}
+                <label className="form-field">
+                  <span>House Rules</span>
+                  <textarea
+                    className="business-input"
+                    rows={3}
+                    value={editingRental.house_rules ?? ""}
+                    onChange={(e) => setEditingRental((prev) => ({ ...prev, house_rules: e.target.value }))}
+                  />
+                </label>
+              </>
+            ) : (
+              <>
+                {[
+                  { label: "Rent/Price ($)", field: "price" },
+                  { label: "Deposit ($)",    field: "deposit" },
+                  { label: "Bedrooms",       field: "bedrooms" },
+                  { label: "Bathrooms",      field: "bathrooms" },
+                ].map(({ label, field }) => (
+                  <label className="form-field" key={field}>
+                    <span>{label}</span>
+                    <input
+                      type="text"
+                      className="business-input"
+                      value={editingRental[field] ?? ""}
+                      onChange={(e) => setEditingRental((prev) => ({ ...prev, [field]: e.target.value }))}
+                    />
+                  </label>
+                ))}
+              </>
+            )}
+            <label className="form-field">
+              <span>Description</span>
+              <textarea
+                className="business-input"
+                rows={5}
+                value={editingRental.description ?? ""}
+                onChange={(e) => setEditingRental((prev) => ({ ...prev, description: e.target.value }))}
+              />
+            </label>
+            <label className="form-field" style={{ flexDirection: "row", alignItems: "center", gap: "10px" }}>
+              <input
+                type="checkbox"
+                checked={editingRental.pets_allowed ?? false}
+                onChange={(e) => setEditingRental((prev) => ({ ...prev, pets_allowed: e.target.checked }))}
+                style={{ width: "18px", height: "18px" }}
+              />
+              <span>Pets Allowed</span>
+            </label>
+            <label className="form-field">
+              <span>Duration</span>
+              <select
+                className="business-input"
+                value={editingRental.duration ?? "30"}
+                onChange={(e) => setEditingRental((prev) => ({ ...prev, duration: e.target.value }))}
+              >
+                {["7","14","30","60","90"].map(d => <option key={d} value={d}>{d} days</option>)}
+              </select>
+            </label>
+            <label className="form-field">
+              <span>Plan</span>
+              <select
+                className="business-input"
+                value={editingRental.plan ?? "free"}
+                onChange={(e) => setEditingRental((prev) => ({ ...prev, plan: e.target.value }))}
+              >
+                <option value="free">free</option>
+                <option value="featured">featured</option>
+                <option value="premium">premium</option>
+              </select>
+            </label>
+            <label className="form-field">
+              <span>Status</span>
+              <select
+                className="business-input"
+                value={editingRental.status ?? "approved"}
+                onChange={(e) => setEditingRental((prev) => ({ ...prev, status: e.target.value }))}
+              >
+                <option value="approved">approved</option>
+                <option value="pending">pending</option>
+                <option value="rejected">rejected</option>
+                <option value="hidden">hidden</option>
+              </select>
+            </label>
+            {adminStatus === "error" && (
+              <p className="form-error">Could not save. Try again.</p>
+            )}
+            <div className="directory-actions" style={{ marginTop: "8px" }}>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={handleSaveRental}
+                disabled={adminStatus === "saving"}
+              >
+                {adminStatus === "saving" ? "Saving…" : "Save Changes"}
+              </button>
+              <button
+                className="directory-link"
+                type="button"
+                onClick={() => { setEditRentalPage(false); setEditingRental(null); setAdminStatus(""); }}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   if (page === "admin" && editJobPage && editingJob) {
     return withSplash(
       <main className="app admin-page">
@@ -8539,6 +8769,56 @@ function App() {
                   </div>
                 ) : (
                   <p className="legal-disclaimer">No marketplace listings yet.</p>
+                )}
+              </section>
+
+              <section className="admin-section admin-tab-rentals" aria-labelledby="admin-rentals-title">
+                <div className="business-form-heading">
+                  <p className="eyebrow">Rent &amp; Housing</p>
+                  <h2 id="admin-rentals-title">Rental Listings</h2>
+                </div>
+                {adminRentalListings.length > 0 ? (
+                  <div className="admin-cards-grid">
+                    {adminRentalListings.map((r) => (
+                      <article key={r.id} className="admin-card">
+                        {r.image_data?.[0] && (
+                          <img src={r.image_data[0]} alt={r.title} className="admin-card-img" />
+                        )}
+                        <div className="admin-card-body">
+                          <p className="admin-card-type">{r.property_type ?? "Rental"}</p>
+                          <p className="admin-card-title">{r.title}</p>
+                          <p className="admin-card-meta">{r.address}</p>
+                          {r.price && <p className="admin-card-meta">${r.price}/mo</p>}
+                          {r.price_per_night && <p className="admin-card-meta">${r.price_per_night}/night</p>}
+                          <p className="admin-card-meta">
+                            Status: <strong>{r.status ?? "approved"}</strong> · Plan: <strong>{r.plan ?? "free"}</strong>
+                          </p>
+                          <p className="admin-card-meta">
+                            Posted: {r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
+                            {r.expires_at ? ` · Expires: ${new Date(r.expires_at).toLocaleDateString()}` : ""}
+                          </p>
+                        </div>
+                        <div className="directory-actions">
+                          <button
+                            className="primary-button"
+                            type="button"
+                            onClick={() => { setEditingRental({ ...r }); setEditRentalPage(true); setAdminStatus(""); }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => handleDeleteRental(r.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="legal-disclaimer">No rental listings yet.</p>
                 )}
               </section>
 
