@@ -6871,6 +6871,7 @@ function App() {
                 {r.bathrooms ? `🚿 ${r.bathrooms} ba` : ""}
               </p>
             )}
+            {r.pets_allowed && <p className="job-detail-meta">🐾 Pets allowed</p>}
             {isSTR && (
               <div className="rental-str-details">
                 {r.max_guests && <p className="job-detail-meta">👥 Max guests: {r.max_guests}</p>}
@@ -6879,7 +6880,6 @@ function App() {
                     📅 Available: {r.available_from ?? "anytime"}{r.available_to ? ` – ${r.available_to}` : ""}
                   </p>
                 )}
-                {r.pets_allowed && <p className="job-detail-meta">🐾 Pets allowed</p>}
                 {r.house_rules && (
                   <div className="job-detail-block">
                     <h3>House Rules</h3>
@@ -6972,6 +6972,7 @@ function App() {
     };
 
     const handlePublishRental = async () => {
+      if (!supabase) { setPostRentalError("Connection unavailable. Check your internet and try again."); return; }
       const err = validateRental();
       if (err) { setPostRentalError(err); return; }
       setPostRentalError(null);
@@ -7129,7 +7130,7 @@ function App() {
                   <button
                     key={t}
                     type="button"
-                    className={`jobs-filter-chip${postRentalForm.propertyType === t ? " active" : ""}`}
+                    className={`jobs-filter-chip${postRentalForm.propertyType === t ? " is-active" : ""}`}
                     onClick={() => handleRentalField("propertyType", t)}
                   >
                     {rentalTypeIcon(t)} {t}
@@ -7387,7 +7388,7 @@ function App() {
                   <button
                     key={d}
                     type="button"
-                    className={`jobs-filter-chip${postRentalForm.duration === d ? " active" : ""}`}
+                    className={`jobs-filter-chip${postRentalForm.duration === d ? " is-active" : ""}`}
                     onClick={() => handleRentalField("duration", d)}
                   >
                     {d}

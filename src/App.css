@@ -3473,5 +3473,27 @@
 .jobs-detail-save-btn.is-saved{border-color:#ff5c8a;color:#ff5c8a;background:#ff5c8a12}
 
 /* ── Admin modal overlay (Edit modal for Jobs & Hiring) ──────── */
-.admin-modal-backdrop{position:fixed;inset:0;z-index:5000;display:grid;place-items:center;padding:20px;background:#000000b8;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.admin-modal-backdrop{position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:#000000b8;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+
+/* ── Post Rental Form ─────────────────────────────────────────── */
+.post-rental-page .marketplace-shell{padding-bottom:100px}
+.post-job-field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.post-job-label{font-size:.82rem;font-weight:700;color:#ffffffc0;letter-spacing:.02em}
+.post-job-input,.post-job-textarea{width:100%;box-sizing:border-box;border:1px solid #ffffff20;border-radius:12px;color:#fff;font:inherit;font-size:.93rem;padding:12px 14px;background:#00000030;outline:none;transition:border-color .18s,box-shadow .18s;appearance:none;-webkit-appearance:none}
+.post-job-input:focus,.post-job-textarea:focus{border-color:#4aff7a70;box-shadow:0 0 0 3px #4aff7a18}
+.post-job-input::placeholder,.post-job-textarea::placeholder{color:#ffffff40}
+.post-job-input option{background:#0d1b2a;color:#fff}
+.post-job-textarea{resize:vertical;min-height:80px}
+.post-job-image-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;border:1.5px dashed #4aff7a50;color:#4aff7ab0;font:inherit;font-size:.88rem;cursor:pointer;transition:border-color .15s,color .15s;margin-top:4px}
+.post-job-image-btn:hover{border-color:#4aff7a;color:#4aff7a}
+.post-job-submit-btn{display:flex;align-items:center;justify-content:center;width:100%;padding:15px 20px;border-radius:14px;border:none;background:linear-gradient(135deg,#4aff7a,#00d4ff);color:#000;font:inherit;font-size:1rem;font-weight:800;cursor:pointer;transition:opacity .15s}
+.post-job-submit-btn:disabled{opacity:.45;cursor:not-allowed}
+.post-job-submit-btn:hover:not(:disabled){opacity:.88}
+.post-job-sticky-footer{position:sticky;bottom:0;padding:14px 16px 20px;margin:8px -16px -16px;background:linear-gradient(to top,#080f1e 60%,#080f1e00);z-index:10}
+.post-job-error{color:#ff5c8a;font-size:.85rem;margin-bottom:10px;padding:9px 13px;background:#ff5c8a10;border-radius:9px;border:1px solid #ff5c8a30}
+/* Chip selectors — property type & duration */
+.jobs-filter-bar{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.jobs-filter-chip{padding:7px 14px;border-radius:999px;border:1.5px solid #ffffff25;background:none;color:#ffffffb0;font:inherit;font-size:.82rem;cursor:pointer;transition:border-color .15s,color .15s,background .15s;white-space:nowrap}
+.jobs-filter-chip.is-active{border-color:#4aff7a;color:#4aff7a;background:#4aff7a12}
+.post-job-form{display:flex;flex-direction:column;padding:0 4px}
 .admin-modal{color:#fff;background:linear-gradient(145deg,#0a0c2af5,#050014f5),#050008f0;border:1px solid #00d4ff5c;border-radius:18px;gap:14px;width:min(100%,560px);max-height:90vh;overflow-y:auto;padding:clamp(20px,4vw,28px);display:grid;box-shadow:0 0 34px #00d4ff38,0 24px 80px #0000007a}
