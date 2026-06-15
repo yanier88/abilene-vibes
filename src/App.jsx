@@ -722,7 +722,7 @@ const jobsCategories = [
   "Driving & Delivery", "Health Care", "Office/Admin",
   "Manufacturing", "Warehouse", "Customer Service", "Skilled Trades", "Other",
 ];
-const jobsFilters = ["New Today", "Full Time", "Part Time", "Near Me", "Good Pay", "No Experience"];
+const jobsFilters = ["New Today", "Full Time", "Part Time", "No Experience"];
 const jobsCategoryIcon = (cat) => {
   const icons = {
     "Restaurant & Food": "🍔", Construction: "🏗️", Cleaning: "🧹", Retail: "🛒",
@@ -733,10 +733,23 @@ const jobsCategoryIcon = (cat) => {
   return icons[cat] ?? "💼";
 };
 const jobsFilterIcon = (f) => {
-  const icons = { "New Today": "🆕 ", "Full Time": "💼 ", "Part Time": "⏰ ", "Near Me": "📍 ", "Good Pay": "💵 ", "No Experience": "🧰 " };
+  const icons = { "New Today": "🆕 ", "Full Time": "💼 ", "Part Time": "⏰ ", "No Experience": "🧰 " };
   return icons[f] ?? "";
 };
 const jobsListingKey = (j) => j.id ?? `${j.title}:${j.company}`;
+
+// ── Rent & Housing constants ──────────────────────────────────
+const rentalTypes = ["Apartment", "House", "Room", "Commercial", "For Sale", "Short-Term"];
+const rentalTypeIcon = (t) => ({
+  Apartment: "🏢", House: "🏠", Room: "🛏️",
+  Commercial: "🏪", "For Sale": "🏡", "Short-Term": "🌴",
+}[t] ?? "🏘️");
+const rentalFilters = ["New Today", "Pet Friendly", "Short-Term", "For Sale"];
+const rentalFilterIcon = (f) => ({
+  "New Today": "🆕 ", "Pet Friendly": "🐾 ", "Short-Term": "🌴 ", "For Sale": "🏡 ",
+}[f] ?? "");
+// ── End Rent & Housing constants ──────────────────────────────
+
 const marketplaceListingKey = (l) => l.id ?? `starter:${l.title}:${l.price}`;
 const marketplaceContactHref = (contact) => `tel:${contact.replace(/\D/g, "")}`;
 const isMarketplaceToday = (dateStr) => {
@@ -996,7 +1009,7 @@ const moreServices = [
   { label: "Local Marketplace", icon: "sales", page: "marketplace" },
   { label: "Groceries", icon: "groceries", page: "directory" },
   { label: "Jobs & Hiring", icon: "jobs", page: "jobs" },
-  { label: "Rentals", icon: "rents", page: "directory" },
+  { label: "Rentals", icon: "rents", page: "rentals" },
   { label: "Dealers", icon: "dealers", page: "directory" },
   { label: "Insurance Companies", icon: "insurance", page: "directory" },
   { label: "Barber Shops", icon: "barber", page: "directory" },
@@ -1882,6 +1895,20 @@ function App() {
     catch { return []; }
   });
   const [jobsShowSaved, setJobsShowSaved] = useState(false);
+
+  // ── Rent & Housing state ──────────────────────────────────
+  const [rentalListings, setRentalListings] = useState([]);
+  const [rentalsSearch, setRentalsSearch] = useState("");
+  const [rentalsTypeFilter, setRentalsTypeFilter] = useState("All");
+  const [rentalsFilter, setRentalsFilter] = useState("All");
+  const [selectedRental, setSelectedRental] = useState(null);
+  const [savedRentals, setSavedRentals] = useState(() => {
+    try { return JSON.parse(window.localStorage.getItem("av_saved_rentals") ?? "[]"); }
+    catch { return []; }
+  });
+  const [rentalsShowSaved, setRentalsShowSaved] = useState(false);
+  // ── End Rent & Housing state ──────────────────────────────
+
   const imageViewerPhotoRef = useRef(null);
   const gallerySwipeTouchRef = useRef(null); // tracks touchstart X for marketplace-item swipe
   // Single ref that always mirrors current React state for the backButton handler.
@@ -1969,6 +1996,7 @@ function App() {
       .from("job_listings")
       .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,apply_url,duration,plan,image_data,logo_data,expires_at")
       .eq("status", "approved")
+      .gte("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (!error && data) {
@@ -1997,6 +2025,19 @@ function App() {
             })),
           );
         }
+      });
+  }, [supabase]);
+
+  const loadRentalsPublic = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("rental_listings")
+      .select("id,created_at,expires_at,title,property_type,price,deposit,price_per_night,price_per_week,available_from,available_to,max_guests,house_rules,pets_allowed,address,bedrooms,bathrooms,description,phone,email,external_url,duration,plan,status,image_data")
+      .eq("status", "approved")
+      .gte("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) setRentalListings(data);
       });
   }, [supabase]);
 
@@ -2196,6 +2237,7 @@ function App() {
     loadGalleryPublic();
     loadMarketplacePublic();
     loadJobsPublic();
+    loadRentalsPublic();
 
     supabase
       .from("hidden_static_items")
@@ -2206,7 +2248,7 @@ function App() {
           setDeletedStaticItems(data.filter((item) => item.item_type === "deleted").map((item) => item.item_key));
         }
       });
-  }, [loadBusinessesPublic, loadGalleryPublic, loadMarketplacePublic, loadJobsPublic]);
+  }, [loadBusinessesPublic, loadGalleryPublic, loadMarketplacePublic, loadJobsPublic, loadRentalsPublic]);
 
   // ── Persist saved jobs across sessions ──────────────────────────────────
   useEffect(() => {
@@ -2219,6 +2261,12 @@ function App() {
     try { window.localStorage.setItem("av_saved_market", JSON.stringify(savedMarketListings)); }
     catch { /* ignore */ }
   }, [savedMarketListings]);
+
+  // ── Persist saved rentals across sessions ────────────────────────────────
+  useEffect(() => {
+    try { window.localStorage.setItem("av_saved_rentals", JSON.stringify(savedRentals)); }
+    catch { /* ignore */ }
+  }, [savedRentals]);
 
   // ── Supabase Realtime: auto-refresh on any table change ─────────────────
   // adminSession intentionally excluded from deps — use adminSessionRef.current
@@ -2250,6 +2298,7 @@ function App() {
 
     const channels = [
       mkChannel("rt-job_listings",         "job_listings",         () => { loadJobsPublic();       reloadAdmin(); }),
+      mkChannel("rt-rental_listings",      "rental_listings",      () => { loadRentalsPublic();    reloadAdmin(); }),
       mkChannel("rt-business_submissions",  "business_submissions",  () => { loadBusinessesPublic(); reloadAdmin(); }),
       mkChannel("rt-gallery_submissions",   "gallery_submissions",   () => { loadGalleryPublic();    reloadAdmin(); }),
       mkChannel("rt-event_submissions",     "event_submissions",     () => { loadEventsPublic();     reloadAdmin(); }),
@@ -2263,7 +2312,7 @@ function App() {
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, loadJobsPublic, loadBusinessesPublic, loadGalleryPublic, loadEventsPublic, loadReviewsPublic, loadMarketplacePublic, loadNewsPublic]);
+  }, [supabase, loadJobsPublic, loadRentalsPublic, loadBusinessesPublic, loadGalleryPublic, loadEventsPublic, loadReviewsPublic, loadMarketplacePublic, loadNewsPublic]);
 
   useEffect(() => {
     if (!supabase) {
@@ -2342,7 +2391,8 @@ function App() {
       if (
         currentPage === "news" ||
         currentPage === "marketplace" ||
-        currentPage === "jobs"
+        currentPage === "jobs" ||
+        currentPage === "rentals"
       ) {
         navigateTo("more", { replace: true });
         return;
@@ -2359,6 +2409,12 @@ function App() {
       // 8. Job detail — back to jobs.
       if (currentPage === "job-detail") {
         navigateTo("jobs", { replace: true });
+        return;
+      }
+
+      // 8b. Rental detail / post-rental — back to rentals.
+      if (currentPage === "rental-detail" || currentPage === "post-rental") {
+        navigateTo("rentals", { replace: true });
         return;
       }
 
@@ -3038,6 +3094,8 @@ function App() {
         duration: editingJob.duration,
         plan: editingJob.plan,
         status: editingJob.status,
+        image_data: editingJob.image_data ?? null,
+        logo_data: editingJob.logo_data ?? null,
       })
       .eq("id", editingJob.id);
     if (error) { setAdminStatus("error"); return; }
@@ -5990,15 +6048,25 @@ function App() {
     const durationOptions = ["30 Days", "60 Days", "90 Days"];
     const handlePostJobField = (field, value) =>
       setPostJobForm((prev) => ({ ...prev, [field]: value }));
-    const handlePostJobImage = (e) => {
+    const handlePostJobImage = async (e) => {
       const file = e.target.files?.[0]; if (!file) return;
       setPostJobForm((prev) => ({ ...prev, image: file }));
-      const r = new FileReader(); r.onload = (ev) => setPostJobImagePreview(ev.target.result); r.readAsDataURL(file);
+      try {
+        const compressed = await optimizeGalleryImage(file);
+        setPostJobImagePreview(compressed);
+      } catch {
+        const r = new FileReader(); r.onload = (ev) => setPostJobImagePreview(ev.target.result); r.readAsDataURL(file);
+      }
     };
-    const handlePostJobLogo = (e) => {
+    const handlePostJobLogo = async (e) => {
       const file = e.target.files?.[0]; if (!file) return;
       setPostJobForm((prev) => ({ ...prev, logo: file }));
-      const r = new FileReader(); r.onload = (ev) => setPostJobLogoPreview(ev.target.result); r.readAsDataURL(file);
+      try {
+        const compressed = await optimizeGalleryImage(file);
+        setPostJobLogoPreview(compressed);
+      } catch {
+        const r = new FileReader(); r.onload = (ev) => setPostJobLogoPreview(ev.target.result); r.readAsDataURL(file);
+      }
     };
     const payLabel = [postJobForm.payMin, postJobForm.payMax].filter(Boolean).join(" – ") || "Pay not specified";
     const previewData = {
@@ -6141,7 +6209,8 @@ function App() {
         plan: "featured",
       };
       try {
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
+        const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
         if (supabase) {
           const { data, error } = await supabase
             .from("job_listings")
@@ -6239,7 +6308,8 @@ function App() {
         plan: "premium",
       };
       try {
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
+        const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
         if (supabase) {
           const { data, error } = await supabase
             .from("job_listings")
@@ -6566,6 +6636,288 @@ function App() {
     );
   }
 
+
+  // ── RENT & HOUSING ────────────────────────────────────────────────────────
+  if (page === "rentals") {
+    const isShortTerm = (r) => r.property_type === "Short-Term";
+
+    const filteredRentals = (rentalsShowSaved
+      ? rentalListings.filter((r) => savedRentals.includes(r.id))
+      : rentalListings
+    ).filter((r) => {
+      const matchesType = rentalsTypeFilter === "All" || r.property_type === rentalsTypeFilter;
+      const matchesFilter =
+        rentalsFilter === "All" ||
+        (rentalsFilter === "New Today" && formatJobPosted(r.created_at) === "Posted Today") ||
+        (rentalsFilter === "Pet Friendly" && r.pets_allowed) ||
+        (rentalsFilter === "Short-Term" && isShortTerm(r)) ||
+        (rentalsFilter === "For Sale" && r.property_type === "For Sale");
+      const text = `${r.title} ${r.address} ${r.description ?? ""} ${r.property_type}`.toLowerCase();
+      return matchesType && matchesFilter && text.includes(rentalsSearch.trim().toLowerCase());
+    });
+
+    const rentalTypeCounts = rentalListings.reduce((acc, r) => {
+      acc[r.property_type] = (acc[r.property_type] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    return withSplash(
+      <main className="app jobs-page rentals-page">
+        <div className="jobs-neon-bg rentals-neon-bg" aria-hidden="true" />
+        <div className="marketplace-shell jobs-shell rentals-shell">
+          <button className="back-button" onClick={() => navigateTo("more")}>
+            Back to services
+          </button>
+
+          <section className="marketplace-hero jobs-hero" aria-labelledby="rentals-title">
+            <p className="eyebrow">Abilene, TX</p>
+            <h1 id="rentals-title">Rent &amp; Housing</h1>
+            <p className="events-intro">Find apartments, houses, rooms, commercial spaces, homes for sale, and short-term stays.</p>
+            <div className="marketplace-search jobs-search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                type="search"
+                value={rentalsSearch}
+                onChange={(e) => setRentalsSearch(e.target.value)}
+                placeholder="Search by address, type, description..."
+                aria-label="Search rentals"
+              />
+            </div>
+            <button
+              className="jobs-post-button"
+              type="button"
+              onClick={() => navigateTo("post-rental")}
+            >
+              <span aria-hidden="true">+</span>
+              Post a Listing
+            </button>
+            <div className="marketplace-filter-row jobs-filter-row" aria-label="Rentals quick filters">
+              {rentalFilters.map((f) => (
+                <button
+                  key={f}
+                  className={rentalsFilter === f ? "is-active" : ""}
+                  type="button"
+                  onClick={() => { setRentalsFilter(rentalsFilter === f ? "All" : f); setRentalsTypeFilter("All"); }}
+                >
+                  {rentalFilterIcon(f)}{f}
+                </button>
+              ))}
+              <button
+                type="button"
+                className={rentalsFilter === "All" && rentalsTypeFilter === "All" ? "is-active" : ""}
+                onClick={() => { setRentalsFilter("All"); setRentalsTypeFilter("All"); }}
+              >
+                All
+              </button>
+            </div>
+          </section>
+
+          <section className="marketplace-section jobs-section" aria-labelledby="rental-types-title">
+            <div className="marketplace-section-heading">
+              <h2 id="rental-types-title">Property Types</h2>
+              <button type="button" onClick={() => { setRentalsTypeFilter("All"); setRentalsFilter("All"); }}>All</button>
+            </div>
+            <div className="marketplace-category-grid jobs-category-grid">
+              {rentalTypes.map((t) => (
+                <button
+                  key={t}
+                  className={rentalsTypeFilter === t ? "is-active" : ""}
+                  type="button"
+                  onClick={() => { setRentalsTypeFilter(rentalsTypeFilter === t ? "All" : t); setRentalsFilter("All"); }}
+                >
+                  <span aria-hidden="true">{rentalTypeIcon(t)}</span>
+                  {t} ({rentalTypeCounts[t] ?? 0})
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="marketplace-section jobs-section" aria-labelledby="rentals-list-title">
+            <div className="marketplace-section-heading">
+              <h2 id="rentals-list-title">
+                {rentalsShowSaved
+                  ? `Saved Listings (${filteredRentals.length})`
+                  : `Available Listings (${filteredRentals.length} shown)`}
+              </h2>
+              <button
+                type="button"
+                className={`jobs-saved-toggle${rentalsShowSaved ? " is-active" : ""}`}
+                onClick={() => setRentalsShowSaved((v) => !v)}
+                aria-pressed={rentalsShowSaved}
+              >
+                {rentalsShowSaved ? "♥ Saved" : "♡ Saved"}
+              </button>
+            </div>
+
+            <div className="marketplace-listing-grid jobs-listing-grid">
+              {filteredRentals.length === 0 && (
+                <p className="jobs-empty">
+                  {rentalsShowSaved
+                    ? "No saved listings yet. Tap ♡ on any listing to save it."
+                    : rentalListings.length === 0
+                      ? "No listings yet. Be the first to post!"
+                      : "No listings match your search."}
+                </p>
+              )}
+              {filteredRentals.map((r) => {
+                const isSaved = savedRentals.includes(r.id);
+                const photo = Array.isArray(r.image_data) ? r.image_data[0] : null;
+                const isSTR = isShortTerm(r);
+                return (
+                  <article
+                    key={r.id}
+                    className={`jobs-listing-card${isSTR ? " rental-str-card" : ""}`}
+                    onClick={() => { setSelectedRental(r); navigateTo("rental-detail"); }}
+                  >
+                    {photo && (
+                      <div className="jobs-listing-img-wrap">
+                        <img src={photo} alt={r.title} className="jobs-listing-img" />
+                      </div>
+                    )}
+                    <div className="jobs-listing-body">
+                      <div className="jobs-listing-top">
+                        <span className={`jobs-listing-tag${isSTR ? " rental-str-tag" : ""}`}>
+                          {rentalTypeIcon(r.property_type)} {r.property_type}
+                        </span>
+                        <button
+                          className={`jobs-save-btn${isSaved ? " is-saved" : ""}`}
+                          type="button"
+                          aria-label={isSaved ? "Unsave listing" : "Save listing"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSavedRentals((prev) =>
+                              isSaved ? prev.filter((id) => id !== r.id) : [...prev, r.id]
+                            );
+                          }}
+                        >
+                          {isSaved ? "♥" : "♡"}
+                        </button>
+                      </div>
+                      <h3 className="jobs-listing-title">{r.title}</h3>
+                      <p className="jobs-listing-company">
+                        {isSTR
+                          ? (r.price_per_night ? `${r.price_per_night}/night` : "Price on request")
+                          : (r.price || "Price on request")}
+                      </p>
+                      <p className="jobs-listing-meta">
+                        📍 {r.address}
+                        {r.bedrooms ? ` · ${r.bedrooms}` : ""}
+                        {r.bathrooms ? ` · ${r.bathrooms} ba` : ""}
+                        {isSTR && r.max_guests ? ` · ${r.max_guests}` : ""}
+                        {r.pets_allowed ? " · 🐾" : ""}
+                      </p>
+                      <p className="jobs-listing-posted">{formatJobPosted(r.created_at)}</p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      </main>,
+    );
+  }
+
+  if (page === "rental-detail" && selectedRental) {
+    const r = selectedRental;
+    const isSTR = r.property_type === "Short-Term";
+    const photos = Array.isArray(r.image_data) ? r.image_data.filter(Boolean) : [];
+    return withSplash(
+      <main className="app jobs-page rentals-page rental-detail-page">
+        <div className="marketplace-shell jobs-shell rentals-shell">
+          <button className="back-button" onClick={() => navigateTo("rentals")}>
+            ← Back to Rentals
+          </button>
+          {photos.length > 0 && (
+            <div className="jobs-detail-img-wrap">
+              <img src={photos[0]} alt={r.title} className="jobs-detail-img" />
+            </div>
+          )}
+          <section className="job-detail-section">
+            <span className="jobs-listing-tag">{rentalTypeIcon(r.property_type)} {r.property_type}</span>
+            <h1 className="job-detail-title">{r.title}</h1>
+            <p className="job-detail-pay">
+              {isSTR
+                ? [r.price_per_night && `${r.price_per_night}/night`, r.price_per_week && `${r.price_per_week}/week`].filter(Boolean).join(" · ") || "Price on request"
+                : r.price || "Price on request"}
+            </p>
+            {!isSTR && r.deposit && <p className="job-detail-meta">Deposit: {r.deposit}</p>}
+            <p className="job-detail-meta">📍 {r.address}</p>
+            {(r.bedrooms || r.bathrooms) && (
+              <p className="job-detail-meta">
+                {r.bedrooms ? `🛏️ ${r.bedrooms}` : ""}
+                {r.bedrooms && r.bathrooms ? " · " : ""}
+                {r.bathrooms ? `🚿 ${r.bathrooms} ba` : ""}
+              </p>
+            )}
+            {isSTR && (
+              <div className="rental-str-details">
+                {r.max_guests && <p className="job-detail-meta">👥 Max guests: {r.max_guests}</p>}
+                {(r.available_from || r.available_to) && (
+                  <p className="job-detail-meta">
+                    📅 Available: {r.available_from ?? "anytime"}{r.available_to ? ` – ${r.available_to}` : ""}
+                  </p>
+                )}
+                {r.pets_allowed && <p className="job-detail-meta">🐾 Pets allowed</p>}
+                {r.house_rules && (
+                  <div className="job-detail-block">
+                    <h3>House Rules</h3>
+                    <p>{r.house_rules}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            {r.description && (
+              <div className="job-detail-block">
+                <h3>Description</h3>
+                <p>{r.description}</p>
+              </div>
+            )}
+            <div className="job-detail-apply-row">
+              {r.phone && (
+                <a className="jobs-post-button job-detail-apply-btn" href={`tel:${r.phone.replace(/\D/g, "")}`}>
+                  📞 Call
+                </a>
+              )}
+              {r.email && (
+                <a className="jobs-post-button job-detail-apply-btn" href={`mailto:${r.email}`}>
+                  ✉️ Email
+                </a>
+              )}
+              {r.external_url && (
+                <a className="jobs-post-button job-detail-apply-btn" href={r.external_url} target="_blank" rel="noopener noreferrer">
+                  🔗 View Listing
+                </a>
+              )}
+            </div>
+            <p className="jobs-listing-posted" style={{ marginTop: "16px" }}>
+              {formatJobPosted(r.created_at)}
+              {r.expires_at ? ` · Expires ${new Date(r.expires_at).toLocaleDateString()}` : ""}
+            </p>
+          </section>
+        </div>
+      </main>,
+    );
+  }
+
+  if (page === "post-rental") {
+    return withSplash(
+      <main className="app jobs-page rentals-page post-rental-page">
+        <div className="jobs-neon-bg rentals-neon-bg" aria-hidden="true" />
+        <div className="marketplace-shell jobs-shell rentals-shell">
+          <button className="back-button" onClick={() => navigateTo("rentals")}>
+            ← Back to Rentals
+          </button>
+          <section className="marketplace-hero jobs-hero">
+            <p className="eyebrow">List your property</p>
+            <h1>Post a Rental Listing</h1>
+            <p className="events-intro">Full posting form coming soon. Check back shortly!</p>
+          </section>
+        </div>
+      </main>,
+    );
+  }
+  // ── END RENT & HOUSING ─────────────────────────────────────────────────────
 
   if (page === "jobs") {
     return withSplash(
@@ -6925,6 +7277,32 @@ function App() {
                 value={editingJob.requirements ?? ""}
                 onChange={(e) => setEditingJob((prev) => ({ ...prev, requirements: e.target.value }))}
               />
+            </label>
+            <label className="form-field">
+              <span>Job photo (replace)</span>
+              <input type="file" accept="image/*" onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                try {
+                  const compressed = await optimizeGalleryImage(file);
+                  setEditingJob((prev) => ({ ...prev, image_data: compressed }));
+                } catch {
+                  const r = new FileReader(); r.onload = (ev) => setEditingJob((prev) => ({ ...prev, image_data: ev.target.result })); r.readAsDataURL(file);
+                }
+              }} />
+              {editingJob.image_data && <img src={editingJob.image_data} alt="Job photo" style={{ maxWidth: "180px", marginTop: "8px", borderRadius: "8px" }} />}
+            </label>
+            <label className="form-field">
+              <span>Company logo (replace)</span>
+              <input type="file" accept="image/*" onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                try {
+                  const compressed = await optimizeGalleryImage(file);
+                  setEditingJob((prev) => ({ ...prev, logo_data: compressed }));
+                } catch {
+                  const r = new FileReader(); r.onload = (ev) => setEditingJob((prev) => ({ ...prev, logo_data: ev.target.result })); r.readAsDataURL(file);
+                }
+              }} />
+              {editingJob.logo_data && <img src={editingJob.logo_data} alt="Company logo" style={{ maxWidth: "120px", marginTop: "8px", borderRadius: "8px" }} />}
             </label>
             {adminStatus === "error" && (
               <p className="form-error">Could not save. Try again.</p>
