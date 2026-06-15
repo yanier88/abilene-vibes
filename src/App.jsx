@@ -2892,12 +2892,13 @@ function App() {
       publishedEventResult.error ||
       hiddenEventResult.error ||
       jobListingsResult.error ||
-      adminMarketplaceResult.error ||
-      adminRentalResult.error
+      adminMarketplaceResult.error
     ) {
       setAdminStatus("error");
       return;
     }
+    // rental_listings may not exist yet — fail gracefully without blocking other admin data
+    setAdminRentalListings(adminRentalResult.error ? [] : (adminRentalResult.data ?? []));
 
     setPendingGalleryPhotos(galleryResult.data ?? []);
     setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
@@ -2910,7 +2911,6 @@ function App() {
     setPendingReviews(reviewResult.data ?? []);
     setAdminJobListings(jobListingsResult.data ?? []);
     setAdminMarketplaceListings(adminMarketplaceResult.data ?? []);
-    setAdminRentalListings(adminRentalResult.data ?? []);
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
     setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
