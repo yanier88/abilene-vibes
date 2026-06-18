@@ -1928,6 +1928,9 @@ function App() {
   const [postRentalPublishing, setPostRentalPublishing] = useState(false);
   // ── End Rent & Housing state ──────────────────────────────
 
+  const [rentalGalleryIdx, setRentalGalleryIdx] = useState(0);
+  const rentalGalleryRef = useRef(null);
+
   const imageViewerPhotoRef = useRef(null);
   const gallerySwipeTouchRef = useRef(null); // tracks touchstart X for marketplace-item swipe
   // Single ref that always mirrors current React state for the backButton handler.
@@ -6855,17 +6858,21 @@ function App() {
               )}
               {filteredRentals.map((r) => {
                 const isSaved = savedRentals.includes(r.id);
-                const photo = Array.isArray(r.image_data) ? r.image_data[0] : null;
+                const rPhotos = Array.isArray(r.image_data) ? r.image_data.filter(Boolean) : [];
+                const photo = rPhotos[0] ?? null;
                 const isSTR = isShortTerm(r);
                 return (
                   <article
                     key={r.id}
                     className={`jobs-listing-card${isSTR ? " rental-str-card" : ""}`}
-                    onClick={() => { setSelectedRental(r); navigateTo("rental-detail"); }}
+                    onClick={() => { setSelectedRental(r); setRentalGalleryIdx(0); navigateTo("rental-detail"); }}
                   >
                     {photo && (
                       <div className="jobs-listing-img-wrap">
                         <img src={photo} alt={r.title} className="jobs-listing-img" />
+                        {rPhotos.length > 1 && (
+                          <span className="rental-photo-count">📷 {rPhotos.length}</span>
+                        )}
                       </div>
                     )}
                     <div className="jobs-listing-body">
@@ -6923,8 +6930,42 @@ function App() {
             ← Back to Rentals
           </button>
           {photos.length > 0 && (
-            <div className="jobs-detail-img-wrap">
-              <img src={photos[0]} alt={r.title} className="jobs-detail-img" />
+            <div className="rental-detail-gallery-wrap">
+              <div
+                className="rental-detail-gallery"
+                ref={rentalGalleryRef}
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  const firstItem = el.firstChild;
+                  if (!firstItem) return;
+                  const pitch = firstItem.offsetWidth + 10; // item width + gap
+                  setRentalGalleryIdx(Math.min(photos.length - 1, Math.round(el.scrollLeft / pitch)));
+                }}
+              >
+                {photos.map((src, i) => (
+                  <div key={i} className="rental-detail-gallery-item">
+                    <img src={src} alt={`${r.title} · foto ${i + 1}`} className="rental-detail-gallery-img" />
+                  </div>
+                ))}
+              </div>
+              {photos.length > 1 && (
+                <div className="rental-gallery-dots">
+                  {photos.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={`Foto ${i + 1}`}
+                      className={`rental-gallery-dot${i === rentalGalleryIdx ? " is-active" : ""}`}
+                      onClick={() => {
+                        const el = rentalGalleryRef.current;
+                        if (!el || !el.firstChild) return;
+                        const pitch = el.firstChild.offsetWidth + 10;
+                        el.scrollTo({ left: i * pitch, behavior: "smooth" });
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
           <section className="job-detail-section">
@@ -6936,7 +6977,16 @@ function App() {
                 : r.price || "Price on request"}
             </p>
             {!isSTR && r.deposit && <p className="job-detail-meta">Deposit: {r.deposit}</p>}
-            <p className="job-detail-meta">📍 {r.address}</p>
+            <p className="job-detail-meta">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rental-address-link"
+              >
+                📍 {r.address}
+              </a>
+            </p>
             {(r.bedrooms || r.bathrooms) && (
               <p className="job-detail-meta">
                 {r.bedrooms ? `🛏️ ${r.bedrooms}` : ""}
