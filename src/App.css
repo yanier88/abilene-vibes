@@ -3247,7 +3247,7 @@
 /* ── Rental detail photo gallery ──────────────────────────────── */
 }.rental-detail-gallery{display:flex;gap:10px;overflow-x:scroll;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px
 }.rental-detail-gallery::-webkit-scrollbar{display:none
-}.rental-detail-gallery-item{flex:0 0 min(88vw,520px);aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#040a1c
+}.rental-detail-gallery-item{flex:0 0 min(96vw,580px);aspect-ratio:3/2;border-radius:14px;overflow:hidden;background:#040a1c
 }.rental-detail-gallery-img{width:100%;height:100%;object-fit:contain;background:#040a1c;display:block
 }.rental-gallery-dots{display:flex;justify-content:center;gap:7px;padding:2px 0
 }.rental-gallery-dot{width:8px;height:8px;border-radius:50%;border:none;padding:0;cursor:pointer;background:#ffffff35;transition:background .18s,box-shadow .18s
