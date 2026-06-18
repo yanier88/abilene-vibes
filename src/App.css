@@ -3251,8 +3251,9 @@
 }.rental-gallery-dots{display:flex;justify-content:center;gap:7px;padding:2px 0
 }.rental-gallery-dot{width:8px;height:8px;border-radius:50%;border:none;padding:0;cursor:pointer;background:#ffffff35;transition:background .18s,box-shadow .18s
 }.rental-gallery-dot.is-active{background:#00d4ff;box-shadow:0 0 7px #00d4ff
-}.rental-address-link{color:inherit;text-decoration:none;border-bottom:1px dashed #ffffff40
-}.rental-address-link:active{color:#00d4ff;border-bottom-color:#00d4ff
+}.rental-address-link{display:inline-flex;align-items:center;gap:6px;color:#00d4ff;text-decoration:none;background:linear-gradient(135deg,#00d4ff12,#8d35ff0a);border:1.5px solid #00d4ff55;border-radius:10px;padding:8px 14px;font-size:.9rem;box-shadow:0 0 10px #00d4ff22,0 2px 8px #0000003a;transition:box-shadow .18s,border-color .18s,background .18s;cursor:pointer;word-break:break-word
+}.rental-address-link:hover{border-color:#00d4ffaa;box-shadow:0 0 18px #00d4ff44,0 2px 12px #00000050;background:linear-gradient(135deg,#00d4ff1e,#8d35ff15)
+}.rental-address-link:active{color:#fff;border-color:#00d4ff;box-shadow:0 0 24px #00d4ff77;background:linear-gradient(135deg,#00d4ff28,#8d35ff1e)
 
 }.marketplace-detail-card{color:#fff;-webkit-backdrop-filter:blur(12px)saturate(1.3);backdrop-filter:blur(12px)saturate(1.3);background:linear-gradient(145deg,#ffffff29,#ffffff0e),#080a20c7;border:1px solid #00d4ff57;border-radius:24px;gap:16px;padding:14px;display:grid;box-shadow:0 18px 42px #00000061,inset 0 1px #ffffff24
 }.marketplace-detail-photo{color:#fff;width:100%;min-height:min(58vh,430px);font:inherit;background:radial-gradient(circle at 30% 20%,#ff00cc38,#0000 54%),#00d4ff1f;border:1px solid #ff00cc61;border-radius:20px;place-items:center;display:grid;overflow:hidden
