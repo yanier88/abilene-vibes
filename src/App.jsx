@@ -89,6 +89,9 @@ const validPages = new Set([
   "terms",
   "privacy",
   "admin",
+  "rentals",
+  "rental-detail",
+  "post-rental",
 ]);
 
 const pageFromLocation = () => {
@@ -3146,6 +3149,15 @@ function App() {
     await loadAdminData();
   };
 
+  const handleToggleRentalStatus = async (r) => {
+    if (!supabase || !adminSession) return;
+    const nextStatus = r.status === "hidden" ? "approved" : "hidden";
+    setAdminStatus("saving");
+    const { error } = await supabase.from("rental_listings").update({ status: nextStatus }).eq("id", r.id);
+    if (error) { setAdminStatus("error"); return; }
+    await loadAdminData();
+  };
+
   const handleSaveRental = async () => {
     if (!supabase || !adminSession || !editingRental) return;
     setAdminStatus("saving");
@@ -3164,6 +3176,7 @@ function App() {
         plan:           editingRental.plan,
         status:         editingRental.status,
         pets_allowed:   editingRental.pets_allowed ?? false,
+        image_data:     editingRental.image_data ?? [],
         ...(isSTR ? {
           price_per_night: editingRental.price_per_night || null,
           price_per_week:  editingRental.price_per_week  || null,
@@ -7896,6 +7909,54 @@ function App() {
                 <option value="hidden">hidden</option>
               </select>
             </label>
+            <div className="form-field">
+              <span>Photos</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
+                {(editingRental.image_data ?? []).map((src, idx) => (
+                  <div key={idx} style={{ position: "relative" }}>
+                    <img src={src} alt={`Photo ${idx + 1}`} style={{ width: "90px", height: "70px", objectFit: "cover", borderRadius: "8px" }} />
+                    <button
+                      type="button"
+                      onClick={() => setEditingRental((prev) => ({ ...prev, image_data: (prev.image_data ?? []).filter((_, i) => i !== idx) }))}
+                      style={{ position: "absolute", top: "2px", right: "2px", background: "rgba(0,0,0,0.7)", color: "#fff", border: "none", borderRadius: "50%", width: "20px", height: "20px", cursor: "pointer", fontSize: "12px", lineHeight: "20px", padding: 0 }}
+                      aria-label="Remove photo"
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+              {(editingRental.image_data ?? []).length < 8 && (
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style={{ marginTop: "8px" }}
+                  onChange={async (e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    const remaining = 8 - (editingRental.image_data ?? []).length;
+                    const toAdd = files.slice(0, remaining);
+                    for (const file of toAdd) {
+                      try {
+                        const compressed = await optimizeGalleryImage(file);
+                        const reader = new FileReader();
+                        reader.onload = (ev) => setEditingRental((prev) => {
+                          const current = prev.image_data ?? [];
+                          return current.length < 8 ? { ...prev, image_data: [...current, ev.target.result] } : prev;
+                        });
+                        reader.readAsDataURL(compressed);
+                      } catch {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => setEditingRental((prev) => {
+                          const current = prev.image_data ?? [];
+                          return current.length < 8 ? { ...prev, image_data: [...current, ev.target.result] } : prev;
+                        });
+                        reader.readAsDataURL(file);
+                      }
+                    }
+                    e.target.value = "";
+                  }}
+                />
+              )}
+            </div>
             {adminStatus === "error" && (
               <p className="form-error">Could not save. Try again.</p>
             )}
@@ -8805,6 +8866,13 @@ function App() {
                             onClick={() => { setEditingRental({ ...r }); setEditRentalPage(true); setAdminStatus(""); }}
                           >
                             Edit
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => handleToggleRentalStatus(r)}
+                          >
+                            {r.status === "hidden" ? "Show" : "Hide"}
                           </button>
                           <button
                             className="directory-link danger-link"
