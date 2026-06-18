@@ -1927,6 +1927,8 @@ function App() {
   const [postRentalError, setPostRentalError] = useState(null);
   const [postRentalPublishing, setPostRentalPublishing] = useState(false);
   // ── End Rent & Housing state ──────────────────────────────
+  const [rentalGalleryIdx, setRentalGalleryIdx] = useState(0);
+  const rentalGalleryRef = useRef(null);
 
   const imageViewerPhotoRef = useRef(null);
   const gallerySwipeTouchRef = useRef(null); // tracks touchstart X for marketplace-item swipe
@@ -6927,11 +6929,39 @@ function App() {
             ← Back to Rentals
           </button>
           {photos.length > 0 && (
-            <div className="rental-detail-gallery">
+            <div
+              className="rental-detail-gallery"
+              ref={rentalGalleryRef}
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                const firstItem = el.firstChild;
+                if (!firstItem) return;
+                const pitch = firstItem.offsetWidth + 10;
+                setRentalGalleryIdx(Math.min(photos.length - 1, Math.round(el.scrollLeft / pitch)));
+              }}
+            >
               {photos.map((src, i) => (
                 <div key={i} className="rental-detail-gallery-item">
                   <img src={src} alt={`${r.title} · foto ${i + 1}`} className="rental-detail-gallery-img" />
                 </div>
+              ))}
+            </div>
+          )}
+          {photos.length > 1 && (
+            <div className="rental-gallery-dots">
+              {photos.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  aria-label={`Foto ${i + 1}`}
+                  className={`rental-gallery-dot${i === rentalGalleryIdx ? " is-active" : ""}`}
+                  onClick={() => {
+                    const el = rentalGalleryRef.current;
+                    if (!el || !el.firstChild) return;
+                    const pitch = el.firstChild.offsetWidth + 10;
+                    el.scrollTo({ left: i * pitch, behavior: "smooth" });
+                  }}
+                />
               ))}
             </div>
           )}
@@ -6944,7 +6974,14 @@ function App() {
                 : r.price || "Price on request"}
             </p>
             {!isSTR && r.deposit && <p className="job-detail-meta">Deposit: {r.deposit}</p>}
-            <p className="job-detail-meta">📍 {r.address}</p>
+            <p className="job-detail-meta">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address ?? "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rental-address-link"
+              >📍 {r.address}</a>
+            </p>
             {(r.bedrooms || r.bathrooms) && (
               <p className="job-detail-meta">
                 {r.bedrooms ? `🛏️ ${r.bedrooms}` : ""}
