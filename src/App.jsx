@@ -3294,6 +3294,18 @@ function App() {
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
   };
 
+  const refreshChangedData = async (scope, options = {}) => {
+    if (scope === "businesses" || scope === "all") loadBusinessesPublic();
+    if (scope === "jobs" || scope === "all") loadJobsPublic();
+    if (scope === "rentals" || scope === "all") loadRentalsPublic();
+    if (scope === "marketplace" || scope === "all") loadMarketplacePublic();
+    if (scope === "events" || scope === "all") loadEventsPublic();
+    if (scope === "gallery" || scope === "all") loadGalleryPublic();
+    if (options.admin && adminSessionRef.current) {
+      await loadAdminData(undefined, options.showRefreshSuccess);
+    }
+  };
+
   const handleAdminLogin = async (event) => {
     event.preventDefault();
 
@@ -3355,7 +3367,17 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    const affectedScope =
+      table === "business_submissions"
+        ? "businesses"
+        : table === "job_listings"
+          ? "jobs"
+          : table === "event_submissions"
+            ? "events"
+            : table === "gallery_submissions"
+              ? "gallery"
+              : "all";
+    await refreshChangedData(affectedScope, { admin: true });
   };
 
   const deleteGalleryPhoto = async (id) => {
@@ -3378,7 +3400,7 @@ function App() {
     }
 
     setApprovedGalleryPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
-    await loadAdminData();
+    await refreshChangedData("gallery", { admin: true });
   };
 
   const handleDeleteJob = async (id) => {
@@ -3387,7 +3409,7 @@ function App() {
     setAdminStatus("saving");
     const { error } = await supabase.from("job_listings").delete().eq("id", id);
     if (error) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    await refreshChangedData("jobs", { admin: true });
   };
 
   const handleSaveJob = async () => {
@@ -3419,7 +3441,7 @@ function App() {
     setAdminStatus("");
     setEditingJob(null);
     setEditJobPage(false);
-    await loadAdminData();
+    await refreshChangedData("jobs", { admin: true });
   };
 
   const setJobPlan = async (job, plan) => {
@@ -3428,7 +3450,7 @@ function App() {
     setAdminStatus("saving");
     const { error } = await supabase.from("job_listings").update({ plan: cleanPlan }).eq("id", job.id);
     if (error) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    await refreshChangedData("jobs", { admin: true });
   };
 
   const handleDeleteRental = async (id) => {
@@ -3439,7 +3461,7 @@ function App() {
       listing_id: id,
     });
     if (error || data !== true) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    await refreshChangedData("rentals", { admin: true });
   };
 
   const adminRentalRpcPayload = (r, overrides = {}) => {
@@ -3483,7 +3505,7 @@ function App() {
     setAdminStatus("saving");
     const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { status: nextStatus }));
     if (error || data !== true) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    await refreshChangedData("rentals", { admin: true });
   };
 
   const handleSetRentalPlan = async (r, nextPlan) => {
@@ -3492,7 +3514,7 @@ function App() {
     setAdminStatus("saving");
     const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { plan: cleanPlan }));
     if (error || data !== true) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    await refreshChangedData("rentals", { admin: true });
   };
 
   const handleSetRentalPromo = async (r, promoPlan) => {
@@ -3507,7 +3529,7 @@ function App() {
     setAdminStatus("");
     setEditingRental(null);
     setEditRentalPage(false);
-    await loadAdminData();
+    await refreshChangedData("rentals", { admin: true });
   };
 
   const deleteBusiness = async (id) => {
@@ -3530,7 +3552,7 @@ function App() {
     }
 
     setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const editBusiness = async (business) => {
@@ -3586,7 +3608,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const applyBusinessCategoryPhoto = async (business) => {
@@ -3608,7 +3630,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const compBusinessPlacement = async (business, selectedPromoPlan = "") => {
@@ -3646,7 +3668,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const setPaidBusinessPlacement = async (business, plan) => {
@@ -3678,7 +3700,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const cancelBusinessSubscription = async (business) => {
@@ -3717,7 +3739,7 @@ function App() {
       return;
     }
 
-    await loadAdminData(undefined, true);
+    await refreshChangedData("businesses", { admin: true, showRefreshSuccess: true });
   };
 
   const clearCompBusinessPlacement = async (business) => {
@@ -3746,7 +3768,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const deleteEvent = async (id) => {
@@ -3768,7 +3790,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await refreshChangedData("events", { admin: true });
   };
 
   const unpublishBusiness = async (id) => {
@@ -3791,7 +3813,7 @@ function App() {
     }
 
     setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const restoreBusiness = async (business) => {
@@ -3808,7 +3830,7 @@ function App() {
     }
 
     setBusinesses((currentBusinesses) => [businessSubmissionToBusiness(business), ...currentBusinesses]);
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const hideStaticBusiness = async (business) => {
@@ -3830,7 +3852,7 @@ function App() {
     }
 
     setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const restoreStaticBusiness = async (business) => {
@@ -3848,7 +3870,7 @@ function App() {
     }
 
     setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
-    await loadAdminData();
+    await refreshChangedData("businesses", { admin: true });
   };
 
   const unpublishEvent = async (id) => {
@@ -3864,7 +3886,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await refreshChangedData("events", { admin: true });
   };
 
   const restoreEvent = async (id) => {
@@ -3880,7 +3902,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await refreshChangedData("events", { admin: true });
   };
 
   const editEvent = async (event) => {
@@ -3920,7 +3942,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await refreshChangedData("events", { admin: true });
   };
 
   const changeEventPhoto = async (eventId, file) => {
@@ -3950,7 +3972,7 @@ function App() {
         return;
       }
 
-      await loadAdminData();
+      await refreshChangedData("events", { admin: true });
     } catch {
       setAdminStatus("error");
     }
@@ -4026,7 +4048,7 @@ function App() {
     });
 
     if (wasCreated) {
-      await loadAdminData();
+      await refreshChangedData("events", { admin: true });
     }
   };
 
@@ -4047,7 +4069,7 @@ function App() {
       const wasCreated = await createEditableEventFromStatic(event, { image_data: imageData });
 
       if (wasCreated) {
-        await loadAdminData();
+        await refreshChangedData("events", { admin: true });
       }
     } catch {
       setAdminStatus("error");
@@ -4073,7 +4095,7 @@ function App() {
     }
 
     setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
-    await loadAdminData();
+    await refreshChangedData("events", { admin: true });
   };
 
   const restoreStaticEvent = async (event) => {
@@ -4091,7 +4113,7 @@ function App() {
     }
 
     setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
-    await loadAdminData();
+    await refreshChangedData("events", { admin: true });
   };
 
   const hideStaticGalleryPhoto = async (photo) => {
@@ -4113,7 +4135,7 @@ function App() {
     }
 
     setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
-    await loadAdminData();
+    await refreshChangedData("gallery", { admin: true });
   };
 
   const restoreStaticGalleryPhoto = async (photo) => {
@@ -4131,7 +4153,7 @@ function App() {
     }
 
     setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
-    await loadAdminData();
+    await refreshChangedData("gallery", { admin: true });
   };
 
   const deleteStaticItem = async (itemKey, title) => {
@@ -4159,7 +4181,7 @@ function App() {
 
     setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
     setDeletedStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
-    await loadAdminData();
+    await refreshChangedData("all", { admin: true });
   };
 
   const hiddenStaticItemSet = new Set(hiddenStaticItems);
@@ -4251,7 +4273,7 @@ function App() {
       if (error) { setAdminStatus("error"); setMarketplaceActionKey(""); return; }
       setHiddenStaticItems((items) => [...new Set([...items, marketplaceListingKey(l)])]);
       setDeletingListing(null);
-      await loadAdminData();
+      await refreshChangedData("marketplace", { admin: true });
       setMarketplaceActionKey("");
       return;
     }
@@ -4273,7 +4295,7 @@ function App() {
       setMarketplaceListings((items) => items.filter((i) => i.id !== l.id));
       if (selectedListing?.id === l.id) setSelectedListing(null);
       setDeletingListing(null);
-      await loadAdminData();
+      await refreshChangedData("marketplace", { admin: true });
       setMarketplaceActionKey("");
       return;
     }
@@ -4303,7 +4325,11 @@ function App() {
       ),
     );
     if (newStatus === "deleted") setDeletingListing(null);
-    if (adminSession) await loadAdminData();
+    if (adminSession) {
+      await refreshChangedData("marketplace", { admin: true });
+    } else {
+      loadMarketplacePublic();
+    }
     setMarketplaceActionKey("");
   };
 
@@ -4365,7 +4391,11 @@ function App() {
       );
       setEditDeleteStatus("");
       setEditingListing(null);
-      if (adminSession) await loadAdminData();
+      if (adminSession) {
+        await refreshChangedData("marketplace", { admin: true });
+      } else {
+        loadMarketplacePublic();
+      }
     } catch {
       setEditDeleteStatus("error");
     }
@@ -4424,6 +4454,7 @@ function App() {
       setSellItemStatus("saved");
       setSellItemPhotos([]);
       form.reset();
+      loadMarketplacePublic();
       navigateTo("marketplace");
     } catch {
       setSellItemStatus("error");
