@@ -2017,6 +2017,8 @@ function App() {
   const [editingListing, setEditingListing] = useState(null);
   const [deletingListing, setDeletingListing] = useState(null);
   const [editDeleteStatus, setEditDeleteStatus] = useState("");
+  const [marketplaceAdminStatusFilter, setMarketplaceAdminStatusFilter] = useState("all");
+  const [marketplaceActionKey, setMarketplaceActionKey] = useState("");
   const [sellItemPhotos, setSellItemPhotos] = useState([]);       // [{file, preview}] for sell form
   const [listingGalleryIndex, setListingGalleryIndex] = useState(0); // current photo index in detail view
   const [editListingPhotos, setEditListingPhotos] = useState([]); // existing photo data URLs in edit modal
@@ -4185,6 +4187,23 @@ function App() {
     acc.All = (acc.All ?? 0) + 1;
     return acc;
   }, { All: 0 });
+  const adminMarketplaceRestorableStatuses = ["active", "hidden", "sold"];
+  const adminMarketplaceCounts = adminMarketplaceListings.reduce(
+    (acc, listing) => {
+      const status = listing.status ?? "active";
+      if (adminMarketplaceRestorableStatuses.includes(status)) {
+        acc.all += 1;
+        acc[status] = (acc[status] ?? 0) + 1;
+      }
+      return acc;
+    },
+    { all: 0, active: 0, hidden: 0, sold: 0 },
+  );
+  const adminMarketplaceVisibleListings = adminMarketplaceListings.filter((listing) => {
+    const status = listing.status ?? "active";
+    if (!adminMarketplaceRestorableStatuses.includes(status)) return false;
+    return marketplaceAdminStatusFilter === "all" || status === marketplaceAdminStatusFilter;
+  });
   const isStarterOrLegacyListing = (l) => !l.isStarterListing && (!l.ownerUserId || l.ownerUserId === "legacy-owner");
   const isListingOwner = (l) => !!(l.ownerUserId === effectiveOwnerId || isStarterOrLegacyListing(l));
   const myMarketplaceListings = marketplaceListings.filter((l) => isListingOwner(l));
@@ -4219,6 +4238,8 @@ function App() {
   const setListingStatus = async (l, newStatus) => {
     const canAct = !!adminSession || isListingOwner(l);
     if (!supabase || !canAct) return;
+    const actionKey = `${l.id ?? marketplaceListingKey(l)}:${newStatus}`;
+    setMarketplaceActionKey(actionKey);
 
     if (newStatus === "deleted" && l.isStarterListing) {
       setAdminStatus("saving");
@@ -4227,10 +4248,11 @@ function App() {
         item_type: "deleted",
         title: l.title,
       });
-      if (error) { setAdminStatus("error"); return; }
+      if (error) { setAdminStatus("error"); setMarketplaceActionKey(""); return; }
       setHiddenStaticItems((items) => [...new Set([...items, marketplaceListingKey(l)])]);
       setDeletingListing(null);
       await loadAdminData();
+      setMarketplaceActionKey("");
       return;
     }
 
@@ -4238,6 +4260,7 @@ function App() {
     const update = { status: newStatus };
     if (isStarterOrLegacyListing(l)) update.owner_user_id = effectiveOwnerId;
     if (newStatus === "sold") update.sold_at = ts;
+    if (newStatus === "active") update.sold_at = null;
     if (newStatus === "deleted") update.deleted_at = ts;
 
     setAdminStatus("saving");
@@ -4246,11 +4269,12 @@ function App() {
       const { data, error } = await supabase.rpc("admin_delete_marketplace_listing", {
         listing_id: l.id,
       });
-      if (error || data !== true) { setAdminStatus("error"); return; }
+      if (error || data !== true) { setAdminStatus("error"); setMarketplaceActionKey(""); return; }
       setMarketplaceListings((items) => items.filter((i) => i.id !== l.id));
       if (selectedListing?.id === l.id) setSelectedListing(null);
       setDeletingListing(null);
       await loadAdminData();
+      setMarketplaceActionKey("");
       return;
     }
 
@@ -4262,18 +4286,25 @@ function App() {
           new_status: newStatus,
         });
 
-    if (error || (!adminSession && data !== true)) { setAdminStatus("error"); return; }
+    if (error || (!adminSession && data !== true)) { setAdminStatus("error"); setMarketplaceActionKey(""); return; }
 
     if (selectedListing?.id === l.id) setSelectedListing((prev) => (prev ? { ...prev, ...update } : null));
     setMarketplaceListings((items) =>
       items.map((i) =>
         i.id === l.id
-          ? { ...i, status: newStatus, ownerUserId: update.owner_user_id ?? i.ownerUserId, soldAt: update.sold_at ?? i.soldAt, deletedAt: update.deleted_at ?? i.deletedAt }
+          ? {
+              ...i,
+              status: newStatus,
+              ownerUserId: update.owner_user_id ?? i.ownerUserId,
+              soldAt: Object.prototype.hasOwnProperty.call(update, "sold_at") ? update.sold_at : i.soldAt,
+              deletedAt: update.deleted_at ?? i.deletedAt,
+            }
           : i,
       ),
     );
     if (newStatus === "deleted") setDeletingListing(null);
     if (adminSession) await loadAdminData();
+    setMarketplaceActionKey("");
   };
 
   const confirmDeleteListing = async (e) => {
@@ -9744,6 +9775,23 @@ function App() {
                   <p className="eyebrow">All listings</p>
                   <h2 id="admin-marketplace-title">Marketplace</h2>
                 </div>
+                <div className="jobs-filter-bar marketplace-admin-filter-bar" aria-label="Marketplace status filters">
+                  {[
+                    ["all", "All"],
+                    ["active", "Active"],
+                    ["hidden", "Hidden"],
+                    ["sold", "Sold"],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={marketplaceAdminStatusFilter === value ? "is-active" : ""}
+                      onClick={() => setMarketplaceAdminStatusFilter(value)}
+                    >
+                      {label} ({adminMarketplaceCounts[value] ?? 0})
+                    </button>
+                  ))}
+                </div>
 
                 {/* Edit modal (reuses editingListing + handleEditListingSubmit) */}
                 {editingListing && adminSession && (
@@ -9795,9 +9843,9 @@ function App() {
                             <input type="file" name="photo" accept="image/*" />
                           </label>
                         </div>
-                        <div className="directory-actions" style={{ marginTop: "1rem" }}>
+                        <div className="directory-actions marketplace-admin-modal-actions">
                           <button
-                            className="primary-button admin-modal-primary"
+                            className="directory-link marketplace-admin-action"
                             type="submit"
                             disabled={editDeleteStatus === "saving"}
                           >
@@ -9805,15 +9853,20 @@ function App() {
                           </button>
                           {editingListing.status !== editingListing._origStatus && (
                             <button
-                              className="directory-link"
+                              className="directory-link marketplace-admin-action"
                               type="button"
                               onClick={() => setListingStatus(editingListing, editingListing.status)}
-                              disabled={editDeleteStatus === "saving"}
+                              disabled={editDeleteStatus === "saving" || Boolean(marketplaceActionKey)}
                             >
-                              Change Status Only
+                              {marketplaceActionKey ? "Updating..." : "Change Status Only"}
                             </button>
                           )}
-                          <button className="directory-link" type="button" onClick={() => setEditingListing(null)}>
+                          <button
+                            className="directory-link marketplace-admin-action"
+                            type="button"
+                            onClick={() => setEditingListing(null)}
+                            disabled={editDeleteStatus === "saving" || Boolean(marketplaceActionKey)}
+                          >
                             Cancel
                           </button>
                         </div>
@@ -9823,9 +9876,9 @@ function App() {
                   </div>
                 )}
 
-                {adminMarketplaceListings.length ? (
+                {adminMarketplaceVisibleListings.length ? (
                   <div className="admin-grid">
-                    {adminMarketplaceListings.map((listing) => (
+                    {adminMarketplaceVisibleListings.map((listing) => (
                       <article className="admin-card" key={listing.id}>
                         {listing.image_data && (
                           <img
@@ -9853,53 +9906,67 @@ function App() {
                           {listing.expires_at ? ` · Expires: ${new Date(listing.expires_at).toLocaleDateString()}` : ""}
                           {listing.sold_at ? ` · Sold: ${new Date(listing.sold_at).toLocaleDateString()}` : ""}
                         </p>
-                        <div className="directory-actions">
+                        <div className="directory-actions marketplace-admin-actions">
                           <button
-                            className="directory-link"
+                            className="directory-link marketplace-admin-action"
                             type="button"
                             onClick={() => setEditingListing({ ...mapListingFromDb(listing), _origStatus: listing.status })}
+                            disabled={Boolean(marketplaceActionKey)}
                           >
                             Edit
                           </button>
-                          {listing.status !== "sold" && (
+                          {listing.status !== "sold" ? (
                             <button
-                              className="directory-link"
+                              className="directory-link marketplace-admin-action"
                               type="button"
                               onClick={() => setListingStatus(mapListingFromDb(listing), "sold")}
+                              disabled={marketplaceActionKey.startsWith(`${listing.id}:`)}
                             >
-                              Mark Sold
+                              {marketplaceActionKey === `${listing.id}:sold` ? "Updating..." : "Mark Sold"}
+                            </button>
+                          ) : (
+                            <button
+                              className="directory-link marketplace-admin-action"
+                              type="button"
+                              onClick={() => setListingStatus(mapListingFromDb(listing), "active")}
+                              disabled={marketplaceActionKey.startsWith(`${listing.id}:`)}
+                            >
+                              {marketplaceActionKey === `${listing.id}:active` ? "Updating..." : "Mark Available"}
                             </button>
                           )}
                           {listing.status === "hidden" ? (
                             <button
-                              className="directory-link"
+                              className="directory-link marketplace-admin-action"
                               type="button"
                               onClick={() => setListingStatus(mapListingFromDb(listing), "active")}
+                              disabled={marketplaceActionKey.startsWith(`${listing.id}:`)}
                             >
-                              Unhide
+                              {marketplaceActionKey === `${listing.id}:active` ? "Updating..." : "Show"}
                             </button>
                           ) : listing.status === "active" ? (
                             <button
-                              className="directory-link"
+                              className="directory-link marketplace-admin-action"
                               type="button"
                               onClick={() => setListingStatus(mapListingFromDb(listing), "hidden")}
+                              disabled={marketplaceActionKey.startsWith(`${listing.id}:`)}
                             >
-                              Hide
+                              {marketplaceActionKey === `${listing.id}:hidden` ? "Updating..." : "Hide"}
                             </button>
                           ) : null}
                           <button
-                            className="directory-link danger-link"
+                            className="directory-link danger-link marketplace-admin-action"
                             type="button"
                             onClick={() => setListingStatus(mapListingFromDb(listing), "deleted")}
+                            disabled={marketplaceActionKey.startsWith(`${listing.id}:`)}
                           >
-                            Delete
+                            {marketplaceActionKey === `${listing.id}:deleted` ? "Updating..." : "Delete"}
                           </button>
                         </div>
                       </article>
                     ))}
                   </div>
                 ) : (
-                  <p className="legal-disclaimer">No marketplace listings yet.</p>
+                  <p className="legal-disclaimer">No marketplace listings for this filter.</p>
                 )}
               </section>
 
