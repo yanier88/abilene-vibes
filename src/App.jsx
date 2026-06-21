@@ -17,6 +17,15 @@ const premiumPromotionRotationMs = 5000;
 
 const contactEmail = "abilenevibes@gmail.com";
 
+const formatPaymentAmount = (amount, currency = "usd") => {
+  const value = Number(amount ?? 0) / 100;
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: String(currency || "usd").toUpperCase(),
+  }).format(value);
+};
+
 const openCheckoutUrl = (url) => {
   const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
 
@@ -86,6 +95,12 @@ const validPages = new Set([
   "gallery",
   "promote",
   "directory",
+  "groceries",
+  "dealers",
+  "barbers",
+  "insurance",
+  "health",
+  "schools",
   "terms",
   "privacy",
   "admin",
@@ -1010,14 +1025,14 @@ const lobbyActions = [
 const moreServices = [
   { label: "Local News", icon: "news", page: "news" },
   { label: "Local Marketplace", icon: "sales", page: "marketplace" },
-  { label: "Groceries", icon: "groceries", page: "directory" },
+  { label: "Groceries", icon: "groceries", page: "groceries" },
   { label: "Jobs & Hiring", icon: "jobs", page: "jobs" },
   { label: "Rentals", icon: "rents", page: "rentals" },
-  { label: "Dealers", icon: "dealers", page: "directory" },
-  { label: "Insurance Companies", icon: "insurance", page: "directory" },
-  { label: "Barber Shops", icon: "barber", page: "directory" },
-  { label: "Health", icon: "health", page: "directory" },
-  { label: "Schools", icon: "schools", page: "directory" },
+  { label: "Dealers", icon: "dealers", page: "dealers" },
+  { label: "Insurance Companies", icon: "insurance", page: "insurance" },
+  { label: "Barber Shops", icon: "barber", page: "barbers" },
+  { label: "Health", icon: "health", page: "health" },
+  { label: "Schools", icon: "schools", page: "schools" },
 ];
 
 const verifiedNewsSources = [
@@ -1226,19 +1241,143 @@ const planRank = {
 
 const activePaidPaymentStatuses = new Set(["paid", "cancel_pending"]);
 
+const businessServiceSections = {
+  groceries: {
+    page: "groceries",
+    title: "Groceries",
+    eyebrow: "Local essentials",
+    intro: "Find grocery stores and food markets shared through Abilene Vibes.",
+    ariaLabel: "Abilene grocery businesses",
+    addButton: "Add Grocery Store",
+    closeButton: "Close Grocery Form",
+    formTitle: "Add Grocery Store",
+    namePlaceholder: "Grocery store name",
+    descriptionPlaceholder: "Tell people what they can find here.",
+    category: "Groceries",
+    categories: ["Groceries", "Grocery"],
+    emptyMessage: "No grocery listings yet.",
+    savedName: "grocery store",
+  },
+  dealers: {
+    page: "dealers",
+    title: "Dealers",
+    eyebrow: "Local auto",
+    intro: "Find local dealers shared through Abilene Vibes.",
+    ariaLabel: "Abilene dealer businesses",
+    addButton: "Add Dealer",
+    closeButton: "Close Dealer Form",
+    formTitle: "Add Dealer",
+    namePlaceholder: "Dealer name",
+    descriptionPlaceholder: "Tell people what vehicles or services they can find here.",
+    category: "Dealer",
+    categories: ["Dealer", "Dealers", "Car Dealer", "Auto Dealer"],
+    emptyMessage: "No dealer listings yet.",
+    savedName: "dealer",
+  },
+  barbers: {
+    page: "barbers",
+    title: "Barber Shop",
+    eyebrow: "Local grooming",
+    intro: "Find barber shops shared through Abilene Vibes.",
+    ariaLabel: "Abilene barber shop businesses",
+    addButton: "Add Barber Shop",
+    closeButton: "Close Barber Form",
+    formTitle: "Add Barber Shop",
+    namePlaceholder: "Barber shop name",
+    descriptionPlaceholder: "Tell people about cuts, appointments, and services.",
+    category: "Barber Shop",
+    categories: ["Barber", "Barber Shop", "Barbershop"],
+    emptyMessage: "No barber shop listings yet.",
+    savedName: "barber shop",
+  },
+  insurance: {
+    page: "insurance",
+    title: "Insurance",
+    eyebrow: "Local coverage",
+    intro: "Find insurance businesses shared through Abilene Vibes.",
+    ariaLabel: "Abilene insurance businesses",
+    addButton: "Add Insurance Company",
+    closeButton: "Close Insurance Form",
+    formTitle: "Add Insurance Company",
+    namePlaceholder: "Insurance company name",
+    descriptionPlaceholder: "Tell people about coverage, specialties, and services.",
+    category: "Insurance",
+    categories: ["Insurance", "Insurance Companies"],
+    emptyMessage: "No insurance listings yet.",
+    savedName: "insurance company",
+  },
+  health: {
+    page: "health",
+    title: "Health",
+    eyebrow: "Local care",
+    intro: "Find health and medical businesses shared through Abilene Vibes.",
+    ariaLabel: "Abilene health businesses",
+    addButton: "Add Health Listing",
+    closeButton: "Close Health Form",
+    formTitle: "Add Health Listing",
+    namePlaceholder: "Health business name",
+    descriptionPlaceholder: "Tell people about care, specialties, and services.",
+    category: "Health",
+    categories: ["Health", "Hospital", "Medical", "Clinic", "Dentist"],
+    emptyMessage: "No health listings yet.",
+    savedName: "health listing",
+  },
+  schools: {
+    page: "schools",
+    title: "Schools",
+    eyebrow: "Local learning",
+    intro: "Find schools and education listings shared through Abilene Vibes.",
+    ariaLabel: "Abilene school businesses",
+    addButton: "Add School",
+    closeButton: "Close School Form",
+    formTitle: "Add School",
+    namePlaceholder: "School name",
+    descriptionPlaceholder: "Tell people about programs, grades, or campus services.",
+    category: "Schools",
+    categories: ["School", "Schools", "College", "University"],
+    emptyMessage: "No school listings yet.",
+    savedName: "school",
+  },
+};
+
+const businessServicePages = Object.keys(businessServiceSections);
+
+const servicePageForBusinessCategory = (category) => {
+  const normalizedCategory = String(category ?? "").trim().toLowerCase();
+  const section = Object.values(businessServiceSections).find((config) =>
+    config.categories.some((option) => option.toLowerCase() === normalizedCategory),
+  );
+
+  return section?.page ?? "";
+};
+
 const categorySectionMap = {
   "Food trucks": "eats",
   Restaurants: "eats",
   "Clubs & Bars": "nightlife",
+  Barber: "barbers",
   "Barber Shop": "barbers",
+  Barbershop: "barbers",
   Hotels: "hotels",
   "Hotels & Rents": "hotels",
   Rentals: "rentals",
   Groceries: "groceries",
+  Grocery: "groceries",
+  Dealer: "dealers",
   Dealers: "dealers",
+  "Car Dealer": "dealers",
+  "Auto Dealer": "dealers",
   Insurance: "insurance",
+  "Insurance Companies": "insurance",
   Health: "health",
+  Hospital: "health",
+  Medical: "health",
+  Clinic: "health",
+  Dentist: "health",
+  School: "schools",
   Schools: "schools",
+  College: "schools",
+  University: "schools",
   Others: "directory",
 };
 
@@ -1809,6 +1948,8 @@ function App() {
   const [weather, setWeather] = useState({ temp: 72, isDay: false, label: "Abilene, TX" });
   const [selectedCategory, setSelectedCategory] = useState(promoteCategories[0].label);
   const [selectedPlan, setSelectedPlan] = useState(promotePlans[0].name);
+  const [showGroceryForm, setShowGroceryForm] = useState(false);
+  const [openBusinessServiceFormPage, setOpenBusinessServiceFormPage] = useState("");
   const [businessSubmitted, setBusinessSubmitted] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState("");
   const [businesses, setBusinesses] = useState([]);
@@ -1848,6 +1989,8 @@ function App() {
   const [adminJobListings, setAdminJobListings] = useState([]);
   const [adminMarketplaceListings, setAdminMarketplaceListings] = useState([]);
   const [adminRentalListings, setAdminRentalListings] = useState([]);
+  const [adminRentalStatusFilter, setAdminRentalStatusFilter] = useState("all");
+  const [paymentRecords, setPaymentRecords] = useState([]);
   const [editingJob, setEditingJob] = useState(null);
   const [editJobPage, setEditJobPage] = useState(false);
   const [editingRental, setEditingRental] = useState(null);
@@ -1926,6 +2069,9 @@ function App() {
   const [postRentalPhotos, setPostRentalPhotos] = useState([]); // [{file, preview}]
   const [postRentalError, setPostRentalError] = useState(null);
   const [postRentalPublishing, setPostRentalPublishing] = useState(false);
+  const [editingOwnerRental, setEditingOwnerRental] = useState(null);
+  const [deletingOwnerRental, setDeletingOwnerRental] = useState(null);
+  const [ownerRentalStatus, setOwnerRentalStatus] = useState("");
   // ── End Rent & Housing state ──────────────────────────────
   const [rentalGalleryIdx, setRentalGalleryIdx] = useState(0);
   const rentalGalleryRef = useRef(null);
@@ -1934,7 +2080,14 @@ function App() {
   const gallerySwipeTouchRef = useRef(null); // tracks touchstart X for marketplace-item swipe
   // Single ref that always mirrors current React state for the backButton handler.
   // Updated after every relevant render — handler reads .current directly, no stale closures.
-  const backHandlerStateRef = useRef({ page, imageViewerPhoto: null, postJobStep: "form", postRentalStep: "form" });
+  const backHandlerStateRef = useRef({
+    page,
+    imageViewerPhoto: null,
+    postJobStep: "form",
+    postRentalStep: "form",
+    showGroceryForm: false,
+    openBusinessServiceFormPage: "",
+  });
   const pageRef = useRef(page);
   const previousPageRef = useRef(page);
   const directoryReturnRef = useRef("lobby"); // tracks where directory was opened from
@@ -1965,8 +2118,15 @@ function App() {
 
   // Keep backHandlerStateRef in sync after every relevant render.
   useEffect(() => {
-    backHandlerStateRef.current = { page, imageViewerPhoto, postJobStep, postRentalStep };
-  }, [page, imageViewerPhoto, postJobStep, postRentalStep]);
+    backHandlerStateRef.current = {
+      page,
+      imageViewerPhoto,
+      postJobStep,
+      postRentalStep,
+      showGroceryForm,
+      openBusinessServiceFormPage,
+    };
+  }, [page, imageViewerPhoto, postJobStep, postRentalStep, showGroceryForm, openBusinessServiceFormPage]);
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -2051,15 +2211,25 @@ function App() {
 
   const loadRentalsPublic = useCallback(() => {
     if (!supabase) return;
-    supabase
-      .from("rental_listings")
-      .select("id,created_at,expires_at,title,property_type,price,deposit,price_per_night,price_per_week,available_from,available_to,max_guests,house_rules,pets_allowed,address,bedrooms,bathrooms,description,phone,email,external_url,duration,plan,status,image_data")
-      .eq("status", "approved")
-      .gte("expires_at", new Date().toISOString())
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) setRentalListings(data);
+    const baseSelect = "id,created_at,expires_at,title,property_type,price,deposit,price_per_night,price_per_week,available_from,available_to,max_guests,house_rules,pets_allowed,address,bedrooms,bathrooms,description,phone,email,external_url,duration,plan,status,image_data";
+    const queryRentals = (selectFields) =>
+      supabase
+        .from("rental_listings")
+        .select(selectFields)
+        .eq("status", "approved")
+        .gte("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false });
+
+    queryRentals(`${baseSelect},owner_user_id`).then(({ data, error }) => {
+      if (!error && data) {
+        setRentalListings(data);
+        return;
+      }
+      if (error?.code !== "42703") return;
+      queryRentals(baseSelect).then(({ data: fallbackData, error: fallbackError }) => {
+        if (!fallbackError && fallbackData) setRentalListings(fallbackData);
       });
+    });
   }, [supabase]);
 
   const loadBusinessesPublic = useCallback(() => {
@@ -2375,8 +2545,13 @@ function App() {
     CapacitorApp.addListener("backButton", () => {
       // Read exclusively from backHandlerStateRef — always reflects latest React state,
       // immune to stale closures, popstate races, and indirect ref timing issues.
-      const { page: currentPage, imageViewerPhoto: currentPhoto, postJobStep: currentPostJobStep } =
-        backHandlerStateRef.current;
+      const {
+        page: currentPage,
+        imageViewerPhoto: currentPhoto,
+        postJobStep: currentPostJobStep,
+        showGroceryForm: currentShowGroceryForm,
+        openBusinessServiceFormPage: currentOpenBusinessServiceFormPage,
+      } = backHandlerStateRef.current;
 
       // 1. Zoom overlay — close it, stay on current page.
       if (currentPhoto) {
@@ -2409,9 +2584,24 @@ function App() {
       }
 
       // 6. Top-level tabs — back to Service page.
+      if (currentPage === "groceries" && currentShowGroceryForm) {
+        setShowGroceryForm(false);
+        setBusinessSubmitted(false);
+        setSubmissionStatus("");
+        return;
+      }
+
+      if (businessServicePages.includes(currentPage) && currentOpenBusinessServiceFormPage === currentPage) {
+        setOpenBusinessServiceFormPage("");
+        setBusinessSubmitted(false);
+        setSubmissionStatus("");
+        return;
+      }
+
       if (
         currentPage === "news" ||
         currentPage === "marketplace" ||
+        businessServicePages.includes(currentPage) ||
         currentPage === "jobs" ||
         currentPage === "rentals"
       ) {
@@ -2495,18 +2685,22 @@ function App() {
     const imageFile = formData.get("businessImage");
     const imageData = imageFile && imageFile.size ? await optimizeGalleryImage(imageFile) : "";
     const submissionId = crypto.randomUUID();
+    const submissionCategory = String(formData.get("categoryOverride") || selectedCategory);
+    const submissionPlan = String(formData.get("planOverride") || selectedPlan);
+    const businessServicePage = servicePageForBusinessCategory(submissionCategory);
+    const isBusinessServiceSubmission = Boolean(businessServicePage);
     const business = {
       id: submissionId,
       name: formData.get("businessName").trim(),
       contactName: formData.get("contactName").trim(),
       contactEmail: formData.get("contactEmail").trim(),
-      category: selectedCategory,
+      category: submissionCategory,
       phone: formData.get("phone").trim(),
       social: formData.get("social").trim(),
       address: formData.get("address").trim(),
       description: formData.get("description").trim(),
       image: imageData,
-      plan: selectedPlan,
+      plan: submissionPlan,
     };
 
     setSubmissionStatus("saving");
@@ -2529,9 +2723,11 @@ function App() {
         content_rights_confirmed: formData.get("contentRights") === "on",
         status: "pending",
         payment_status: business.plan === "Free" ? "not_required" : "pending",
+        placement_source: "paid",
       });
 
       if (error) {
+        console.error("Business submission failed", error);
         setSubmissionStatus("error");
         return;
       }
@@ -2544,13 +2740,13 @@ function App() {
 
     setBusinessSubmitted(true);
 
-    if (isSupabaseSubmission && paidPlanNames.has(selectedPlan)) {
+    if (isSupabaseSubmission && paidPlanNames.has(submissionPlan)) {
       setSubmissionStatus("checkout");
       const returnUrl = window.location.origin.startsWith("https://") ? window.location.origin : "";
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           submissionId,
-          plan: selectedPlan,
+          plan: submissionPlan,
           businessName: business.name,
           contactEmail: business.contactEmail,
           returnUrl,
@@ -2559,10 +2755,37 @@ function App() {
 
       if (data?.url) {
         openCheckoutUrl(data.url);
+        if (isBusinessServiceSubmission) {
+          form.reset();
+          if (businessServicePage === "groceries") {
+            setShowGroceryForm(false);
+          }
+          setOpenBusinessServiceFormPage("");
+          setBusinessSubmitted(false);
+          setSubmissionStatus("");
+        }
         return;
       }
 
+      if (error) {
+        console.error("Checkout session failed", error);
+      }
       setSubmissionStatus(error?.message?.includes("APP_PUBLIC_URL") ? "checkout-config" : "checkout-error");
+      return;
+    }
+
+    if (isBusinessServiceSubmission) {
+      form.reset();
+      if (businessServicePage === "groceries") {
+        setShowGroceryForm(false);
+      }
+      setOpenBusinessServiceFormPage("");
+      setBusinessSubmitted(false);
+      setSubmissionStatus("");
+      if (isSupabaseSubmission) {
+        loadBusinessesPublic();
+      }
+      return;
     }
 
     form.reset();
@@ -2680,6 +2903,57 @@ function App() {
 
   const paymentBusinesses = paidOrPromoBusinesses.filter((business) => business.placement_source !== "comp");
   const promoBusinesses = paidOrPromoBusinesses.filter((business) => business.placement_source === "comp");
+  const paymentBusinessesById = paymentBusinesses.reduce((businessesById, business) => {
+    businessesById[business.id] = business;
+    return businessesById;
+  }, {});
+  const paymentRecordsByBusiness = paymentRecords.reduce((records, record) => {
+    if (!record.business_submission_id) {
+      return records;
+    }
+
+    const current = records[record.business_submission_id];
+    const currentTime = current?.paid_at ? new Date(current.paid_at).getTime() : 0;
+    const recordTime = record.paid_at ? new Date(record.paid_at).getTime() : 0;
+
+    if (!current || recordTime >= currentTime) {
+      records[record.business_submission_id] = record;
+    }
+
+    return records;
+  }, {});
+  const paymentFinancialSummary = paymentRecords.reduce(
+    (summary, record) => ({
+      gross: summary.gross + Number(record.gross_amount ?? 0),
+      fees: summary.fees + Number(record.stripe_fee ?? 0),
+      net: summary.net + Number(record.net_amount ?? 0),
+    }),
+    { gross: 0, fees: 0, net: 0 },
+  );
+  const paymentSummaryCurrency = paymentRecords[0]?.currency ?? "usd";
+  const paymentEarningsByBusiness = Object.values(paymentRecords.reduce((earnings, record) => {
+    const businessId = record.business_submission_id ?? record.stripe_payment_intent_id ?? record.id;
+    const business = paymentBusinessesById[record.business_submission_id];
+
+    if (!earnings[businessId]) {
+      earnings[businessId] = {
+        id: businessId,
+        name: business?.business_name ?? (record.business_submission_id ? `Business ${record.business_submission_id}` : "Stripe payment"),
+        currency: record.currency ?? "usd",
+        gross: 0,
+        fees: 0,
+        net: 0,
+        payments: 0,
+      };
+    }
+
+    earnings[businessId].gross += Number(record.gross_amount ?? 0);
+    earnings[businessId].fees += Number(record.stripe_fee ?? 0);
+    earnings[businessId].net += Number(record.net_amount ?? 0);
+    earnings[businessId].payments += 1;
+
+    return earnings;
+  }, {})).sort((left, right) => right.net - left.net);
 
   const paymentSummary = paymentBusinesses.reduce(
     (summary, business) => {
@@ -2814,6 +3088,7 @@ function App() {
       jobListingsResult,
       adminMarketplaceResult,
       adminRentalResult,
+      paymentRecordsResult,
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
@@ -2877,10 +3152,11 @@ function App() {
         .from("marketplace_listings")
         .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
         .order("created_at", { ascending: false }),
+      supabase.rpc("admin_list_rental_listings"),
       supabase
-        .from("rental_listings")
-        .select("id,created_at,expires_at,title,property_type,price,deposit,price_per_night,price_per_week,available_from,available_to,max_guests,house_rules,pets_allowed,address,bedrooms,bathrooms,description,phone,email,external_url,duration,plan,status,image_data")
-        .order("created_at", { ascending: false }),
+        .from("payment_records")
+        .select("id,created_at,business_submission_id,stripe_session_id,stripe_payment_intent_id,stripe_charge_id,stripe_balance_transaction_id,currency,gross_amount,stripe_fee,net_amount,paid_at,status")
+        .order("paid_at", { ascending: false }),
     ]);
 
     if (
@@ -2904,6 +3180,7 @@ function App() {
     }
     // rental_listings may not exist yet — fail gracefully without blocking other admin data
     setAdminRentalListings(adminRentalResult.error ? [] : (adminRentalResult.data ?? []));
+    setPaymentRecords(paymentRecordsResult.error ? [] : (paymentRecordsResult.data ?? []));
 
     setPendingGalleryPhotos(galleryResult.data ?? []);
     setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
@@ -3058,6 +3335,7 @@ function App() {
     setDeletedStaticItems([]);
     setBusinessReports([]);
     setItemReports([]);
+    setPaymentRecords([]);
     setAdminStatus("");
     setAdminTab("events");
   };
@@ -3142,59 +3420,88 @@ function App() {
     await loadAdminData();
   };
 
-  const handleDeleteRental = async (id) => {
+  const setJobPlan = async (job, plan) => {
     if (!supabase || !adminSession) return;
-    if (!window.confirm("Permanently delete this rental listing?")) return;
+    const cleanPlan = plan === "premium" ? "premium" : plan === "featured" ? "featured" : "free";
     setAdminStatus("saving");
-    const { error } = await supabase.from("rental_listings").delete().eq("id", id);
+    const { error } = await supabase.from("job_listings").update({ plan: cleanPlan }).eq("id", job.id);
     if (error) { setAdminStatus("error"); return; }
     await loadAdminData();
   };
 
-  const handleToggleRentalStatus = async (r) => {
+  const handleDeleteRental = async (id) => {
     if (!supabase || !adminSession) return;
-    const nextStatus = r.status === "hidden" ? "approved" : "hidden";
+    if (!window.confirm("Permanently delete this rental listing?")) return;
     setAdminStatus("saving");
-    const { error } = await supabase.from("rental_listings").update({ status: nextStatus }).eq("id", r.id);
-    if (error) { setAdminStatus("error"); return; }
+    const { data, error } = await supabase.rpc("admin_delete_rental_listing", {
+      listing_id: id,
+    });
+    if (error || data !== true) { setAdminStatus("error"); return; }
     await loadAdminData();
+  };
+
+  const adminRentalRpcPayload = (r, overrides = {}) => {
+    const rental = { ...r, ...overrides };
+    const isSTR = rental.property_type === "Short-Term";
+
+    return {
+      listing_id: rental.id,
+      new_title: rental.title,
+      new_property_type: rental.property_type,
+      new_address: rental.address,
+      new_description: rental.description || null,
+      new_phone: rental.phone || null,
+      new_email: rental.email || null,
+      new_external_url: rental.external_url || null,
+      new_duration: rental.duration || null,
+      new_plan: rental.plan || null,
+      new_status: rental.status || "approved",
+      new_pets_allowed: rental.pets_allowed ?? false,
+      new_image_data: rental.image_data ?? [],
+      new_price: isSTR ? null : (rental.price || null),
+      new_deposit: isSTR ? null : (rental.deposit || null),
+      new_price_per_night: isSTR ? (rental.price_per_night || null) : null,
+      new_price_per_week: isSTR ? (rental.price_per_week || null) : null,
+      new_available_from: isSTR ? (rental.available_from || null) : null,
+      new_available_to: isSTR ? (rental.available_to || null) : null,
+      new_max_guests: isSTR ? (rental.max_guests || null) : null,
+      new_house_rules: isSTR ? (rental.house_rules || null) : null,
+      new_bedrooms: isSTR ? null : (rental.bedrooms || null),
+      new_bathrooms: isSTR ? null : (rental.bathrooms || null),
+    };
+  };
+
+  const handleToggleRentalStatus = async (r) => {
+    const nextStatus = r.status === "hidden" ? "approved" : "hidden";
+    await handleSetRentalStatus(r, nextStatus);
+  };
+
+  const handleSetRentalStatus = async (r, nextStatus) => {
+    if (!supabase || !adminSession) return;
+    setAdminStatus("saving");
+    const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { status: nextStatus }));
+    if (error || data !== true) { setAdminStatus("error"); return; }
+    await loadAdminData();
+  };
+
+  const handleSetRentalPlan = async (r, nextPlan) => {
+    if (!supabase || !adminSession) return;
+    const cleanPlan = nextPlan === "premium" ? "premium" : nextPlan === "featured" ? "featured" : "free";
+    setAdminStatus("saving");
+    const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { plan: cleanPlan }));
+    if (error || data !== true) { setAdminStatus("error"); return; }
+    await loadAdminData();
+  };
+
+  const handleSetRentalPromo = async (r, promoPlan) => {
+    await handleSetRentalPlan(r, promoPlan);
   };
 
   const handleSaveRental = async () => {
     if (!supabase || !adminSession || !editingRental) return;
     setAdminStatus("saving");
-    const isSTR = editingRental.property_type === "Short-Term";
-    const { error } = await supabase
-      .from("rental_listings")
-      .update({
-        title:          editingRental.title,
-        property_type:  editingRental.property_type,
-        address:        editingRental.address,
-        description:    editingRental.description    || null,
-        phone:          editingRental.phone          || null,
-        email:          editingRental.email          || null,
-        external_url:   editingRental.external_url   || null,
-        duration:       editingRental.duration,
-        plan:           editingRental.plan,
-        status:         editingRental.status,
-        pets_allowed:   editingRental.pets_allowed ?? false,
-        image_data:     editingRental.image_data ?? [],
-        ...(isSTR ? {
-          price_per_night: editingRental.price_per_night || null,
-          price_per_week:  editingRental.price_per_week  || null,
-          available_from:  editingRental.available_from  || null,
-          available_to:    editingRental.available_to    || null,
-          max_guests:      editingRental.max_guests      || null,
-          house_rules:     editingRental.house_rules     || null,
-        } : {
-          price:     editingRental.price     || null,
-          deposit:   editingRental.deposit   || null,
-          bedrooms:  editingRental.bedrooms  || null,
-          bathrooms: editingRental.bathrooms || null,
-        }),
-      })
-      .eq("id", editingRental.id);
-    if (error) { setAdminStatus("error"); return; }
+    const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(editingRental));
+    if (error || data !== true) { setAdminStatus("error"); return; }
     setAdminStatus("");
     setEditingRental(null);
     setEditRentalPage(false);
@@ -4094,6 +4401,90 @@ function App() {
   // ── End marketplace computed ──────────────────────────────
 
   // ── Jobs computed ─────────────────────────────────────────
+  const isRentalOwner = (r) => !!(r?.owner_user_id && r.owner_user_id === effectiveOwnerId);
+
+  const mergeRentalUpdate = (id, update) => {
+    setRentalListings((items) => items.map((item) => (item.id === id ? { ...item, ...update } : item)));
+    setSelectedRental((prev) => (prev?.id === id ? { ...prev, ...update } : prev));
+  };
+
+  const handleOwnerRentalEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!supabase || !editingOwnerRental || !isRentalOwner(editingOwnerRental)) return;
+    const form = new FormData(e.currentTarget);
+    const isSTR = form.get("property_type") === "Short-Term";
+    const update = {
+      title: form.get("title").trim(),
+      property_type: form.get("property_type"),
+      address: form.get("address").trim(),
+      description: form.get("description").trim() || null,
+      phone: form.get("phone").trim() || null,
+      email: form.get("email").trim() || null,
+      external_url: form.get("external_url").trim() || null,
+      price: isSTR ? null : form.get("price").trim() || null,
+      deposit: isSTR ? null : form.get("deposit").trim() || null,
+      price_per_night: isSTR ? form.get("price_per_night").trim() || null : null,
+      price_per_week: isSTR ? form.get("price_per_week").trim() || null : null,
+      available_from: isSTR ? form.get("available_from") || null : null,
+      available_to: isSTR ? form.get("available_to") || null : null,
+      max_guests: isSTR ? form.get("max_guests").trim() || null : null,
+      house_rules: isSTR ? form.get("house_rules").trim() || null : null,
+      pets_allowed: form.get("pets_allowed") === "on",
+      bedrooms: isSTR ? null : form.get("bedrooms") || null,
+      bathrooms: isSTR ? null : form.get("bathrooms") || null,
+    };
+    setOwnerRentalStatus("saving");
+    const { data, error } = await supabase.rpc("owner_update_rental_listing", {
+      listing_id: editingOwnerRental.id,
+      owner_id: effectiveOwnerId,
+      new_title: update.title,
+      new_property_type: update.property_type,
+      new_address: update.address,
+      new_description: update.description,
+      new_phone: update.phone,
+      new_email: update.email,
+      new_external_url: update.external_url,
+      new_price: update.price,
+      new_deposit: update.deposit,
+      new_price_per_night: update.price_per_night,
+      new_price_per_week: update.price_per_week,
+      new_available_from: update.available_from,
+      new_available_to: update.available_to,
+      new_max_guests: update.max_guests,
+      new_house_rules: update.house_rules,
+      new_pets_allowed: update.pets_allowed,
+      new_bedrooms: update.bedrooms,
+      new_bathrooms: update.bathrooms,
+    });
+    if (error || data !== true) {
+      setOwnerRentalStatus("error");
+      return;
+    }
+    mergeRentalUpdate(editingOwnerRental.id, update);
+    setEditingOwnerRental(null);
+    setOwnerRentalStatus("");
+  };
+
+  const confirmDeleteOwnerRental = async () => {
+    if (!supabase || !deletingOwnerRental || !isRentalOwner(deletingOwnerRental)) return;
+    setOwnerRentalStatus("saving");
+    const { data, error } = await supabase.rpc("owner_delete_rental_listing", {
+      listing_id: deletingOwnerRental.id,
+      owner_id: effectiveOwnerId,
+    });
+    if (error || data !== true) {
+      setOwnerRentalStatus("error");
+      return;
+    }
+    setRentalListings((items) => items.filter((item) => item.id !== deletingOwnerRental.id));
+    if (selectedRental?.id === deletingOwnerRental.id) {
+      setSelectedRental(null);
+      navigateTo("rentals");
+    }
+    setDeletingOwnerRental(null);
+    setOwnerRentalStatus("");
+  };
+
   const jobPlanOrder = { premium: 0, featured: 1, free: 2 };
   const allJobListings = [
     ...postedJobs.map((j) => ({ ...j, tag: j.plan === "free" ? "New Today" : j.plan === "featured" ? "Featured" : "Premium", filters: [j.type, "New Today"] })),
@@ -4109,6 +4500,9 @@ function App() {
     (j.filters ?? []).forEach((f) => { acc[f] = (acc[f] ?? 0) + 1; });
     return acc;
   }, {});
+  const filteredAdminRentalListings = adminRentalListings.filter((r) => (
+    adminRentalStatusFilter === "all" || (r.status ?? "approved") === adminRentalStatusFilter
+  ));
   // ── End jobs computed ──────────────────────────────────────
   const deletedStaticItemSet = new Set(deletedStaticItems);
   const visibleInitialBusinesses = initialBusinesses.filter(
@@ -4144,29 +4538,127 @@ function App() {
     .sort((a, b) => (planRank[a.plan] ?? 99) - (planRank[b.plan] ?? 99));
   const premiumBusinesses = paidBusinesses.filter((business) => business.plan === "Premium");
   const lobbyFeaturedBusinesses = paidBusinesses.filter((business) => business.plan === "Featured");
+  const jobLobbyImage = (job) => job.image || appAsset("jobs-bg.png");
+  const toBusinessLobbyItem = (business) => ({
+    type: "business",
+    source: "business_submissions",
+    id: business.id,
+    title: business.name,
+    name: business.name,
+    category: business.category,
+    categoryLabel: business.category,
+    phone: business.phone,
+    image: businessDisplayImage(business),
+    business,
+  });
+  const toJobLobbyItem = (job) => ({
+    type: "job",
+    source: "job_listings",
+    id: job.id,
+    title: job.title,
+    name: job.title,
+    subtitle: job.company,
+    company: job.company,
+    category: "Jobs & Hiring",
+    categoryLabel: "Jobs & Hiring",
+    plan: job.plan,
+    image: jobLobbyImage(job),
+    pay: job.pay,
+    location: job.location,
+    job,
+  });
+  const toRentalLobbyItem = (rental) => {
+    const photos = Array.isArray(rental.image_data) ? rental.image_data.filter(Boolean) : [];
+    const isShortTermRental = rental.property_type === "Short-Term";
+    const priceLabel = isShortTermRental
+      ? [rental.price_per_night && `${rental.price_per_night}/night`, rental.price_per_week && `${rental.price_per_week}/week`].filter(Boolean).join(" - ")
+      : rental.price;
+
+    return {
+      type: "rental",
+      source: "rental_listings",
+      id: rental.id,
+      title: rental.title,
+      name: rental.title,
+      subtitle: rental.address,
+      category: "Rent & Housing",
+      categoryLabel: "Rent & Housing",
+      plan: String(rental.plan ?? "free").toLowerCase(),
+      image: photos[0] || appAsset("rentals-bg.png"),
+      price: priceLabel,
+      location: rental.address,
+      rental,
+    };
+  };
+  const lobbyFeaturedItems = [
+    ...lobbyFeaturedBusinesses.map(toBusinessLobbyItem),
+    ...allJobListings.filter((job) => job.plan === "featured").map(toJobLobbyItem),
+    ...rentalListings
+      .filter((rental) => String(rental.plan ?? "free").toLowerCase() === "featured")
+      .map(toRentalLobbyItem),
+  ];
+  const premiumLobbyItems = [
+    ...premiumBusinesses.map(toBusinessLobbyItem),
+    ...allJobListings.filter((job) => job.plan === "premium").map(toJobLobbyItem),
+    ...rentalListings
+      .filter((rental) => String(rental.plan ?? "free").toLowerCase() === "premium")
+      .map(toRentalLobbyItem),
+  ];
   const lobbyClickReports = itemReports.filter((report) => report.itemType === "Lobby");
   const serviceClickReports = itemReports.filter((report) => report.itemType !== "Lobby");
-  const lobbyCarouselLength = lobbyFeaturedBusinesses.length + 1;
+  const lobbyCarouselLength = lobbyFeaturedItems.length + 1;
   const normalizedLobbyCarouselIndex = lobbyCarouselIndex % lobbyCarouselLength;
-  const isLobbyAboutSlide = normalizedLobbyCarouselIndex === 0 || !lobbyFeaturedBusinesses.length;
-  const lobbyCarouselBusiness = isLobbyAboutSlide ? null : lobbyFeaturedBusinesses[normalizedLobbyCarouselIndex - 1];
-  const spotlightBusiness = premiumBusinesses[premiumCarouselIndex % Math.max(premiumBusinesses.length, 1)] ?? paidBusinesses[0];
+  const isLobbyAboutSlide = normalizedLobbyCarouselIndex === 0 || !lobbyFeaturedItems.length;
+  const lobbyCarouselItem = isLobbyAboutSlide ? null : lobbyFeaturedItems[normalizedLobbyCarouselIndex - 1];
+  const spotlightItem =
+    premiumLobbyItems[premiumCarouselIndex % Math.max(premiumLobbyItems.length, 1)] ??
+    paidBusinesses.map(toBusinessLobbyItem)[0];
   const spotlightEvent = allEvents[0] ?? events[0];
   const [spotlightEventDate, spotlightEventTime = ""] = spotlightEvent.date.split(" - ");
-  const openUpcomingHighlight = async () => {
-    if (!spotlightBusiness) {
+  const openLobbyPromotionItem = async (item, placement) => {
+    if (!item) {
       await trackLobbySectionClick("upcoming-highlight", "Upcoming Highlight");
       navigateTo("events");
       return;
     }
 
-    await trackPublicItemClick("service", `lobby-highlight-${spotlightBusiness.id}`, `Lobby: Highlight ${spotlightBusiness.name}`);
-    { const dest1 = categorySectionMap[spotlightBusiness.category] ?? "directory"; if (dest1 === "directory") directoryReturnRef.current = "lobby"; navigateTo(dest1); }
+    if (item.type === "job") {
+      await trackPublicItemClick("service", `lobby-${placement}-job-${item.id}`, `Lobby: ${placement} Job ${item.title}`);
+      setSelectedJob(item.job);
+      navigateTo("job-detail");
+      return;
+    }
+
+    if (item.type === "rental") {
+      await trackPublicItemClick("service", `lobby-${placement}-rental-${item.id}`, `Lobby: ${placement} Rental ${item.title}`);
+      setSelectedRental(item.rental);
+      setRentalGalleryIdx(0);
+      navigateTo("rental-detail");
+      return;
+    }
+
+    await trackPublicItemClick("service", `lobby-${placement}-${item.id}`, `Lobby: ${placement} ${item.name}`);
+    { const dest1 = categorySectionMap[item.business.category] ?? "directory"; if (dest1 === "directory") directoryReturnRef.current = "lobby"; navigateTo(dest1); }
+  };
+  const openUpcomingHighlight = async () => {
+    await openLobbyPromotionItem(spotlightItem, "highlight");
   };
   const categoryBusinessesFor = (section) =>
     paidBusinesses.filter((business) => categorySectionMap[business.category] === section);
   const directoryBusinesses = [...allBusinesses].sort(
     (a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99),
+  );
+  const businessServiceBusinessesByPage = Object.fromEntries(
+    Object.entries(businessServiceSections).map(([sectionPage, section]) => [
+      sectionPage,
+      businesses
+        .filter((business) =>
+          section.categories.some(
+            (category) => category.toLowerCase() === String(business.category ?? "").trim().toLowerCase(),
+          ),
+        )
+        .sort((a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99)),
+    ]),
   );
   const galleryPhotos = [...approvedGalleryPhotos, ...visibleStaticGalleryPhotos];
   const filteredLocalNewsItems =
@@ -4196,16 +4688,16 @@ function App() {
   }, [isLobbyAboutSlide, lobbyCarouselLength, lobbyCarouselIndex]);
 
   useEffect(() => {
-    if (premiumBusinesses.length <= 1) {
+    if (premiumLobbyItems.length <= 1) {
       return;
     }
 
     const timer = window.setInterval(() => {
-      setPremiumCarouselIndex((currentIndex) => (currentIndex + 1) % premiumBusinesses.length);
+      setPremiumCarouselIndex((currentIndex) => (currentIndex + 1) % premiumLobbyItems.length);
     }, premiumPromotionRotationMs);
 
     return () => window.clearInterval(timer);
-  }, [premiumBusinesses.length]);
+  }, [premiumLobbyItems.length]);
 
   const openImageViewer = (src, title) => {
     if (!src) {
@@ -4364,23 +4856,24 @@ function App() {
           </button>
 
           <button
-            className={`lobby-about${lobbyCarouselBusiness ? " is-featured" : ""}`}
+            className={`lobby-about${lobbyCarouselItem ? " is-featured" : ""}`}
             type="button"
             onClick={async () => {
-              if (lobbyCarouselBusiness) {
-                await trackPublicItemClick("service", `lobby-featured-${lobbyCarouselBusiness.id}`, `Lobby: Featured ${lobbyCarouselBusiness.name}`);
-                { const dest2 = categorySectionMap[lobbyCarouselBusiness.category] ?? "directory"; if (dest2 === "directory") directoryReturnRef.current = "lobby"; navigateTo(dest2); }
+              if (lobbyCarouselItem) {
+                await openLobbyPromotionItem(lobbyCarouselItem, "featured");
               }
             }}
-            aria-label={lobbyCarouselBusiness ? `Featured business ${lobbyCarouselBusiness.name}` : "About Abilene Vibes"}
+            aria-label={lobbyCarouselItem ? `Featured ${lobbyCarouselItem.categoryLabel} ${lobbyCarouselItem.name}` : "About Abilene Vibes"}
           >
-            {lobbyCarouselBusiness ? (
+            {lobbyCarouselItem ? (
               <>
-                <img className="lobby-about-thumb" src={businessDisplayImage(lobbyCarouselBusiness)} alt="" />
+                <img className="lobby-about-thumb" src={lobbyCarouselItem.image} alt="" />
                 <span>Featured local</span>
-                <strong>{lobbyCarouselBusiness.name}</strong>
-                <p>{lobbyCarouselBusiness.category}</p>
-                {lobbyCarouselBusiness.phone && <p>{lobbyCarouselBusiness.phone}</p>}
+                <strong>{lobbyCarouselItem.name}</strong>
+                <p>{lobbyCarouselItem.categoryLabel}</p>
+                {lobbyCarouselItem.type === "job" && lobbyCarouselItem.company && <p>{lobbyCarouselItem.company}</p>}
+                {lobbyCarouselItem.type === "rental" && lobbyCarouselItem.location && <p>{lobbyCarouselItem.location}</p>}
+                {lobbyCarouselItem.type === "business" && lobbyCarouselItem.phone && <p>{lobbyCarouselItem.phone}</p>}
               </>
             ) : (
               <>
@@ -4424,14 +4917,20 @@ function App() {
           </button>
 
           <button className="lobby-highlight" type="button" onClick={openUpcomingHighlight} aria-label="Upcoming highlight">
-            {spotlightBusiness ? (
+            {spotlightItem ? (
               <>
-                <img src={businessDisplayImage(spotlightBusiness)} alt="" />
+                <img src={spotlightItem.image} alt="" />
                 <div>
                   <span>Upcoming Highlight</span>
-                  <strong>{spotlightBusiness.name}</strong>
-                  <p>{spotlightBusiness.category}</p>
-                  <p>{spotlightBusiness.phone}</p>
+                  <strong>{spotlightItem.name}</strong>
+                  <p>{spotlightItem.categoryLabel}</p>
+                  <p>
+                    {spotlightItem.type === "job"
+                      ? (spotlightItem.pay || spotlightItem.location)
+                      : spotlightItem.type === "rental"
+                        ? (spotlightItem.price || spotlightItem.location)
+                        : spotlightItem.phone}
+                  </p>
                 </div>
               </>
             ) : (
@@ -6176,29 +6675,6 @@ function App() {
     const handlePostFree = async () => {
       setPostJobError(null);
       setPostJobPublishing(true);
-      const localFallbackJob = {
-        id: `posted-${Date.now()}`,
-        title: postJobForm.title,
-        company: postJobForm.company,
-        pay: payLabel,
-        location: postJobForm.location,
-        type: postJobForm.jobType,
-        schedule: "",
-        posted: "Posted Today",
-        category: postJobForm.category || "Other",
-        tag: "New Today",
-        filters: [postJobForm.jobType, "New Today"],
-        image: postJobImagePreview,
-        description: postJobForm.description,
-        requirements: postJobForm.requirements,
-        contact: postJobForm.phone,
-        email: postJobForm.email,
-        appMethod: postJobForm.appMethod,
-        applyUrl: postJobForm.applyUrl,
-        duration: postJobForm.duration,
-        plan: "free",
-      };
-
       try {
         if (supabase) {
           const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
@@ -6221,19 +6697,18 @@ function App() {
               apply_url: postJobForm.applyUrl || null,
               duration: postJobForm.duration || "30 Days",
               plan: "free",
-              status: "approved",
+              status: "pending",
               image_data: postJobImagePreview,
               logo_data: postJobLogoPreview,
               expires_at: expiresAt,
-            })
-            .select()
-            .single();
+            });
 
           if (error) {
             console.error("[Jobs] Supabase insert error:", error.message);
             // Fall back to in-memory so the user still sees their post
-            setPostedJobs((prev) => [localFallbackJob, ...prev]);
-          } else if (data) {
+            setPostJobError("Could not save this job for review. Please try again.");
+            return;
+          } else if (false && data) {
             const savedJob = {
               id: data.id,
               title: data.title,
@@ -6256,14 +6731,18 @@ function App() {
               duration: data.duration,
               plan: data.plan,
             };
-            setPostedJobs((prev) => [savedJob, ...prev]);
-          } else {
+            if (data.status === "approved") {
+              setPostedJobs((prev) => [savedJob, ...prev]);
+            }
+          } else if (false) {
             // insert succeeded but returned no row — use local fallback
-            setPostedJobs((prev) => [localFallbackJob, ...prev]);
+            setPostJobError("Could not confirm this job was saved for review. Please try again.");
+            return;
           }
         } else {
           // No Supabase configured — local-only fallback
-          setPostedJobs((prev) => [localFallbackJob, ...prev]);
+          setPostJobError("Connection unavailable. Check your internet and try again.");
+          return;
         }
 
         setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "" });
@@ -6282,28 +6761,6 @@ function App() {
     const handlePostFeatured = async () => {
       setPostJobError(null);
       setPostJobPublishing(true);
-      const localFallbackJob = {
-        id: `posted-${Date.now()}`,
-        title: postJobForm.title,
-        company: postJobForm.company,
-        pay: payLabel,
-        location: postJobForm.location || "Abilene, TX",
-        type: postJobForm.jobType || "Full Time",
-        schedule: "",
-        posted: "Posted Today",
-        category: postJobForm.category || "Other",
-        tag: "Featured",
-        filters: [postJobForm.jobType, "New Today"],
-        image: postJobImagePreview,
-        description: postJobForm.description,
-        requirements: postJobForm.requirements,
-        contact: postJobForm.phone,
-        email: postJobForm.email,
-        appMethod: postJobForm.appMethod,
-        applyUrl: postJobForm.applyUrl,
-        duration: postJobForm.duration,
-        plan: "featured",
-      };
       try {
         const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
         const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
@@ -6325,17 +6782,16 @@ function App() {
               apply_url: postJobForm.applyUrl || null,
               duration: postJobForm.duration || "30 Days",
               plan: "featured",
-              status: "approved",
+              status: "pending",
               image_data: postJobImagePreview,
               logo_data: postJobLogoPreview,
               expires_at: expiresAt,
-            })
-            .select()
-            .single();
+            });
           if (error) {
             console.error("[Jobs] Supabase insert error (featured):", error.message);
-            setPostedJobs((prev) => [localFallbackJob, ...prev]);
-          } else if (data) {
+            setPostJobError("Could not save this job for review. Please try again.");
+            return;
+          } else if (false && data) {
             const savedJob = {
               id: data.id,
               title: data.title,
@@ -6358,12 +6814,16 @@ function App() {
               duration: data.duration,
               plan: "featured",
             };
-            setPostedJobs((prev) => [savedJob, ...prev]);
-          } else {
-            setPostedJobs((prev) => [localFallbackJob, ...prev]);
+            if (data.status === "approved") {
+              setPostedJobs((prev) => [savedJob, ...prev]);
+            }
+          } else if (false) {
+            setPostJobError("Could not confirm this job was saved for review. Please try again.");
+            return;
           }
         } else {
-          setPostedJobs((prev) => [localFallbackJob, ...prev]);
+          setPostJobError("Connection unavailable. Check your internet and try again.");
+          return;
         }
         setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
@@ -6381,28 +6841,6 @@ function App() {
     const handlePostPremium = async () => {
       setPostJobError(null);
       setPostJobPublishing(true);
-      const localFallbackJob = {
-        id: `posted-${Date.now()}`,
-        title: postJobForm.title,
-        company: postJobForm.company,
-        pay: payLabel,
-        location: postJobForm.location || "Abilene, TX",
-        type: postJobForm.jobType || "Full Time",
-        schedule: "",
-        posted: "Posted Today",
-        category: postJobForm.category || "Other",
-        tag: "Premium",
-        filters: [postJobForm.jobType, "New Today"],
-        image: postJobImagePreview,
-        description: postJobForm.description,
-        requirements: postJobForm.requirements,
-        contact: postJobForm.phone,
-        email: postJobForm.email,
-        appMethod: postJobForm.appMethod,
-        applyUrl: postJobForm.applyUrl,
-        duration: postJobForm.duration,
-        plan: "premium",
-      };
       try {
         const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
         const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
@@ -6424,17 +6862,16 @@ function App() {
               apply_url: postJobForm.applyUrl || null,
               duration: postJobForm.duration || "30 Days",
               plan: "premium",
-              status: "approved",
+              status: "pending",
               image_data: postJobImagePreview,
               logo_data: postJobLogoPreview,
               expires_at: expiresAt,
-            })
-            .select()
-            .single();
+            });
           if (error) {
             console.error("[Jobs] Supabase insert error (premium):", error.message);
-            setPostedJobs((prev) => [localFallbackJob, ...prev]);
-          } else if (data) {
+            setPostJobError("Could not save this job for review. Please try again.");
+            return;
+          } else if (false && data) {
             const savedJob = {
               id: data.id,
               title: data.title,
@@ -6457,12 +6894,16 @@ function App() {
               duration: data.duration,
               plan: "premium",
             };
-            setPostedJobs((prev) => [savedJob, ...prev]);
-          } else {
-            setPostedJobs((prev) => [localFallbackJob, ...prev]);
+            if (data.status === "approved") {
+              setPostedJobs((prev) => [savedJob, ...prev]);
+            }
+          } else if (false) {
+            setPostJobError("Could not confirm this job was saved for review. Please try again.");
+            return;
           }
         } else {
-          setPostedJobs((prev) => [localFallbackJob, ...prev]);
+          setPostJobError("Connection unavailable. Check your internet and try again.");
+          return;
         }
         setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
@@ -6478,7 +6919,7 @@ function App() {
     };
 
     return withSplash(
-      <main className="app jobs-page post-job-page">
+      <main className="app jobs-page post-job-page" style={{ "--jobs-bg": `url("${appAsset("jobs-bg.png")}")` }}>
         <div className="jobs-neon-bg" aria-hidden="true" />
         <div className="marketplace-shell jobs-shell post-job-shell">
           <button className="back-button" onClick={() => { if (postJobStep === "plan") { setPostJobStep("preview"); } else if (postJobStep === "preview") { setPostJobStep("form"); } else { navigateTo("jobs"); } }}>
@@ -6758,7 +7199,7 @@ function App() {
     }, {});
 
     return withSplash(
-      <main className="app jobs-page rentals-page">
+      <main className="app jobs-page rentals-page" style={{ "--rentals-bg": `url("${appAsset("rentals-bg.png")}")` }}>
         <div className="jobs-neon-bg rentals-neon-bg" aria-hidden="true" />
         <div className="marketplace-shell jobs-shell rentals-shell">
           <button className="back-button" onClick={() => navigateTo("more")}>
@@ -6864,7 +7305,7 @@ function App() {
                   <article
                     key={r.id}
                     className={`jobs-listing-card${isSTR ? " rental-str-card" : ""}`}
-                    onClick={() => { setSelectedRental(r); navigateTo("rental-detail"); }}
+                    onClick={() => { setSelectedRental(r); setRentalGalleryIdx(0); navigateTo("rental-detail"); }}
                   >
                     {photo && (
                       <div className="jobs-listing-img-wrap">
@@ -7029,11 +7470,151 @@ function App() {
                 </a>
               )}
             </div>
+            {isRentalOwner(r) && (
+              <div className="rental-owner-actions">
+                <button
+                  className="directory-link"
+                  type="button"
+                  onClick={() => { setEditingOwnerRental({ ...r }); setOwnerRentalStatus(""); }}
+                >
+                  Edit Listing
+                </button>
+                <button
+                  className="directory-link danger-link"
+                  type="button"
+                  onClick={() => { setDeletingOwnerRental({ ...r }); setOwnerRentalStatus(""); }}
+                >
+                  Delete
+                </button>
+              </div>
+            )}
             <p className="jobs-listing-posted" style={{ marginTop: "16px" }}>
               {formatJobPosted(r.created_at)}
               {r.expires_at ? ` · Expires ${new Date(r.expires_at).toLocaleDateString()}` : ""}
             </p>
           </section>
+          {editingOwnerRental && (
+            <div className="admin-modal-backdrop" role="presentation">
+              <section className="admin-modal rental-owner-modal" role="dialog" aria-modal="true" aria-labelledby="owner-rental-edit-title">
+                <div className="admin-modal-heading">
+                  <p className="eyebrow">Rent &amp; Housing</p>
+                  <h2 id="owner-rental-edit-title">Edit Listing</h2>
+                </div>
+                <form className="gallery-form" onSubmit={handleOwnerRentalEditSubmit}>
+                  <div className="form-grid">
+                    <label className="form-field">
+                      <span>Title</span>
+                      <input name="title" type="text" defaultValue={editingOwnerRental.title ?? ""} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Property Type</span>
+                      <select name="property_type" defaultValue={editingOwnerRental.property_type ?? "Apartment"} required>
+                        {rentalTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span>Address</span>
+                      <input name="address" type="text" defaultValue={editingOwnerRental.address ?? ""} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Rent/Price</span>
+                      <input name="price" type="text" defaultValue={editingOwnerRental.price ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Deposit</span>
+                      <input name="deposit" type="text" defaultValue={editingOwnerRental.deposit ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Price/Night</span>
+                      <input name="price_per_night" type="text" defaultValue={editingOwnerRental.price_per_night ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Price/Week</span>
+                      <input name="price_per_week" type="text" defaultValue={editingOwnerRental.price_per_week ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Available From</span>
+                      <input name="available_from" type="date" defaultValue={editingOwnerRental.available_from ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Available To</span>
+                      <input name="available_to" type="date" defaultValue={editingOwnerRental.available_to ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Max Guests</span>
+                      <input name="max_guests" type="text" defaultValue={editingOwnerRental.max_guests ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Bedrooms</span>
+                      <select name="bedrooms" defaultValue={editingOwnerRental.bedrooms ?? ""}>
+                        {["", "Studio", "1BR", "2BR", "3BR", "4BR+", "N/A"].map((value) => <option key={value || "empty"} value={value}>{value || "Select"}</option>)}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span>Bathrooms</span>
+                      <select name="bathrooms" defaultValue={editingOwnerRental.bathrooms ?? ""}>
+                        {["", "1", "1.5", "2", "2.5", "3+"].map((value) => <option key={value || "empty"} value={value}>{value || "Select"}</option>)}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span>Phone</span>
+                      <input name="phone" type="tel" defaultValue={editingOwnerRental.phone ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Email</span>
+                      <input name="email" type="email" defaultValue={editingOwnerRental.email ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>View Listing URL</span>
+                      <input name="external_url" type="url" defaultValue={editingOwnerRental.external_url ?? ""} />
+                    </label>
+                    <label className="form-field rental-owner-check">
+                      <input name="pets_allowed" type="checkbox" defaultChecked={editingOwnerRental.pets_allowed ?? false} />
+                      <span>Pets allowed</span>
+                    </label>
+                  </div>
+                  <label className="form-field">
+                    <span>Description</span>
+                    <textarea name="description" rows="4" defaultValue={editingOwnerRental.description ?? ""} />
+                  </label>
+                  <label className="form-field">
+                    <span>House Rules</span>
+                    <textarea name="house_rules" rows="3" defaultValue={editingOwnerRental.house_rules ?? ""} />
+                  </label>
+                  <div className="admin-modal-actions">
+                    <button className="primary-button admin-modal-primary" type="submit" disabled={ownerRentalStatus === "saving"}>
+                      {ownerRentalStatus === "saving" ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button className="directory-link" type="button" onClick={() => { setEditingOwnerRental(null); setOwnerRentalStatus(""); }}>
+                      Go Back
+                    </button>
+                  </div>
+                  {ownerRentalStatus === "error" && <p className="form-error">Could not save. Make sure the owner-control SQL has been applied.</p>}
+                </form>
+              </section>
+            </div>
+          )}
+          {deletingOwnerRental && (
+            <div className="admin-modal-backdrop" role="presentation">
+              <section className="admin-modal rental-owner-modal" role="dialog" aria-modal="true" aria-labelledby="owner-rental-delete-title">
+                <div className="admin-modal-heading">
+                  <p className="eyebrow">Rent &amp; Housing</p>
+                  <h2 id="owner-rental-delete-title">Delete Listing?</h2>
+                </div>
+                <p>Delete this rental listing from Rent &amp; Housing?</p>
+                <p>{deletingOwnerRental.title}</p>
+                <div className="admin-modal-actions">
+                  <button className="directory-link danger-link" type="button" onClick={confirmDeleteOwnerRental} disabled={ownerRentalStatus === "saving"}>
+                    {ownerRentalStatus === "saving" ? "Deleting..." : "Delete Listing"}
+                  </button>
+                  <button className="directory-link" type="button" onClick={() => { setDeletingOwnerRental(null); setOwnerRentalStatus(""); }}>
+                    Go Back
+                  </button>
+                </div>
+                {ownerRentalStatus === "error" && <p className="form-error">Could not delete. Make sure the owner-control SQL has been applied.</p>}
+              </section>
+            </div>
+          )}
         </div>
       </main>,
     );
@@ -7109,10 +7690,11 @@ function App() {
           external_url:  postRentalForm.externalUrl.trim()  || null,
           duration:      postRentalForm.duration,
           plan:          "free",
-          status:        "approved",
+          status:        "pending",
           expires_at,
           image_data,
           pets_allowed:  postRentalForm.petsAllowed,
+          owner_user_id: effectiveOwnerId,
         };
         if (isShortTerm) {
           record.price_per_night = postRentalForm.pricePerNight.trim() || null;
@@ -7130,7 +7712,12 @@ function App() {
             record.bathrooms  = postRentalForm.bathrooms  || null;
           }
         }
-        const { error } = await supabase.from("rental_listings").insert([record]);
+        let { error } = await supabase.from("rental_listings").insert([record]);
+        if (error?.code === "PGRST204" || error?.code === "42703") {
+          const recordWithoutOwner = { ...record };
+          delete recordWithoutOwner.owner_user_id;
+          ({ error } = await supabase.from("rental_listings").insert([recordWithoutOwner]));
+        }
         if (error) throw error;
         setPostRentalForm({
           title:"", propertyType:"Apartment", price:"", deposit:"",
@@ -7155,7 +7742,7 @@ function App() {
     // ── PREVIEW STEP ─────────────────────────────────────────
     if (postRentalStep === "preview") {
       return withSplash(
-        <main className="app jobs-page rentals-page post-rental-page">
+        <main className="app jobs-page rentals-page post-rental-page" style={{ "--rentals-bg": `url("${appAsset("rentals-bg.png")}")` }}>
           <div className="jobs-neon-bg rentals-neon-bg" aria-hidden="true" />
           <div className="marketplace-shell jobs-shell rentals-shell" style={{ paddingBottom:100 }}>
             <button className="back-button" onClick={() => setPostRentalStep("form")}>← Edit</button>
@@ -7221,7 +7808,7 @@ function App() {
 
     // ── FORM STEP ────────────────────────────────────────────
     return withSplash(
-      <main className="app jobs-page rentals-page post-rental-page">
+      <main className="app jobs-page rentals-page post-rental-page" style={{ "--rentals-bg": `url("${appAsset("rentals-bg.png")}")` }}>
         <div className="jobs-neon-bg rentals-neon-bg" aria-hidden="true" />
         <div className="marketplace-shell jobs-shell rentals-shell" style={{ paddingBottom:100 }}>
           <button className="back-button" onClick={() => navigateTo("rentals")}>← Back to Rentals</button>
@@ -7531,7 +8118,7 @@ function App() {
 
   if (page === "jobs") {
     return withSplash(
-      <main className="app jobs-page">
+      <main className="app jobs-page" style={{ "--jobs-bg": `url("${appAsset("jobs-bg.png")}")` }}>
         <div className="jobs-neon-bg" aria-hidden="true" />
         <div className="marketplace-shell jobs-shell">
           <button className="back-button" onClick={() => navigateTo("more")}>
@@ -7750,9 +8337,13 @@ function App() {
                   />
                 </button>
                 <span className="event-type">{business.category}</span>
-                {business.plan && business.plan !== "Free" && <span className="plan-badge">{business.plan}</span>}
+                {business.plan && (
+                  <span className={`plan-badge plan-badge-${business.plan.toLowerCase()}`}>{business.plan}</span>
+                )}
                 <h2>{business.name}</h2>
                 {business.description && <p>{business.description}</p>}
+                {business.address && <p>{business.address}</p>}
+                {business.phone && <p>{business.phone}</p>}
 
                 <div className="directory-actions">
                   {business.phone && (
@@ -7805,6 +8396,319 @@ function App() {
               </article>
             ))}
           </section>
+        </div>
+      </main>,
+    );
+  }
+
+  if (businessServiceSections[page]) {
+    const serviceSection = businessServiceSections[page];
+    const serviceBusinesses = businessServiceBusinessesByPage[page] ?? [];
+    const showServiceForm = page === "groceries" ? showGroceryForm : openBusinessServiceFormPage === page;
+    const setServiceFormOpen = (isOpen) => {
+      if (page === "groceries") {
+        setShowGroceryForm(isOpen);
+      } else {
+        setOpenBusinessServiceFormPage(isOpen ? page : "");
+      }
+    };
+
+    return withSplash(
+      <main
+        className={`app directory-page${page === "groceries" ? " groceries-page" : ""}${page === "dealers" ? " dealers-page" : ""}${page === "barbers" ? " barbers-page" : ""}${page === "insurance" ? " insurance-page" : ""}${page === "health" ? " health-page" : ""}${page === "schools" ? " schools-page" : ""}`}
+        style={
+          page === "groceries"
+            ? { "--groceries-bg": `url("${appAsset("groceries-bg.png")}")` }
+            : page === "dealers"
+              ? { "--dealers-bg": `url("${appAsset("dealers-bg.png")}")` }
+              : page === "barbers"
+                ? { "--barbers-bg": `url("${appAsset("barbers-bg.png")}")` }
+                : page === "insurance"
+                  ? { "--insurance-bg": `url("${appAsset("insurance-bg.png")}")` }
+                  : page === "health"
+                    ? { "--health-bg": `url("${appAsset("health-bg.png")}")` }
+                    : page === "schools"
+                      ? { "--schools-bg": `url("${appAsset("schools-bg.png")}")` }
+                      : undefined
+        }
+      >
+        <div className="directory-shell">
+          <button className="back-button" onClick={() => navigateTo("more")}>
+            Back
+          </button>
+
+          <section className="directory-header" aria-labelledby={`${serviceSection.page}-title`}>
+            <p className="eyebrow">{serviceSection.eyebrow}</p>
+            <h1 id={`${serviceSection.page}-title`}>{serviceSection.title}</h1>
+            <p className="events-intro">{serviceSection.intro}</p>
+          </section>
+
+          <button
+            className="primary-button subscribe-button"
+            type="button"
+            onClick={() => {
+              const willOpen = !showServiceForm;
+              setSelectedCategory(serviceSection.category);
+              if (willOpen) {
+                setSelectedPlan(promotePlans[0].name);
+              }
+              setBusinessSubmitted(false);
+              setSubmissionStatus("");
+              setServiceFormOpen(willOpen);
+            }}
+          >
+            {showServiceForm ? serviceSection.closeButton : serviceSection.addButton}
+          </button>
+
+          {showServiceForm && (
+            <>
+              <section className="plan-grid" aria-label={`${serviceSection.title} plans`}>
+                {promotePlans.map((plan) => (
+                  <button
+                    className={`plan-card${selectedPlan === plan.name ? " is-selected" : ""}`}
+                    key={plan.name}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlan(plan.name);
+                      setBusinessSubmitted(false);
+                      setSubmissionStatus("");
+                    }}
+                    aria-pressed={selectedPlan === plan.name}
+                  >
+                    <span className="plan-name">{plan.name}</span>
+                    <strong>{plan.price}</strong>
+                    <span className="plan-cadence">{plan.cadence}</span>
+                    <span className="plan-note">{plan.note}</span>
+                  </button>
+                ))}
+              </section>
+
+              <form className="business-form" onSubmit={handleBusinessSubmit} noValidate>
+                <input type="hidden" name="categoryOverride" value={serviceSection.category} />
+                <input type="hidden" name="planOverride" value={selectedPlan} />
+
+                <div className="business-form-heading">
+                  <p className="eyebrow">{selectedPlan} plan</p>
+                  <h2>{serviceSection.formTitle}</h2>
+                </div>
+
+                <div className="form-grid">
+                  <label className="form-field">
+                    <span>Business name</span>
+                    <input
+                      name="businessName"
+                      type="text"
+                      placeholder={serviceSection.namePlaceholder}
+                      required
+                      onInvalid={handleRequiredInvalid}
+                      onInput={handleRequiredInput}
+                    />
+                  </label>
+
+                  <label className="form-field">
+                    <span>Contact name</span>
+                    <input
+                      name="contactName"
+                      type="text"
+                      placeholder="Who should we contact?"
+                      required
+                      onInvalid={handleRequiredInvalid}
+                      onInput={handleRequiredInput}
+                    />
+                  </label>
+
+                  <label className="form-field">
+                    <span>Email</span>
+                    <input
+                      name="contactEmail"
+                      type="email"
+                      placeholder="owner@example.com"
+                      required
+                      onInvalid={handleRequiredInvalid}
+                      onInput={handleRequiredInput}
+                    />
+                  </label>
+
+                  <label className="form-field">
+                    <span>Phone</span>
+                    <input
+                      name="phone"
+                      type="tel"
+                      placeholder="(325) 555-0100"
+                      required
+                      onInvalid={handleRequiredInvalid}
+                      onInput={handleRequiredInput}
+                    />
+                  </label>
+
+                  <label className="form-field">
+                    <span>Address</span>
+                    <input name="address" type="text" placeholder="Street address or area" />
+                  </label>
+
+                  <label className="form-field">
+                    <span>Website</span>
+                    <input name="social" type="text" placeholder="Website or social link" />
+                  </label>
+                </div>
+
+                <label className="form-field form-field-wide">
+                  <span>Image/photo</span>
+                  <input name="businessImage" type="file" accept="image/*" />
+                </label>
+
+                <label className="form-field form-field-wide">
+                  <span>Description</span>
+                  <textarea name="description" placeholder={serviceSection.descriptionPlaceholder} rows="4" />
+                </label>
+
+                <label className="legal-consent">
+                  <input
+                    name="contentRights"
+                    type="checkbox"
+                    required
+                    onInvalid={handleRequiredInvalid}
+                    onInput={handleRequiredInput}
+                  />
+                  <span>
+                    I confirm I have permission to submit this business information and any content I provide, and I
+                    authorize Abilene Vibes to display it in the app, website, social media, and promotional materials.
+                  </span>
+                </label>
+
+                <p className="legal-disclaimer">
+                  {serviceSection.title} submissions are saved for review and appear here after approval. Contact {contactEmail} for
+                  updates or removals.
+                </p>
+
+                {paidPlanNames.has(selectedPlan) && (
+                  <p className="legal-disclaimer billing-disclaimer">
+                    {selectedPlan} is a monthly subscription. By continuing to checkout, you authorize Abilene Vibes
+                    and Stripe to charge {selectedPlan === "Featured" ? "$19" : "$59"} today and automatically every
+                    month until the subscription is canceled. Payment starts the review process; the paid placement
+                    goes live after admin approval.
+                  </p>
+                )}
+
+                {businessSubmitted && (
+                  <p className="form-success">
+                    {submissionStatus === "saved"
+                      ? paidPlanNames.has(selectedPlan)
+                        ? `Thanks. Your ${serviceSection.savedName} was saved. Opening secure checkout...`
+                        : `Thanks. Your ${serviceSection.savedName} was saved for review.`
+                      : submissionStatus === "local"
+                        ? `Thanks. Your ${serviceSection.savedName} was added locally. Connect Supabase to save it permanently.`
+                        : submissionStatus === "validation-error"
+                          ? "Please complete business name, contact name, email, phone, and the permission checkbox."
+                          : submissionStatus === "checkout"
+                            ? "Opening secure checkout..."
+                            : submissionStatus === "checkout-link"
+                              ? "Thanks. Your payment page opened in a new tab. We will review your listing after payment."
+                              : submissionStatus === "checkout-config"
+                                ? "Your request was saved, but Stripe needs APP_PUBLIC_URL before checkout can open."
+                                : submissionStatus === "checkout-error"
+                                  ? "Your request was saved, but checkout could not open. Please contact us to finish payment."
+                                  : selectedPlan === "Free"
+                                    ? `Thanks. Your ${serviceSection.savedName} was saved for review.`
+                                    : "Thanks. Your paid plan request was saved. Secure checkout will open for payment."}
+                  </p>
+                )}
+
+                {submissionStatus === "error" && (
+                  <p className="form-error">
+                    We could not save your {serviceSection.savedName}. Please try again or email {contactEmail}.
+                  </p>
+                )}
+
+                <button className="primary-button subscribe-button" type="submit" disabled={submissionStatus === "saving"}>
+                  {submissionStatus === "saving"
+                    ? "Saving..."
+                    : selectedPlan === "Free"
+                      ? serviceSection.addButton.replace("Add", "Post")
+                      : `Continue to ${selectedPlan} Checkout`}
+                </button>
+              </form>
+            </>
+          )}
+
+          {serviceBusinesses.length ? (
+            <section className="directory-grid" aria-label={serviceSection.ariaLabel}>
+              {serviceBusinesses.map((business) => (
+                <article className="directory-card" key={business.id}>
+                  <button
+                    className="image-open-button directory-image-button"
+                    type="button"
+                    onClick={() => openImageViewer(businessDisplayImage(business), business.name)}
+                    aria-label={`Open ${business.name} photo`}
+                  >
+                    <img
+                      className="directory-image"
+                      src={businessDisplayImage(business)}
+                      alt=""
+                      loading="lazy"
+                    />
+                  </button>
+                  <span className="event-type">{business.category}</span>
+                  {business.plan && (
+                    <span className={`plan-badge plan-badge-${business.plan.toLowerCase()}`}>{business.plan}</span>
+                  )}
+                  <h2>{business.name}</h2>
+                  {business.description && <p>{business.description}</p>}
+                  {business.address && <p>{business.address}</p>}
+                  {business.phone && <p>{business.phone}</p>}
+
+                  <div className="directory-actions">
+                    {business.phone && (
+                      <a
+                        className="directory-link"
+                        href={`tel:${business.phone.replace(/\D/g, "")}`}
+                        onClick={(event) =>
+                          openTrackedBusinessLink(event, business, "calls", `tel:${business.phone.replace(/\D/g, "")}`)
+                        }
+                      >
+                        Call
+                      </a>
+                    )}
+                    <a
+                      className="directory-link"
+                      href={mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`)}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(event) =>
+                        openTrackedBusinessLink(
+                          event,
+                          business,
+                          "directions",
+                          mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`),
+                          "_blank",
+                        )
+                      }
+                    >
+                      Directions
+                    </a>
+                    {business.social && (
+                      <a
+                        className="directory-link"
+                        href={visitUrl(business.social)}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(event) =>
+                          openTrackedBusinessLink(event, business, "visits", visitUrl(business.social), "_blank")
+                        }
+                      >
+                        Website
+                      </a>
+                    )}
+                  </div>
+
+                  {renderLikeButton("business", business.id)}
+                  {renderBusinessReviews(business)}
+                </article>
+              ))}
+            </section>
+          ) : (
+            <p className="legal-disclaimer">{serviceSection.emptyMessage}</p>
+          )}
         </div>
       </main>,
     );
@@ -8005,9 +8909,9 @@ function App() {
             {adminStatus === "error" && (
               <p className="form-error">Could not save. Try again.</p>
             )}
-            <div className="directory-actions" style={{ marginTop: "8px" }}>
+            <div className="admin-rental-edit-actions" style={{ marginTop: "8px" }}>
               <button
-                className="primary-button"
+                className="admin-rental-edit-button"
                 type="button"
                 onClick={handleSaveRental}
                 disabled={adminStatus === "saving"}
@@ -8015,7 +8919,7 @@ function App() {
                 {adminStatus === "saving" ? "Saving…" : "Save Changes"}
               </button>
               <button
-                className="directory-link"
+                className="admin-rental-edit-button"
                 type="button"
                 onClick={() => { setEditRentalPage(false); setEditingRental(null); setAdminStatus(""); }}
               >
@@ -8324,7 +9228,7 @@ function App() {
                         <h3>{event.title}</h3>
                         <p>{event.place}</p>
                         <p>{formatEventDisplayDate(event.event_date, event.event_time)}</p>
-                        <div className="directory-actions">
+                        <div className="directory-actions admin-rental-actions">
                           <button className="directory-link" type="button" onClick={() => editEvent(event)}>
                             Edit
                           </button>
@@ -8596,40 +9500,97 @@ function App() {
                   <span>Pending <strong>{paymentSummary.pending ?? 0}</strong></span>
                   <span>Canceling <strong>{paymentSummary.cancel_pending ?? 0}</strong></span>
                   <span>Free promos <strong>{promoBusinesses.length}</strong></span>
+                  <span>Total Net Earned <strong>{formatPaymentAmount(paymentFinancialSummary.net, paymentSummaryCurrency)}</strong></span>
+                  <span>Total Gross <strong>{formatPaymentAmount(paymentFinancialSummary.gross, paymentSummaryCurrency)}</strong></span>
+                  <span>Total Stripe Fees <strong>{formatPaymentAmount(paymentFinancialSummary.fees, paymentSummaryCurrency)}</strong></span>
                 </div>
+
+                {paymentRecords.length ? (
+                  <>
+                    <h3>Earnings by Business</h3>
+                    <div className="admin-grid">
+                      {paymentEarningsByBusiness.map((businessEarnings) => (
+                        <article className="admin-card" key={`payment-earnings-${businessEarnings.id}`}>
+                          <h3>{businessEarnings.name}</h3>
+                          <p>Gross: {formatPaymentAmount(businessEarnings.gross, businessEarnings.currency)}</p>
+                          <p>Stripe Fees: {formatPaymentAmount(businessEarnings.fees, businessEarnings.currency)}</p>
+                          <p>Net Earned: {formatPaymentAmount(businessEarnings.net, businessEarnings.currency)}</p>
+                          <p>Payments: {businessEarnings.payments}</p>
+                        </article>
+                      ))}
+                    </div>
+
+                    <div className="admin-grid">
+                      {paymentRecords.map((record) => {
+                        const business = paymentBusinessesById[record.business_submission_id];
+
+                        return (
+                          <article className="admin-card" key={`payment-record-${record.id}`}>
+                            <span className={`event-type payment-status payment-${record.status ?? "paid"}`}>
+                              {record.status ?? "paid"}
+                            </span>
+                            <h3>{business?.business_name ?? "Stripe payment"}</h3>
+                            {business?.plan && <p>{business.plan} plan</p>}
+                            <p>Gross Amount: {formatPaymentAmount(record.gross_amount, record.currency)}</p>
+                            <p>Stripe Fee: {formatPaymentAmount(record.stripe_fee, record.currency)}</p>
+                            <p>Net Amount: {formatPaymentAmount(record.net_amount, record.currency)}</p>
+                            <p>Currency: {(record.currency ?? "usd").toUpperCase()}</p>
+                            <p>Payment Date: {record.paid_at ? new Date(record.paid_at).toLocaleDateString() : "Not available"}</p>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <p className="legal-disclaimer">No payment details available yet.</p>
+                )}
 
                 {paymentBusinesses.length ? (
                   <div className="admin-grid">
-                    {paymentBusinesses.map((business) => (
-                      <article className="admin-card" key={`payment-${business.id}`}>
-                        <span className={`event-type payment-status payment-${business.payment_status}`}>
-                          {business.payment_status}
-                        </span>
-                        <h3>{business.business_name}</h3>
-                        <p>{business.plan} plan</p>
-                        <p>Status: {business.status}</p>
-                        {business.contact_email && <p>Email: {business.contact_email}</p>}
-                        <p>{new Date(business.created_at).toLocaleDateString()}</p>
-                        <div className="directory-actions">
-                          {renderBusinessPlanButtons(business)}
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => moderateItem("business_submissions", business.id, "approved")}
-                            disabled={business.status === "approved"}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="directory-link danger-link"
-                            type="button"
-                            onClick={() => deleteBusiness(business.id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </article>
-                    ))}
+                    {paymentBusinesses.map((business) => {
+                      const paymentRecord = paymentRecordsByBusiness[business.id];
+
+                      return (
+                        <article className="admin-card" key={`payment-${business.id}`}>
+                          <span className={`event-type payment-status payment-${business.payment_status}`}>
+                            {business.payment_status}
+                          </span>
+                          <h3>{business.business_name}</h3>
+                          <p>{business.plan} plan</p>
+                          <p>Status: {business.status}</p>
+                          {business.contact_email && <p>Email: {business.contact_email}</p>}
+                          <p>{new Date(business.created_at).toLocaleDateString()}</p>
+                          {paymentRecord ? (
+                            <>
+                              <p>Gross Amount: {formatPaymentAmount(paymentRecord.gross_amount, paymentRecord.currency)}</p>
+                              <p>Stripe Fee: {formatPaymentAmount(paymentRecord.stripe_fee, paymentRecord.currency)}</p>
+                              <p>Net Amount: {formatPaymentAmount(paymentRecord.net_amount, paymentRecord.currency)}</p>
+                              {paymentRecord.paid_at && <p>Paid: {new Date(paymentRecord.paid_at).toLocaleDateString()}</p>}
+                            </>
+                          ) : (
+                            <p>Payment amounts: not recorded yet</p>
+                          )}
+                          <div className="directory-actions">
+                            {renderBusinessPlanButtons(business)}
+                            <button
+                              className="directory-link"
+                              type="button"
+                              onClick={() => moderateItem("business_submissions", business.id, "approved")}
+                              disabled={business.status === "approved"}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              className="directory-link danger-link"
+                              type="button"
+                              onClick={() => deleteBusiness(business.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="legal-disclaimer">No paid plan activity yet.</p>
@@ -8690,13 +9651,77 @@ function App() {
                           {job.expires_at ? ` · Expires: ${new Date(job.expires_at).toLocaleDateString()}` : ""}
                         </p>
                         <div className="directory-actions">
+                          {job.status === "pending" && (
+                            <>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => moderateItem("job_listings", job.id, "approved")}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => moderateItem("job_listings", job.id, "rejected")}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {job.status === "approved" && (
+                            <button
+                              className="directory-link"
+                              type="button"
+                              onClick={() => moderateItem("job_listings", job.id, "hidden")}
+                            >
+                              Hide
+                            </button>
+                          )}
+                          {(job.status === "hidden" || job.status === "rejected") && (
+                            <button
+                              className="directory-link"
+                              type="button"
+                              onClick={() => moderateItem("job_listings", job.id, "approved")}
+                            >
+                              Show / Restore
+                            </button>
+                          )}
                           <button
                             className="directory-link"
                             type="button"
                             onClick={() => { setEditingJob({ ...job }); setEditJobPage(true); }}
                           >
-                            EDIT JOB NEW FLOW
+                            Edit
                           </button>
+                          {job.status === "approved" && (
+                            <>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => setJobPlan(job, "free")}
+                                disabled={job.plan === "free"}
+                              >
+                                Plan Free
+                              </button>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => setJobPlan(job, "featured")}
+                                disabled={job.plan === "featured"}
+                              >
+                                Plan Featured
+                              </button>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => setJobPlan(job, "premium")}
+                                disabled={job.plan === "premium"}
+                              >
+                                Plan Premium
+                              </button>
+                            </>
+                          )}
                           <button
                             className="directory-link danger-link"
                             type="button"
@@ -8883,9 +9908,32 @@ function App() {
                   <p className="eyebrow">Rent &amp; Housing</p>
                   <h2 id="admin-rentals-title">Rental Listings</h2>
                 </div>
-                {adminRentalListings.length > 0 ? (
+                <div className="jobs-filter-bar" aria-label="Rental status filters">
+                  {[
+                    ["all", "All"],
+                    ["pending", "Pending"],
+                    ["approved", "Approved"],
+                    ["hidden", "Hidden"],
+                    ["rejected", "Rejected"],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      className={`jobs-filter-chip${adminRentalStatusFilter === value ? " is-active" : ""}`}
+                      type="button"
+                      onClick={() => setAdminRentalStatusFilter(value)}
+                      aria-pressed={adminRentalStatusFilter === value}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {filteredAdminRentalListings.length > 0 ? (
                   <div className="admin-cards-grid">
-                    {adminRentalListings.map((r) => (
+                    {filteredAdminRentalListings.map((r) => {
+                      const rentalStatus = r.status ?? "approved";
+                      const rentalPlan = String(r.plan ?? "free").toLowerCase();
+
+                      return (
                       <article key={r.id} className="admin-card">
                         {r.image_data?.[0] && (
                           <img src={r.image_data[0]} alt={r.title} className="admin-card-img" />
@@ -8897,7 +9945,7 @@ function App() {
                           {r.price && <p className="admin-card-meta">${r.price}/mo</p>}
                           {r.price_per_night && <p className="admin-card-meta">${r.price_per_night}/night</p>}
                           <p className="admin-card-meta">
-                            Status: <strong>{r.status ?? "approved"}</strong> · Plan: <strong>{r.plan ?? "free"}</strong>
+                            Status: <strong>{rentalStatus}</strong> · Plan: <strong>{rentalPlan}</strong>
                           </p>
                           <p className="admin-card-meta">
                             Posted: {r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
@@ -8905,20 +9953,93 @@ function App() {
                           </p>
                         </div>
                         <div className="directory-actions">
+                          {rentalStatus === "pending" && (
+                            <>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => handleSetRentalStatus(r, "approved")}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => handleSetRentalStatus(r, "rejected")}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {rentalStatus === "approved" && (
+                            <button
+                              className="directory-link"
+                              type="button"
+                              onClick={() => handleToggleRentalStatus(r)}
+                            >
+                              Hide
+                            </button>
+                          )}
+                          {(rentalStatus === "hidden" || rentalStatus === "rejected") && (
+                            <button
+                              className="directory-link"
+                              type="button"
+                              onClick={() => handleSetRentalStatus(r, "approved")}
+                            >
+                              Show / Restore
+                            </button>
+                          )}
                           <button
-                            className="primary-button"
+                            className="directory-link"
                             type="button"
                             onClick={() => { setEditingRental({ ...r }); setEditRentalPage(true); setAdminStatus(""); }}
                           >
                             Edit
                           </button>
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => handleToggleRentalStatus(r)}
-                          >
-                            {r.status === "hidden" ? "Show" : "Hide"}
-                          </button>
+                          {rentalStatus === "approved" && (
+                            <>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => handleSetRentalPlan(r, "free")}
+                                disabled={rentalPlan === "free"}
+                              >
+                                Plan Free
+                              </button>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => handleSetRentalPlan(r, "featured")}
+                                disabled={rentalPlan === "featured"}
+                              >
+                                Plan Featured
+                              </button>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => handleSetRentalPlan(r, "premium")}
+                                disabled={rentalPlan === "premium"}
+                              >
+                                Plan Premium
+                              </button>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => handleSetRentalPromo(r, "featured")}
+                                disabled={rentalPlan === "featured"}
+                              >
+                                Promo Featured Free
+                              </button>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => handleSetRentalPromo(r, "premium")}
+                                disabled={rentalPlan === "premium"}
+                              >
+                                Promo Premium Free
+                              </button>
+                            </>
+                          )}
                           <button
                             className="directory-link danger-link"
                             type="button"
@@ -8928,10 +10049,11 @@ function App() {
                           </button>
                         </div>
                       </article>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
-                  <p className="legal-disclaimer">No rental listings yet.</p>
+                  <p className="legal-disclaimer">No rental listings found.</p>
                 )}
               </section>
 

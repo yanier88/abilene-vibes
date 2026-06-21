@@ -52,6 +52,25 @@ add column if not exists placement_source text not null default 'paid';
 alter table public.business_submissions
 add column if not exists placement_expires_at timestamptz;
 
+create table if not exists public.payment_records (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  business_submission_id uuid references public.business_submissions(id) on delete set null,
+  stripe_session_id text,
+  stripe_payment_intent_id text,
+  stripe_charge_id text unique,
+  stripe_balance_transaction_id text,
+  currency text not null default 'usd',
+  gross_amount bigint not null default 0,
+  stripe_fee bigint not null default 0,
+  net_amount bigint not null default 0,
+  paid_at timestamptz,
+  status text not null default 'paid'
+);
+
+grant select on public.payment_records to authenticated;
+grant select, insert, update, delete on public.payment_records to service_role;
+
 grant usage on schema public to anon, authenticated;
 grant insert, select on public.business_submissions to anon;
 grant select, update, delete on public.business_submissions to authenticated;
