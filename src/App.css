@@ -3522,8 +3522,8 @@
 .post-job-plan-premium{border-color:#b934ff60;background:#b934ff08}
 .plan-badge{font-size:.62rem;font-weight:900;letter-spacing:.12em;padding:3px 10px;border-radius:999px;width:fit-content}
 .plan-badge-free{background:#4aff7a22;color:#4aff7a}
-.plan-badge-featured{background:#00d4ff22;color:#00d4ff}
-.plan-badge-premium{background:#b934ff22;color:#d97dff}
+.plan-badge-featured{background:#4aff7a22;color:#4aff7a}
+.plan-badge-premium{background:#ffdc4f26;color:#fff4ad}
 .plan-price{font-size:2.2rem;font-weight:900;color:#fff;margin:0;line-height:1}
 .plan-duration{font-size:.76rem;color:#ffffff70;margin:0}
 .plan-features{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;flex:1}
@@ -3556,8 +3556,36 @@
 /* ── Featured / Premium card borders ─────────────────────────── */
 .jobs-card-featured{border-color:#00d4ff70!important;box-shadow:0 0 18px #00d4ff18}
 .jobs-card-premium{border-color:#b934ff80!important;box-shadow:0 0 22px #b934ff22}
-.jobs-tag-featured{color:#00d4ff!important}
-.jobs-tag-premium{color:#d97dff!important}
+.jobs-tag-featured{color:#4aff7a!important}
+.jobs-tag-premium{color:#fff4ad!important}
+.event-type.marketplace-card-tag.jobs-card-tag.plan-badge{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:fit-content!important;
+  padding:3px 10px!important;
+  font-size:.62rem!important;
+  font-weight:900!important;
+  line-height:1!important;
+  letter-spacing:.12em!important;
+  border-width:1px!important;
+  border-style:solid!important;
+  border-radius:999px!important;
+}
+.event-type.marketplace-card-tag.jobs-card-tag.plan-badge-featured{
+  color:#eaffef!important;
+  background:linear-gradient(135deg,rgba(74,255,122,.86),rgba(0,229,170,.68)),rgba(4,34,20,.92)!important;
+  border-color:rgba(74,255,122,1)!important;
+  box-shadow:0 0 18px rgba(74,255,122,.78),0 0 34px rgba(0,229,170,.46),inset 0 0 0 1px rgba(255,255,255,.28)!important;
+  text-shadow:0 0 10px rgba(6,40,16,.82)!important;
+}
+.event-type.marketplace-card-tag.jobs-card-tag.plan-badge-premium{
+  color:#fff8c9!important;
+  background:linear-gradient(135deg,rgba(255,223,82,.9),rgba(255,171,31,.72)),rgba(58,36,0,.92)!important;
+  border-color:rgba(255,220,79,1)!important;
+  box-shadow:0 0 22px rgba(255,220,79,.9),0 0 42px rgba(255,174,34,.58),inset 0 0 0 1px rgba(255,255,255,.32)!important;
+  text-shadow:0 0 12px rgba(58,36,0,.82)!important;
+}
 
 /* ── Detail: View Location + Save ────────────────────────────── */
 .job-detail-map-btn{display:inline-flex;align-items:center;gap:8px;min-height:50px;padding:0 20px;border-radius:999px;font-weight:800;font-size:.9rem}

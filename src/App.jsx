@@ -133,43 +133,7 @@ const urlForPage = (nextPage) => {
   return `#${nextPage}`;
 };
 
-const events = [
-  {
-    title: "Live Music Friday",
-    place: "The Paramount Theatre",
-    date: "May 29, 2026 - 8:00 PM",
-    type: "Live music",
-    image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    title: "Neon Nights",
-    place: "The Station Lounge",
-    date: "May 29, 2026 - 10:00 PM",
-    type: "Nightlife",
-    image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    title: "Taco & Tequila Fest",
-    place: "Frontier Texas! Courtyard",
-    date: "May 30, 2026 - 5:00 PM",
-    type: "Food & drinks",
-    image: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    title: "Country Night",
-    place: "Potosi Live",
-    date: "May 31, 2026 - 9:00 PM",
-    type: "Country",
-    image: "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    title: "Art & Food Market",
-    place: "Downtown Abilene",
-    date: "June 1, 2026 - 4:00 PM",
-    type: "Family",
-    image: "https://images.unsplash.com/photo-1481833761820-0509d3217039?auto=format&fit=crop&w=800&q=80",
-  },
-];
+const events = [];
 
 const staticEventKey = (event) => `event:${event.title}-${event.date}`;
 
@@ -255,57 +219,7 @@ const eventSubmissionToEvent = (event) => ({
   image: event.image_data || event.image_url || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80",
 });
 
-const calendarDays = [
-  {
-    day: "Sat",
-    date: "May 23",
-    title: "College Nights",
-    time: "9:00 PM",
-    place: "Guitars and Cadillacs",
-  },
-  {
-    day: "Sun",
-    date: "May 24",
-    title: "Family Market",
-    time: "4:00 PM",
-    place: "Downtown Abilene",
-  },
-  {
-    day: "Mon",
-    date: "May 25",
-    title: "Downtown Open Mic",
-    time: "7:00 PM",
-    place: "Grain Theory",
-  },
-  {
-    day: "Tue",
-    date: "May 26",
-    title: "Taco Tuesday",
-    time: "5:00 PM",
-    place: "Downtown Abilene",
-  },
-  {
-    day: "Wed",
-    date: "May 27",
-    title: "Trivia Night",
-    time: "7:30 PM",
-    place: "The Station Lounge",
-  },
-  {
-    day: "Fri",
-    date: "May 29",
-    title: "Live Music Friday",
-    time: "8:00 PM",
-    place: "The Paramount Theatre",
-  },
-  {
-    day: "Sat",
-    date: "May 30",
-    title: "Taco & Tequila Fest",
-    time: "5:00 PM",
-    place: "Frontier Texas! Courtyard",
-  },
-];
+const calendarDays = [];
 
 const shoppingPlaces = [
   {
@@ -1990,6 +1904,7 @@ function App() {
   const [adminMarketplaceListings, setAdminMarketplaceListings] = useState([]);
   const [adminRentalListings, setAdminRentalListings] = useState([]);
   const [adminRentalStatusFilter, setAdminRentalStatusFilter] = useState("all");
+  const [adminRentalActionKey, setAdminRentalActionKey] = useState("");
   const [paymentRecords, setPaymentRecords] = useState([]);
   const [editingJob, setEditingJob] = useState(null);
   const [editJobPage, setEditJobPage] = useState(false);
@@ -2065,7 +1980,7 @@ function App() {
     availableFrom: "", availableTo: "", maxGuests: "", houseRules: "", petsAllowed: false,
     address: "Abilene, TX", bedrooms: "", bathrooms: "",
     description: "", phone: "", email: "", externalUrl: "",
-    duration: "30 Days",
+    duration: "30 Days", plan: "Free",
   });
   const [postRentalStep, setPostRentalStep] = useState("form"); // "form" | "preview"
   const [postRentalPhotos, setPostRentalPhotos] = useState([]); // [{file, preview}]
@@ -2179,7 +2094,6 @@ function App() {
       .from("job_listings")
       .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,apply_url,duration,plan,image_data,logo_data,expires_at")
       .eq("status", "approved")
-      .gte("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (!error && data) {
@@ -2219,7 +2133,6 @@ function App() {
         .from("rental_listings")
         .select(selectFields)
         .eq("status", "approved")
-        .gte("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false });
 
     queryRentals(`${baseSelect},owner_user_id`).then(({ data, error }) => {
@@ -3434,12 +3347,17 @@ function App() {
   const handleDeleteRental = async (id) => {
     if (!supabase || !adminSession) return;
     if (!window.confirm("Permanently delete this rental listing?")) return;
+    setAdminRentalActionKey(`${id}:delete`);
     setAdminStatus("saving");
-    const { data, error } = await supabase.rpc("admin_delete_rental_listing", {
-      listing_id: id,
-    });
-    if (error || data !== true) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    try {
+      const { data, error } = await supabase.rpc("admin_delete_rental_listing", {
+        listing_id: id,
+      });
+      if (error || data !== true) { setAdminStatus("error"); return; }
+      await loadAdminData();
+    } finally {
+      setAdminRentalActionKey("");
+    }
   };
 
   const adminRentalRpcPayload = (r, overrides = {}) => {
@@ -3480,19 +3398,29 @@ function App() {
 
   const handleSetRentalStatus = async (r, nextStatus) => {
     if (!supabase || !adminSession) return;
+    setAdminRentalActionKey(`${r.id}:status:${nextStatus}`);
     setAdminStatus("saving");
-    const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { status: nextStatus }));
-    if (error || data !== true) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    try {
+      const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { status: nextStatus }));
+      if (error || data !== true) { setAdminStatus("error"); return; }
+      await loadAdminData();
+    } finally {
+      setAdminRentalActionKey("");
+    }
   };
 
   const handleSetRentalPlan = async (r, nextPlan) => {
     if (!supabase || !adminSession) return;
     const cleanPlan = nextPlan === "premium" ? "premium" : nextPlan === "featured" ? "featured" : "free";
+    setAdminRentalActionKey(`${r.id}:plan:${cleanPlan}`);
     setAdminStatus("saving");
-    const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { plan: cleanPlan }));
-    if (error || data !== true) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    try {
+      const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { plan: cleanPlan }));
+      if (error || data !== true) { setAdminStatus("error"); return; }
+      await loadAdminData();
+    } finally {
+      setAdminRentalActionKey("");
+    }
   };
 
   const handleSetRentalPromo = async (r, promoPlan) => {
@@ -4644,12 +4572,17 @@ function App() {
   const spotlightItem =
     premiumLobbyItems[premiumCarouselIndex % Math.max(premiumLobbyItems.length, 1)] ??
     paidBusinesses.map(toBusinessLobbyItem)[0];
-  const spotlightEvent = allEvents[0] ?? events[0];
-  const [spotlightEventDate, spotlightEventTime = ""] = spotlightEvent.date.split(" - ");
+  const spotlightEvent = allEvents[0] ?? null;
+  const [spotlightEventDate, spotlightEventTime = ""] = (spotlightEvent?.date ?? "").split(" - ");
   const openLobbyPromotionItem = async (item, placement) => {
-    if (!item) {
+    if (!item && spotlightEvent) {
       await trackLobbySectionClick("upcoming-highlight", "Upcoming Highlight");
       navigateTo("events");
+      return;
+    }
+
+    if (!item) {
+      await trackLobbySectionClick("upcoming-highlight", "Upcoming Highlight");
       return;
     }
 
@@ -4782,8 +4715,10 @@ function App() {
         </button>
       )}
       {business.placement_source !== "comp" &&
+        business.plan !== "Free" &&
+        business.payment_status !== "not_required" &&
         business.stripe_subscription_id &&
-        !["canceled", "cancel_pending"].includes(business.payment_status) && (
+        ["paid", "cancel_pending"].includes(business.payment_status) && (
         <button className="directory-link danger-link" type="button" onClick={() => cancelBusinessSubscription(business)}>
           Cancel Subscription
         </button>
@@ -4964,7 +4899,7 @@ function App() {
                   </p>
                 </div>
               </>
-            ) : (
+            ) : spotlightEvent ? (
               <>
                 <img src={spotlightEvent.image} alt="" />
                 <div>
@@ -4975,6 +4910,15 @@ function App() {
                     {spotlightEventDate}
                     {spotlightEventTime && ` - ${spotlightEventTime}`}
                   </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <img src={appAsset("lobby-correcta.jpg")} alt="" />
+                <div>
+                  <span>Upcoming Highlight</span>
+                  <strong>Upcoming local highlights will appear here soon.</strong>
+                  <p>Check back soon for Abilene events.</p>
                 </div>
               </>
             )}
@@ -5194,6 +5138,9 @@ function App() {
           </section>
 
           <section className="event-list" aria-label="Featured Abilene events">
+            {allEvents.length === 0 && (
+              <p className="events-intro">Check back soon for Abilene events.</p>
+            )}
             {allEvents.map((event) => (
               <article className="event-card" key={event.id ?? `${event.title}-${event.date}`}>
                 <img className="event-image" src={event.image} alt="" loading="lazy" />
@@ -5236,6 +5183,9 @@ function App() {
           </section>
 
           <section className="calendar-list" aria-label="Abilene Vibes calendar">
+            {calendarDays.length === 0 && (
+              <p className="events-intro">Upcoming local highlights will appear here soon.</p>
+            )}
             {calendarDays.map((item) => (
               <article className="calendar-card" key={`${item.date}-${item.title}`}>
                 <div className="calendar-date">
@@ -6567,7 +6517,6 @@ function App() {
               ? <img src={j.image} alt="" loading="lazy" />
               : <div className="post-job-image-placeholder"><span aria-hidden="true">💼</span></div>
             }
-            <span className="event-type marketplace-card-tag jobs-card-tag job-detail-tag">{j.tag}</span>
           </div>
 
           <section className="job-detail-header" aria-labelledby="job-detail-title">
@@ -7222,6 +7171,13 @@ function App() {
         (rentalsFilter === "For Sale" && r.property_type === "For Sale");
       const text = `${r.title} ${r.address} ${r.description ?? ""} ${r.property_type}`.toLowerCase();
       return matchesType && matchesFilter && text.includes(rentalsSearch.trim().toLowerCase());
+    }).sort((a, b) => {
+      const planOrder = { premium: 0, featured: 1, free: 2 };
+      const leftPlan = String(a.plan ?? "free").toLowerCase();
+      const rightPlan = String(b.plan ?? "free").toLowerCase();
+      const planDiff = (planOrder[leftPlan] ?? 2) - (planOrder[rightPlan] ?? 2);
+      if (planDiff !== 0) return planDiff;
+      return new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0);
     });
 
     const rentalTypeCounts = rentalListings.reduce((acc, r) => {
@@ -7332,6 +7288,14 @@ function App() {
                 const rPhotos = Array.isArray(r.image_data) ? r.image_data.filter(Boolean) : [];
                 const photo = rPhotos[0] ?? null;
                 const isSTR = isShortTerm(r);
+                const rentalPlan = String(r.plan ?? "free").toLowerCase();
+                const isFeaturedRental = rentalPlan === "featured";
+                const isPremiumRental = rentalPlan === "premium";
+                const rentalBadgeClass = isPremiumRental
+                  ? " plan-badge plan-badge-premium jobs-tag-premium"
+                  : isFeaturedRental
+                    ? " plan-badge plan-badge-featured jobs-tag-featured"
+                    : "";
                 return (
                   <article
                     key={r.id}
@@ -7351,6 +7315,11 @@ function App() {
                         <span className={`jobs-listing-tag${isSTR ? " rental-str-tag" : ""}`}>
                           {rentalTypeIcon(r.property_type)} {r.property_type}
                         </span>
+                        {(isFeaturedRental || isPremiumRental) && (
+                          <span className={`jobs-listing-tag${rentalBadgeClass}`}>
+                            {isPremiumRental ? "Premium" : "Featured"}
+                          </span>
+                        )}
                         <button
                           className={`jobs-save-btn${isSaved ? " is-saved" : ""}`}
                           type="button"
@@ -7661,25 +7630,42 @@ function App() {
     const handleRentalField = (field, value) =>
       setPostRentalForm((prev) => ({ ...prev, [field]: value }));
 
+    const optimizeRentalImage = async (file) => {
+      const maxStoredSize = 450 * 1024;
+      const maxDimension = 1200;
+      const image = await loadImageFromFile(file);
+      const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      let smallestBlob = null;
+      for (const quality of [0.82, 0.74, 0.66, 0.58, 0.5, 0.44]) {
+        const blob = await canvasToBlob(canvas, quality);
+        smallestBlob = blob;
+        if (blob.size <= maxStoredSize) {
+          return readFileAsDataUrl(blob);
+        }
+      }
+
+      return readFileAsDataUrl(smallestBlob);
+    };
+
     const handleRentalPhotosAdd = async (files) => {
       const remaining = maxPhotos - postRentalPhotos.length;
       const toAdd = Array.from(files).slice(0, remaining);
       for (const file of toAdd) {
         try {
-          const compressed = await optimizeGalleryImage(file);
-          const reader = new FileReader();
-          reader.onload = (e) =>
-            setPostRentalPhotos((prev) =>
-              prev.length < maxPhotos ? [...prev, { preview: e.target.result }] : prev
-            );
-          reader.readAsDataURL(compressed);
-        } catch {
-          const reader = new FileReader();
-          reader.onload = (e) =>
-            setPostRentalPhotos((prev) =>
-              prev.length < maxPhotos ? [...prev, { preview: e.target.result }] : prev
-            );
-          reader.readAsDataURL(file);
+          const preview = await optimizeRentalImage(file);
+          setPostRentalPhotos((prev) =>
+            prev.length < maxPhotos ? [...prev, { preview }] : prev
+          );
+        } catch (e) {
+          console.error("[Rentals] Photo compression error:", e);
+          setPostRentalError("One photo could not be prepared. Try a smaller image.");
         }
       }
     };
@@ -7711,11 +7697,15 @@ function App() {
         const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postRentalForm.duration] ?? 30;
         const expires_at   = new Date(Date.now() + durationDays * 86400000).toISOString();
         const image_data   = postRentalPhotos.map((p) => p.preview);
+        const requestedPlan = postRentalForm.plan || "Free";
+        const description = postRentalForm.description.trim();
         const record = {
           title:         postRentalForm.title.trim(),
           property_type: postRentalForm.propertyType,
           address:       postRentalForm.address.trim(),
-          description:   postRentalForm.description.trim() || null,
+          description:   requestedPlan === "Free"
+            ? (description || null)
+            : `${description ? `${description}\n\n` : ""}Requested plan: ${requestedPlan}`,
           phone:         postRentalForm.phone.trim()        || null,
           email:         postRentalForm.email.trim()        || null,
           external_url:  postRentalForm.externalUrl.trim()  || null,
@@ -7743,11 +7733,11 @@ function App() {
             record.bathrooms  = postRentalForm.bathrooms  || null;
           }
         }
-        let { error } = await supabase.from("rental_listings").insert([record]);
+        let { error } = await supabase.from("rental_listings").insert([record], { returning: "minimal" });
         if (error?.code === "PGRST204" || error?.code === "42703") {
           const recordWithoutOwner = { ...record };
           delete recordWithoutOwner.owner_user_id;
-          ({ error } = await supabase.from("rental_listings").insert([recordWithoutOwner]));
+          ({ error } = await supabase.from("rental_listings").insert([recordWithoutOwner], { returning: "minimal" }));
         }
         if (error) throw error;
         setPostRentalForm({
@@ -7756,7 +7746,7 @@ function App() {
           availableFrom:"", availableTo:"", maxGuests:"", houseRules:"", petsAllowed:false,
           address:"Abilene, TX", bedrooms:"", bathrooms:"",
           description:"", phone:"", email:"", externalUrl:"",
-          duration:"30 Days",
+          duration:"30 Days", plan:"Free",
         });
         setPostRentalPhotos([]);
         setPostRentalStep("form");
@@ -7764,6 +7754,7 @@ function App() {
         loadRentalsPublic();
         navigateTo("rentals");
       } catch (e) {
+        console.error("[Rentals] Publish Listing error:", e);
         setPostRentalError(e?.message ?? "Failed to publish. Try again.");
       } finally {
         setPostRentalPublishing(false);
@@ -7817,6 +7808,7 @@ function App() {
               {postRentalForm.email        && <p><strong>Email:</strong> {postRentalForm.email}</p>}
               {postRentalForm.externalUrl  && <p><strong>Link:</strong> {postRentalForm.externalUrl}</p>}
               <p><strong>Duration:</strong> {postRentalForm.duration}</p>
+              <p><strong>Plan:</strong> {postRentalForm.plan || "Free"}</p>
             </div>
 
             {postRentalError && (
@@ -7846,6 +7838,23 @@ function App() {
           <section className="marketplace-hero jobs-hero">
             <p className="eyebrow">List your property</p>
             <h1>Post a Rental</h1>
+          </section>
+
+          <section className="plan-grid" aria-label="Rental listing plans">
+            {promotePlans.map((plan) => (
+              <button
+                className={`plan-card${postRentalForm.plan === plan.name ? " is-selected" : ""}`}
+                key={plan.name}
+                type="button"
+                onClick={() => handleRentalField("plan", plan.name)}
+                aria-pressed={postRentalForm.plan === plan.name}
+              >
+                <span className="plan-name">{plan.name}</span>
+                <strong>{plan.price}</strong>
+                <span className="plan-cadence">{plan.cadence}</span>
+                <span className="plan-note">{plan.note}</span>
+              </button>
+            ))}
           </section>
 
           <form
@@ -8226,8 +8235,14 @@ function App() {
               )}
               {filteredJobListings.map((j) => {
                 const isSaved = savedJobs.includes(j.id);
-                const isFeatured = j.tag === "Featured" || j.plan === "featured";
-                const isPremium = j.tag === "Premium" || j.plan === "premium";
+                const jobTier = String(j.tag || j.plan || "").toLowerCase();
+                const isFeatured = jobTier === "featured";
+                const isPremium = jobTier === "premium";
+                const jobBadgeClass = isPremium
+                  ? " plan-badge plan-badge-premium jobs-tag-premium"
+                  : isFeatured
+                    ? " plan-badge plan-badge-featured jobs-tag-featured"
+                    : "";
                 return (
                   <article key={jobsListingKey(j)} className={`marketplace-card jobs-card${isFeatured ? " jobs-card-featured" : ""}${isPremium ? " jobs-card-premium" : ""}`}>
                     <div className="marketplace-photo jobs-photo">
@@ -8235,7 +8250,7 @@ function App() {
                         ? <img src={j.image} alt="" loading="lazy" />
                         : <div className="post-job-image-placeholder"><span aria-hidden="true">💼</span></div>
                       }
-                      <span className={`event-type marketplace-card-tag jobs-card-tag${isPremium ? " jobs-tag-premium" : isFeatured ? " jobs-tag-featured" : ""}`}>{j.tag}</span>
+                      <span className={`event-type marketplace-card-tag jobs-card-tag${jobBadgeClass}`}>{j.tag}</span>
                       <button
                         className={`jobs-heart-btn${isSaved ? " is-saved" : ""}`}
                         type="button"
@@ -9999,6 +10014,17 @@ function App() {
                     {filteredAdminRentalListings.map((r) => {
                       const rentalStatus = r.status ?? "approved";
                       const rentalPlan = String(r.plan ?? "free").toLowerCase();
+                      const requestedRentalPlanMatch = String(r.description ?? "").match(/requested\s*plan\s*:?\s*(featured|premium)/i);
+                      const requestedRentalPlan = requestedRentalPlanMatch
+                        ? requestedRentalPlanMatch[1].charAt(0).toUpperCase() + requestedRentalPlanMatch[1].slice(1).toLowerCase()
+                        : "";
+                      const approvingRental = adminRentalActionKey === `${r.id}:status:approved`;
+                      const rejectingRental = adminRentalActionKey === `${r.id}:status:rejected`;
+                      const hidingRental = adminRentalActionKey === `${r.id}:status:hidden`;
+                      const settingFreeRental = adminRentalActionKey === `${r.id}:plan:free`;
+                      const settingFeaturedRental = adminRentalActionKey === `${r.id}:plan:featured`;
+                      const settingPremiumRental = adminRentalActionKey === `${r.id}:plan:premium`;
+                      const deletingRental = adminRentalActionKey === `${r.id}:delete`;
 
                       return (
                       <article key={r.id} className="admin-card">
@@ -10014,6 +10040,16 @@ function App() {
                           <p className="admin-card-meta">
                             Status: <strong>{rentalStatus}</strong> · Plan: <strong>{rentalPlan}</strong>
                           </p>
+                          {requestedRentalPlan && (
+                            <p className="admin-card-meta">
+                              Requested plan: <strong>{requestedRentalPlan}</strong>
+                            </p>
+                          )}
+                          {rentalStatus === "pending" && (
+                            <p className="admin-card-meta">
+                              Description:<br />{r.description}
+                            </p>
+                          )}
                           <p className="admin-card-meta">
                             Posted: {r.created_at ? new Date(r.created_at).toLocaleDateString() : "—"}
                             {r.expires_at ? ` · Expires: ${new Date(r.expires_at).toLocaleDateString()}` : ""}
@@ -10026,15 +10062,17 @@ function App() {
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleSetRentalStatus(r, "approved")}
+                                disabled={approvingRental}
                               >
-                                Approve
+                                {approvingRental ? "Approving..." : "Approve"}
                               </button>
                               <button
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleSetRentalStatus(r, "rejected")}
+                                disabled={rejectingRental}
                               >
-                                Reject
+                                {rejectingRental ? "Updating..." : "Reject"}
                               </button>
                             </>
                           )}
@@ -10043,8 +10081,9 @@ function App() {
                               className="directory-link"
                               type="button"
                               onClick={() => handleToggleRentalStatus(r)}
+                              disabled={hidingRental}
                             >
-                              Hide
+                              {hidingRental ? "Updating..." : "Hide"}
                             </button>
                           )}
                           {(rentalStatus === "hidden" || rentalStatus === "rejected") && (
@@ -10052,8 +10091,9 @@ function App() {
                               className="directory-link"
                               type="button"
                               onClick={() => handleSetRentalStatus(r, "approved")}
+                              disabled={approvingRental}
                             >
-                              Show / Restore
+                              {approvingRental ? "Approving..." : "Show / Restore"}
                             </button>
                           )}
                           <button
@@ -10069,41 +10109,41 @@ function App() {
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleSetRentalPlan(r, "free")}
-                                disabled={rentalPlan === "free"}
+                                disabled={rentalPlan === "free" || settingFreeRental}
                               >
-                                Plan Free
+                                {settingFreeRental ? "Updating..." : "Plan Free"}
                               </button>
                               <button
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleSetRentalPlan(r, "featured")}
-                                disabled={rentalPlan === "featured"}
+                                disabled={rentalPlan === "featured" || settingFeaturedRental}
                               >
-                                Plan Featured
+                                {settingFeaturedRental ? "Updating..." : "Plan Featured"}
                               </button>
                               <button
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleSetRentalPlan(r, "premium")}
-                                disabled={rentalPlan === "premium"}
+                                disabled={rentalPlan === "premium" || settingPremiumRental}
                               >
-                                Plan Premium
+                                {settingPremiumRental ? "Updating..." : "Plan Premium"}
                               </button>
                               <button
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleSetRentalPromo(r, "featured")}
-                                disabled={rentalPlan === "featured"}
+                                disabled={rentalPlan === "featured" || settingFeaturedRental}
                               >
-                                Promo Featured Free
+                                {settingFeaturedRental ? "Updating..." : "Promo Featured Free"}
                               </button>
                               <button
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleSetRentalPromo(r, "premium")}
-                                disabled={rentalPlan === "premium"}
+                                disabled={rentalPlan === "premium" || settingPremiumRental}
                               >
-                                Promo Premium Free
+                                {settingPremiumRental ? "Updating..." : "Promo Premium Free"}
                               </button>
                             </>
                           )}
@@ -10111,8 +10151,9 @@ function App() {
                             className="directory-link danger-link"
                             type="button"
                             onClick={() => handleDeleteRental(r.id)}
+                            disabled={deletingRental}
                           >
-                            Delete
+                            {deletingRental ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       </article>

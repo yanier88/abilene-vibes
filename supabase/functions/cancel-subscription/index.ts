@@ -15,9 +15,11 @@ const getBearerToken = (request: Request) => {
   return header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
 };
 
-const verifyAuthenticatedUser = async (supabaseUrl: string, anonKey: string, accessToken: string) => {
+const adminEmails = new Set(["cabrerahernandezyanier@gmail.com"]);
+
+const fetchAuthenticatedUser = async (supabaseUrl: string, anonKey: string, accessToken: string) => {
   if (!supabaseUrl || !anonKey || !accessToken) {
-    return false;
+    return null;
   }
 
   const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
@@ -27,7 +29,16 @@ const verifyAuthenticatedUser = async (supabaseUrl: string, anonKey: string, acc
     },
   });
 
-  return response.ok;
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+};
+
+const isAllowedAdmin = (user: { email?: unknown } | null) => {
+  const email = typeof user?.email === "string" ? user.email.trim().toLowerCase() : "";
+  return adminEmails.has(email);
 };
 
 const fetchSubmission = async (supabaseUrl: string, serviceRoleKey: string, submissionId: string) => {
@@ -91,9 +102,14 @@ Deno.serve(async (request) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
     const accessToken = getBearerToken(request);
+    const user = await fetchAuthenticatedUser(supabaseUrl, anonKey, accessToken);
 
-    if (!(await verifyAuthenticatedUser(supabaseUrl, anonKey, accessToken))) {
+    if (!user) {
       return jsonResponse({ error: "Unauthorized." }, 401);
+    }
+
+    if (!isAllowedAdmin(user)) {
+      return jsonResponse({ error: "Not authorized." }, 403);
     }
 
     if (!serviceRoleKey || !stripeSecretKey) {
@@ -121,6 +137,7 @@ Deno.serve(async (request) => {
     const updateBody = {
       payment_status: subscription.cancel_at_period_end ? "cancel_pending" : "canceled",
       placement_expires_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
+      ...(subscription.cancel_at_period_end ? {} : { status: "hidden" }),
     };
 
     await fetch(`${supabaseUrl}/rest/v1/business_submissions?id=eq.${submissionId}`, {
