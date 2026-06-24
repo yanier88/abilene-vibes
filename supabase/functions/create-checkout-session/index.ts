@@ -51,6 +51,92 @@ const fetchBusinessSubmission = async (supabaseUrl: string, serviceRoleKey: stri
   return submission ?? null;
 };
 
+const fetchJobListing = async (supabaseUrl: string, serviceRoleKey: string, jobId: string) => {
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/job_listings?id=eq.${encodeURIComponent(jobId)}&select=id,title,company,email,plan,payment_status,status`,
+    {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not verify job listing.");
+  }
+
+  const [job] = await response.json();
+  return job ?? null;
+};
+
+const normalizeJobPlan = (plan: string) => plan.trim().toLowerCase();
+
+const sanitizeJobPayload = (payload: unknown) => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const source = payload as Record<string, unknown>;
+  const allowedFields = [
+    "title",
+    "company",
+    "category",
+    "job_type",
+    "pay_label",
+    "location",
+    "phone",
+    "email",
+    "description",
+    "requirements",
+    "app_method",
+    "apply_url",
+    "duration",
+    "image_data",
+    "logo_data",
+    "expires_at",
+  ];
+  const cleanPayload: Record<string, unknown> = {};
+
+  for (const field of allowedFields) {
+    if (field in source) {
+      cleanPayload[field] = source[field];
+    }
+  }
+
+  return cleanPayload;
+};
+
+const insertJobListing = async (
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  jobPayload: Record<string, unknown>,
+  plan: string,
+) => {
+  const response = await fetch(`${supabaseUrl}/rest/v1/job_listings?select=id,title,company,email,plan,payment_status,status`, {
+    method: "POST",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      ...jobPayload,
+      status: "pending",
+      plan,
+      payment_status: "pending",
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not create job listing.");
+  }
+
+  const [job] = await response.json();
+  return job ?? null;
+};
+
 const stripeRequest = async (secretKey: string, params: URLSearchParams) => {
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
@@ -80,7 +166,8 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const { submissionId, plan, businessName, contactEmail, returnUrl } = await request.json();
+    const { listingType, action, submissionId, jobId, plan, businessName, contactEmail, returnUrl, jobPayload } = await request.json();
+    const cleanListingType = listingType === "job" ? "job" : "business";
     const secretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
     const appPublicUrl = cleanPublicUrl(Deno.env.get("APP_PUBLIC_URL") ?? returnUrl ?? "");
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -94,12 +181,161 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: "Missing APP_PUBLIC_URL. It must be an https URL." }, 500);
     }
 
-    if (!submissionId || !planAmounts[plan]) {
-      return jsonResponse({ error: "Invalid paid plan request." }, 400);
-    }
-
     if (!supabaseUrl || !serviceRoleKey) {
       return jsonResponse({ error: "Missing Supabase service configuration." }, 500);
+    }
+
+    if (cleanListingType === "job") {
+      if (action === "create_and_checkout") {
+        if (!planAmounts[plan]) {
+          return jsonResponse({ error: "Invalid paid job plan request." }, 400);
+        }
+
+        const normalizedPlan = normalizeJobPlan(plan);
+        if (!["featured", "premium"].includes(normalizedPlan)) {
+          return jsonResponse({ error: "Invalid paid job plan request." }, 400);
+        }
+
+        const cleanJobPayload = sanitizeJobPayload(jobPayload);
+        const title = String(cleanJobPayload?.title ?? "").trim();
+        const company = String(cleanJobPayload?.company ?? "").trim();
+
+        if (!cleanJobPayload || !title || !company) {
+          return jsonResponse({ error: "Missing required job fields." }, 400);
+        }
+
+        const insertedJob = await insertJobListing(supabaseUrl, serviceRoleKey, cleanJobPayload, normalizedPlan);
+
+        if (!insertedJob?.id || insertedJob.plan !== normalizedPlan || insertedJob.status !== "pending") {
+          return jsonResponse({ error: "Could not create job listing." }, 500);
+        }
+
+        const insertedJobId = String(insertedJob.id);
+        const params = new URLSearchParams({
+          mode: "subscription",
+          "line_items[0][quantity]": "1",
+          client_reference_id: insertedJobId,
+          success_url: `${appPublicUrl}?checkout=success`,
+          cancel_url: `${appPublicUrl}?checkout=cancelled`,
+          "metadata[listing_type]": "job",
+          "metadata[job_id]": insertedJobId,
+          "metadata[plan]": plan,
+          "subscription_data[metadata][listing_type]": "job",
+          "subscription_data[metadata][job_id]": insertedJobId,
+          "subscription_data[metadata][plan]": plan,
+          "payment_method_types[0]": "card",
+        });
+
+        if (insertedJob.email || contactEmail) {
+          params.set("customer_email", String(insertedJob.email ?? contactEmail));
+        }
+
+        const priceId = Deno.env.get(planPriceEnv[plan]) ?? "";
+        if (priceId) {
+          params.set("line_items[0][price]", priceId);
+        } else {
+          params.set("line_items[0][price_data][currency]", "usd");
+          params.set("line_items[0][price_data][unit_amount]", String(planAmounts[plan]));
+          params.set("line_items[0][price_data][recurring][interval]", "month");
+          params.set("line_items[0][price_data][product_data][name]", `Abilene Vibes ${plan} Job Listing`);
+          params.set(
+            "line_items[0][price_data][product_data][description]",
+            `${insertedJob.company ?? businessName ?? insertedJob.title ?? "Job"} monthly hiring promotion plan`,
+          );
+        }
+
+        const session = await stripeRequest(secretKey, params);
+
+        await fetch(`${supabaseUrl}/rest/v1/job_listings?id=eq.${insertedJobId}`, {
+          method: "PATCH",
+          headers: {
+            apikey: serviceRoleKey,
+            Authorization: `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            payment_status: "checkout_started",
+            stripe_session_id: session.id,
+          }),
+        });
+
+        return jsonResponse({ url: session.url });
+      }
+
+      if (!jobId || !planAmounts[plan]) {
+        return jsonResponse({ error: "Invalid paid job plan request." }, 400);
+      }
+
+      const normalizedPlan = normalizeJobPlan(plan);
+      if (!["featured", "premium"].includes(normalizedPlan)) {
+        return jsonResponse({ error: "Invalid paid job plan request." }, 400);
+      }
+
+      const job = await fetchJobListing(supabaseUrl, serviceRoleKey, jobId);
+
+      if (!job || job.plan !== normalizedPlan || job.status !== "pending") {
+        return jsonResponse({ error: "Job listing does not match this checkout request." }, 400);
+      }
+
+      if (!["pending", "checkout_started"].includes(job.payment_status)) {
+        return jsonResponse({ error: "Job listing is not eligible for checkout." }, 400);
+      }
+
+      const params = new URLSearchParams({
+        mode: "subscription",
+        "line_items[0][quantity]": "1",
+        client_reference_id: jobId,
+        success_url: `${appPublicUrl}?checkout=success`,
+        cancel_url: `${appPublicUrl}?checkout=cancelled`,
+        "metadata[listing_type]": "job",
+        "metadata[job_id]": jobId,
+        "metadata[plan]": plan,
+        "subscription_data[metadata][listing_type]": "job",
+        "subscription_data[metadata][job_id]": jobId,
+        "subscription_data[metadata][plan]": plan,
+        "payment_method_types[0]": "card",
+      });
+
+      if (job.email || contactEmail) {
+        params.set("customer_email", String(job.email ?? contactEmail));
+      }
+
+      const priceId = Deno.env.get(planPriceEnv[plan]) ?? "";
+      if (priceId) {
+        params.set("line_items[0][price]", priceId);
+      } else {
+        params.set("line_items[0][price_data][currency]", "usd");
+        params.set("line_items[0][price_data][unit_amount]", String(planAmounts[plan]));
+        params.set("line_items[0][price_data][recurring][interval]", "month");
+        params.set("line_items[0][price_data][product_data][name]", `Abilene Vibes ${plan} Job Listing`);
+        params.set(
+          "line_items[0][price_data][product_data][description]",
+          `${job.company ?? businessName ?? job.title ?? "Job"} monthly hiring promotion plan`,
+        );
+      }
+
+      const session = await stripeRequest(secretKey, params);
+
+      await fetch(`${supabaseUrl}/rest/v1/job_listings?id=eq.${jobId}`, {
+        method: "PATCH",
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          payment_status: "checkout_started",
+          stripe_session_id: session.id,
+        }),
+      });
+
+      return jsonResponse({ url: session.url });
+    }
+
+    if (!submissionId || !planAmounts[plan]) {
+      return jsonResponse({ error: "Invalid paid plan request." }, 400);
     }
 
     const submission = await fetchBusinessSubmission(supabaseUrl, serviceRoleKey, submissionId);

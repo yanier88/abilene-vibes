@@ -76,6 +76,26 @@ const updateBusinessPayment = async (submissionId: string, updates: Record<strin
   });
 };
 
+const updateJobPayment = async (jobId: string, updates: Record<string, unknown>) => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  if (!supabaseUrl || !serviceRoleKey || !jobId) {
+    return;
+  }
+
+  await fetch(`${supabaseUrl}/rest/v1/job_listings?id=eq.${jobId}`, {
+    method: "PATCH",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(updates),
+  });
+};
+
 const stripeGet = async (path: string, searchParams?: URLSearchParams) => {
   const secretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 
@@ -123,6 +143,46 @@ const fetchBusinessSubmissionIdBySubscription = async (subscriptionId: string) =
 
   const [submission] = await response.json();
   return submission?.id ?? "";
+};
+
+const fetchJobListingIdBySubscription = async (subscriptionId: string) => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  if (!supabaseUrl || !serviceRoleKey || !subscriptionId) {
+    return "";
+  }
+
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/job_listings?stripe_subscription_id=eq.${encodeURIComponent(subscriptionId)}&select=id&limit=1`,
+    {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    return "";
+  }
+
+  const [job] = await response.json();
+  return job?.id ?? "";
+};
+
+const stripeListingType = (metadata: { listing_type?: unknown } | undefined) =>
+  metadata?.listing_type === "job" ? "job" : "business";
+
+const invoiceListingType = (invoice: Record<string, unknown>) => {
+  const metadata = invoice.metadata as { listing_type?: unknown } | undefined;
+  const subscriptionDetails = invoice.subscription_details as { metadata?: { listing_type?: unknown } } | undefined;
+  const parent = invoice.parent as { subscription_details?: { metadata?: { listing_type?: unknown } } } | undefined;
+
+  if (stripeListingType(metadata) === "job") return "job";
+  if (stripeListingType(subscriptionDetails?.metadata) === "job") return "job";
+  if (stripeListingType(parent?.subscription_details?.metadata) === "job") return "job";
+  return "business";
 };
 
 const invoiceSubscriptionId = (invoice: Record<string, unknown>) => {
@@ -280,6 +340,8 @@ Deno.serve(async (request) => {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+    const listingType = stripeListingType(session.metadata);
+    const jobId = session.metadata?.job_id ?? session.client_reference_id ?? "";
     const submissionId = session.client_reference_id ?? session.metadata?.submission_id ?? "";
     const paidAt = new Date().toISOString();
     const paymentIntentId = session.payment_intent ?? "";
@@ -291,6 +353,20 @@ Deno.serve(async (request) => {
           ? await fetchInvoice(session.invoice)
           : session.invoice;
       charge = invoice ? await fetchChargeFromInvoice(invoice) : null;
+    }
+
+    if (listingType === "job") {
+      await updateJobPayment(jobId, {
+        payment_status: "paid",
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: session.payment_intent ?? null,
+        stripe_customer_id: session.customer ?? null,
+        stripe_subscription_id: session.subscription ?? null,
+        paid_at: paidAt,
+      });
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     await savePaymentRecord({
@@ -313,15 +389,34 @@ Deno.serve(async (request) => {
 
   if (event.type === "checkout.session.expired") {
     const session = event.data.object;
+    const listingType = stripeListingType(session.metadata);
+    const jobId = session.metadata?.job_id ?? session.client_reference_id ?? "";
     const submissionId = session.client_reference_id ?? session.metadata?.submission_id ?? "";
+
+    if (listingType === "job") {
+      await updateJobPayment(jobId, { payment_status: "expired" });
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     await updateBusinessPayment(submissionId, { payment_status: "expired" });
   }
 
   if (event.type === "invoice.payment_failed") {
     const invoice = event.data.object;
     const subscriptionId = invoice.subscription ?? "";
+    const listingType = invoiceListingType(invoice);
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+    if (listingType === "job") {
+      const jobId = await fetchJobListingIdBySubscription(subscriptionId);
+      await updateJobPayment(jobId, { payment_status: "failed" });
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     if (supabaseUrl && serviceRoleKey && subscriptionId) {
       await fetch(`${supabaseUrl}/rest/v1/business_submissions?stripe_subscription_id=eq.${subscriptionId}`, {
@@ -340,6 +435,7 @@ Deno.serve(async (request) => {
   if (event.type === "invoice.payment_succeeded" || event.type === "invoice.paid") {
     const invoice = event.data.object;
     const fullInvoice = stripeObjectId(invoice) ? (await fetchInvoice(stripeObjectId(invoice)) ?? invoice) : invoice;
+    const listingType = invoiceListingType(fullInvoice);
     const subscriptionId = invoiceSubscriptionId(fullInvoice);
     const submissionId = invoiceSubmissionId(fullInvoice) || (await fetchBusinessSubmissionIdBySubscription(subscriptionId));
     const charge = await fetchChargeFromInvoice(fullInvoice);
@@ -349,6 +445,12 @@ Deno.serve(async (request) => {
       : fullInvoice.created
         ? new Date(Number(fullInvoice.created) * 1000).toISOString()
         : new Date().toISOString();
+
+    if (listingType === "job") {
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     await savePaymentRecord({
       submissionId,
@@ -363,8 +465,20 @@ Deno.serve(async (request) => {
   if (event.type === "customer.subscription.deleted") {
     const subscription = event.data.object;
     const subscriptionId = subscription.id ?? "";
+    const listingType = stripeListingType(subscription.metadata);
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+    if (listingType === "job") {
+      const jobId = await fetchJobListingIdBySubscription(subscriptionId);
+      await updateJobPayment(jobId, {
+        payment_status: "canceled",
+        status: "hidden",
+      });
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     if (supabaseUrl && serviceRoleKey && subscriptionId) {
       await fetch(`${supabaseUrl}/rest/v1/business_submissions?stripe_subscription_id=eq.${subscriptionId}`, {

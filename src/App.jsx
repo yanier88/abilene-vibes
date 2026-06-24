@@ -1944,7 +1944,7 @@ function App() {
   const [postJobForm, setPostJobForm] = useState({
     title: "", company: "", category: "", jobType: "", payMin: "", payMax: "",
     location: "Abilene, TX", phone: "", email: "", description: "", requirements: "",
-    image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "",
+    image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free",
   });
   const [postJobPreview, setPostJobPreview] = useState(false);
   const [postJobImagePreview, setPostJobImagePreview] = useState(null);
@@ -3061,7 +3061,7 @@ function App() {
         .order("event_date", { ascending: true }),
       supabase
         .from("job_listings")
-        .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,apply_url,duration,plan,status,image_data,logo_data,expires_at")
+        .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,apply_url,duration,plan,status,payment_status,image_data,logo_data,expires_at")
         .order("created_at", { ascending: false }),
       supabase
         .from("marketplace_listings")
@@ -3271,6 +3271,21 @@ function App() {
     await loadAdminData();
   };
 
+  const handleApproveJob = async (job) => {
+    const plan = String(job?.plan ?? "free").toLowerCase();
+    const paymentStatus = String(job?.payment_status ?? "").toLowerCase();
+    const canApprove =
+      (plan === "free" && paymentStatus === "not_required") ||
+      ((plan === "featured" || plan === "premium") && ["paid", "not_required"].includes(paymentStatus));
+
+    if (!canApprove) {
+      setAdminStatus("job-payment-incomplete");
+      return;
+    }
+
+    await moderateItem("job_listings", job.id, "approved");
+  };
+
   const deleteGalleryPhoto = async (id) => {
     if (!supabase || !adminSession) {
       return;
@@ -3305,6 +3320,18 @@ function App() {
 
   const handleSaveJob = async () => {
     if (!supabase || !adminSession || !editingJob) return;
+    const plan = String(editingJob.plan ?? "free").toLowerCase();
+    const paymentStatus = String(editingJob.payment_status ?? "").toLowerCase();
+    const savingAsApproved = editingJob.status === "approved";
+    const canApprove =
+      (plan === "free" && paymentStatus === "not_required") ||
+      ((plan === "featured" || plan === "premium") && paymentStatus === "paid");
+
+    if (savingAsApproved && !canApprove) {
+      setAdminStatus("job-payment-incomplete");
+      return;
+    }
+
     setAdminStatus("saving");
     const { error } = await supabase
       .from("job_listings")
@@ -3340,6 +3367,64 @@ function App() {
     const cleanPlan = plan === "premium" ? "premium" : plan === "featured" ? "featured" : "free";
     setAdminStatus("saving");
     const { error } = await supabase.from("job_listings").update({ plan: cleanPlan }).eq("id", job.id);
+    if (error) { setAdminStatus("error"); return; }
+    await loadAdminData();
+  };
+
+  const setPaidJobPlacement = async (job, plan) => {
+    if (!supabase || !adminSession) return;
+    const cleanPlan = plan === "premium" ? "premium" : plan === "featured" ? "featured" : "free";
+    const planLabel = cleanPlan.charAt(0).toUpperCase() + cleanPlan.slice(1);
+    if (!window.confirm(`Set "${job.title}" to ${planLabel} paid plan?`)) return;
+
+    setAdminStatus("saving");
+    const { error } = await supabase
+      .from("job_listings")
+      .update({
+        plan: cleanPlan,
+        status: cleanPlan === "free" ? job.status : "approved",
+        payment_status: cleanPlan === "free" ? "not_required" : "paid",
+      })
+      .eq("id", job.id);
+    if (error) { setAdminStatus("error"); return; }
+    await loadAdminData();
+  };
+
+  const compJobPlacement = async (job, plan) => {
+    if (!supabase || !adminSession) return;
+    const cleanPlan = plan === "premium" ? "premium" : "featured";
+    const days = window.prompt("Promo duration in days", "30");
+    if (days === null) return;
+    const durationDays = Math.max(1, Number.parseInt(days, 10) || 30);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + durationDays);
+
+    setAdminStatus("saving");
+    const { error } = await supabase
+      .from("job_listings")
+      .update({
+        plan: cleanPlan,
+        status: "approved",
+        payment_status: "not_required",
+        expires_at: expiresAt.toISOString(),
+      })
+      .eq("id", job.id);
+    if (error) { setAdminStatus("error"); return; }
+    await loadAdminData();
+  };
+
+  const clearCompJobPlacement = async (job) => {
+    if (!supabase || !adminSession) return;
+    if (!window.confirm(`End free promo for "${job.title}"?`)) return;
+
+    setAdminStatus("saving");
+    const { error } = await supabase
+      .from("job_listings")
+      .update({
+        plan: "free",
+        payment_status: "not_required",
+      })
+      .eq("id", job.id);
     if (error) { setAdminStatus("error"); return; }
     await loadAdminData();
   };
@@ -6621,6 +6706,7 @@ function App() {
     const jobTypeOptions = ["Full Time", "Part Time", "Temporary", "Contract"];
     const appMethodOptions = ["Phone", "Email", "Website", "In Person"];
     const durationOptions = ["30 Days", "60 Days", "90 Days"];
+    const selectedPostJobPlan = postJobForm.plan || "Free";
     const handlePostJobField = (field, value) =>
       setPostJobForm((prev) => ({ ...prev, [field]: value }));
     const handlePostJobImage = async (e) => {
@@ -6678,10 +6764,19 @@ function App() {
               duration: postJobForm.duration || "30 Days",
               plan: "free",
               status: "pending",
+              payment_status: "not_required",
               image_data: postJobImagePreview,
               logo_data: postJobLogoPreview,
               expires_at: expiresAt,
             });
+
+          console.log("[Jobs Stripe Debug] free insert result", {
+            data,
+            error,
+            plan: "free",
+            status: "pending",
+            payment_status: "not_required",
+          });
 
           if (error) {
             console.error("[Jobs] Supabase insert error:", error.message);
@@ -6725,7 +6820,7 @@ function App() {
           return;
         }
 
-        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "" });
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
         setPostJobPreview(false); setPostJobStep("form");
         setPostJobError(null);
@@ -6745,74 +6840,68 @@ function App() {
         const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
         const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
         if (supabase) {
-          const { data, error } = await supabase
-            .from("job_listings")
-            .insert({
-              title: postJobForm.title,
-              company: postJobForm.company,
-              category: postJobForm.category || "Other",
-              job_type: postJobForm.jobType || "Full Time",
-              pay_label: payLabel,
-              location: postJobForm.location || "Abilene, TX",
-              phone: postJobForm.phone,
-              email: postJobForm.email,
-              description: postJobForm.description,
-              requirements: postJobForm.requirements,
-              app_method: postJobForm.appMethod || "Phone",
-              apply_url: postJobForm.applyUrl || null,
-              duration: postJobForm.duration || "30 Days",
-              plan: "featured",
-              status: "pending",
-              image_data: postJobImagePreview,
-              logo_data: postJobLogoPreview,
-              expires_at: expiresAt,
-            });
-          if (error) {
-            console.error("[Jobs] Supabase insert error (featured):", error.message);
-            setPostJobError("Could not save this job for review. Please try again.");
-            return;
-          } else if (false && data) {
-            const savedJob = {
-              id: data.id,
-              title: data.title,
-              company: data.company,
-              pay: data.pay_label || payLabel,
-              location: data.location,
-              type: data.job_type,
-              schedule: "",
-              posted: "Posted Today",
-              category: data.category,
-              tag: "Featured",
-              filters: [data.job_type, "New Today"],
-              image: data.image_data,
-              description: data.description,
-              requirements: data.requirements,
-              contact: data.phone,
-              email: data.email,
-              appMethod: data.app_method,
-              applyUrl: data.apply_url,
-              duration: data.duration,
-              plan: "featured",
-            };
-            if (data.status === "approved") {
-              setPostedJobs((prev) => [savedJob, ...prev]);
+          const returnUrl = window.location.origin.startsWith("https://") ? window.location.origin : "";
+          const jobPayload = {
+            title: postJobForm.title,
+            company: postJobForm.company,
+            category: postJobForm.category || "Other",
+            job_type: postJobForm.jobType || "Full Time",
+            pay_label: payLabel,
+            location: postJobForm.location || "Abilene, TX",
+            phone: postJobForm.phone,
+            email: postJobForm.email,
+            description: postJobForm.description,
+            requirements: postJobForm.requirements,
+            app_method: postJobForm.appMethod || "Phone",
+            apply_url: postJobForm.applyUrl || null,
+            duration: postJobForm.duration || "30 Days",
+            image_data: postJobImagePreview,
+            logo_data: postJobLogoPreview,
+            expires_at: expiresAt,
+          };
+          const checkoutPayload = {
+            listingType: "job",
+            action: "create_and_checkout",
+            plan: "Featured",
+            jobPayload,
+            businessName: postJobForm.company,
+            contactEmail: postJobForm.email,
+            returnUrl,
+          };
+          console.log("[Jobs Stripe Debug] featured checkout payload", checkoutPayload);
+          const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-checkout-session", {
+            body: checkoutPayload,
+          });
+          console.log("[Jobs Stripe Debug] featured checkout result", {
+            data: checkoutData,
+            error: checkoutError,
+            url: checkoutData?.url,
+            checkoutUrl: checkoutData?.checkoutUrl,
+          });
+
+          if (checkoutData?.url) {
+            console.log("[Jobs Stripe Debug] featured opening checkout URL", checkoutData.url);
+            openCheckoutUrl(checkoutData.url);
+            console.log("[Jobs Stripe Debug] featured openCheckoutUrl called");
+          } else {
+            if (checkoutError) {
+              console.error("[Jobs] Checkout session failed (featured):", checkoutError);
             }
-          } else if (false) {
-            setPostJobError("Could not confirm this job was saved for review. Please try again.");
+            setPostJobError("Your job was saved, but checkout could not open. Please contact us to finish payment.");
             return;
           }
         } else {
           setPostJobError("Connection unavailable. Check your internet and try again.");
           return;
         }
-        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "" });
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
         setPostJobPreview(false); setPostJobStep("form");
         setPostJobError(null);
         navigateTo("jobs");
       } catch (err) {
         console.error("[Jobs] Unexpected error publishing featured job:", err);
-        setPostJobError(err?.message || "Error al publicar. Verifica tu conexión e intenta de nuevo.");
+        setPostJobError(err?.message || "Error al publicar. Verifica tu conexiÃ³n e intenta de nuevo.");
       } finally {
         setPostJobPublishing(false);
       }
@@ -6825,77 +6914,83 @@ function App() {
         const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
         const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
         if (supabase) {
-          const { data, error } = await supabase
-            .from("job_listings")
-            .insert({
-              title: postJobForm.title,
-              company: postJobForm.company,
-              category: postJobForm.category || "Other",
-              job_type: postJobForm.jobType || "Full Time",
-              pay_label: payLabel,
-              location: postJobForm.location || "Abilene, TX",
-              phone: postJobForm.phone,
-              email: postJobForm.email,
-              description: postJobForm.description,
-              requirements: postJobForm.requirements,
-              app_method: postJobForm.appMethod || "Phone",
-              apply_url: postJobForm.applyUrl || null,
-              duration: postJobForm.duration || "30 Days",
-              plan: "premium",
-              status: "pending",
-              image_data: postJobImagePreview,
-              logo_data: postJobLogoPreview,
-              expires_at: expiresAt,
-            });
-          if (error) {
-            console.error("[Jobs] Supabase insert error (premium):", error.message);
-            setPostJobError("Could not save this job for review. Please try again.");
-            return;
-          } else if (false && data) {
-            const savedJob = {
-              id: data.id,
-              title: data.title,
-              company: data.company,
-              pay: data.pay_label || payLabel,
-              location: data.location,
-              type: data.job_type,
-              schedule: "",
-              posted: "Posted Today",
-              category: data.category,
-              tag: "Premium",
-              filters: [data.job_type, "New Today"],
-              image: data.image_data,
-              description: data.description,
-              requirements: data.requirements,
-              contact: data.phone,
-              email: data.email,
-              appMethod: data.app_method,
-              applyUrl: data.apply_url,
-              duration: data.duration,
-              plan: "premium",
-            };
-            if (data.status === "approved") {
-              setPostedJobs((prev) => [savedJob, ...prev]);
+          const returnUrl = window.location.origin.startsWith("https://") ? window.location.origin : "";
+          const jobPayload = {
+            title: postJobForm.title,
+            company: postJobForm.company,
+            category: postJobForm.category || "Other",
+            job_type: postJobForm.jobType || "Full Time",
+            pay_label: payLabel,
+            location: postJobForm.location || "Abilene, TX",
+            phone: postJobForm.phone,
+            email: postJobForm.email,
+            description: postJobForm.description,
+            requirements: postJobForm.requirements,
+            app_method: postJobForm.appMethod || "Phone",
+            apply_url: postJobForm.applyUrl || null,
+            duration: postJobForm.duration || "30 Days",
+            image_data: postJobImagePreview,
+            logo_data: postJobLogoPreview,
+            expires_at: expiresAt,
+          };
+          const checkoutPayload = {
+            listingType: "job",
+            action: "create_and_checkout",
+            plan: "Premium",
+            jobPayload,
+            businessName: postJobForm.company,
+            contactEmail: postJobForm.email,
+            returnUrl,
+          };
+          console.log("[Jobs Stripe Debug] premium checkout payload", checkoutPayload);
+          const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-checkout-session", {
+            body: checkoutPayload,
+          });
+          console.log("[Jobs Stripe Debug] premium checkout result", {
+            data: checkoutData,
+            error: checkoutError,
+            url: checkoutData?.url,
+            checkoutUrl: checkoutData?.checkoutUrl,
+          });
+
+          if (checkoutData?.url) {
+            console.log("[Jobs Stripe Debug] premium opening checkout URL", checkoutData.url);
+            openCheckoutUrl(checkoutData.url);
+            console.log("[Jobs Stripe Debug] premium openCheckoutUrl called");
+          } else {
+            if (checkoutError) {
+              console.error("[Jobs] Checkout session failed (premium):", checkoutError);
             }
-          } else if (false) {
-            setPostJobError("Could not confirm this job was saved for review. Please try again.");
+            setPostJobError("Your job was saved, but checkout could not open. Please contact us to finish payment.");
             return;
           }
         } else {
           setPostJobError("Connection unavailable. Check your internet and try again.");
           return;
         }
-        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "" });
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
         setPostJobPreview(false); setPostJobStep("form");
         setPostJobError(null);
         navigateTo("jobs");
       } catch (err) {
         console.error("[Jobs] Unexpected error publishing premium job:", err);
-        setPostJobError(err?.message || "Error al publicar. Verifica tu conexión e intenta de nuevo.");
+        setPostJobError(err?.message || "Error al publicar. Verifica tu conexion e intenta de nuevo.");
       } finally {
         setPostJobPublishing(false);
       }
+    };
+
+    const handlePostSelectedPlan = () => {
+      if (selectedPostJobPlan === "Premium") {
+        handlePostPremium();
+        return;
+      }
+      if (selectedPostJobPlan === "Featured") {
+        handlePostFeatured();
+        return;
+      }
+      handlePostFree();
     };
 
     return withSplash(
@@ -6907,7 +7002,7 @@ function App() {
           </button>
 
           {/* ── PLAN SELECTION ── */}
-          {postJobStep === "plan" && (
+          {false && postJobStep === "plan" && (
             <div className="post-job-plan-wrap">
               <section className="marketplace-hero jobs-hero" aria-labelledby="plan-title">
                 <p className="eyebrow">Choose a Plan</p>
@@ -6916,7 +7011,7 @@ function App() {
               </section>
               <div className="post-job-plans">
                 {/* FREE */}
-                <div className="post-job-plan-card post-job-plan-free">
+                <div className={`post-job-plan-card post-job-plan-free${selectedPostJobPlan === "Free" ? " is-selected" : ""}`}>
                   <p className="plan-badge plan-badge-free">FREE</p>
                   <p className="plan-price">$0</p>
                   <p className="plan-duration">{postJobForm.duration}</p>
@@ -6931,7 +7026,7 @@ function App() {
                   {postJobError && <p className="post-job-error" role="alert">{postJobError}</p>}
                 </div>
                 {/* FEATURED */}
-                <div className="post-job-plan-card post-job-plan-featured">
+                <div className={`post-job-plan-card post-job-plan-featured${selectedPostJobPlan === "Featured" ? " is-selected" : ""}`}>
                   <p className="plan-badge plan-badge-featured">FEATURED</p>
                   <p className="plan-price">$19</p>
                   <p className="plan-duration">{postJobForm.duration}</p>
@@ -6946,7 +7041,7 @@ function App() {
                   {postJobError && <p className="post-job-error" role="alert">{postJobError}</p>}
                 </div>
                 {/* PREMIUM */}
-                <div className="post-job-plan-card post-job-plan-premium">
+                <div className={`post-job-plan-card post-job-plan-premium${selectedPostJobPlan === "Premium" ? " is-selected" : ""}`}>
                   <p className="plan-badge plan-badge-premium">PREMIUM</p>
                   <p className="plan-price">$59</p>
                   <p className="plan-duration">{postJobForm.duration}</p>
@@ -6998,11 +7093,11 @@ function App() {
               </article>
               <div className="post-job-preview-actions">
                 <button className="back-button" type="button" onClick={() => setPostJobStep("form")}>← Edit Listing</button>
-                <button className="jobs-post-button post-job-promote-btn" type="button" onClick={() => setPostJobStep("plan")}>
-                  <span aria-hidden="true">🚀</span> Choose Plan
+                <button className="jobs-post-button post-job-promote-btn" type="button" onClick={handlePostSelectedPlan} disabled={postJobPublishing}>
+                  <span aria-hidden="true">🚀</span> {postJobPublishing ? "Publishing..." : "Publish / Continue"}
                 </button>
               </div>
-              <p className="post-job-promote-note">Choose a plan on the next screen. Free posting goes live instantly.</p>
+              <p className="post-job-promote-note">Selected plan: {selectedPostJobPlan}. Free saves for review; Featured and Premium continue to checkout.</p>
             </div>
           )}
 
@@ -7012,7 +7107,23 @@ function App() {
               <section className="marketplace-hero jobs-hero" aria-labelledby="post-job-title">
                 <p className="eyebrow">For employers</p>
                 <h1 id="post-job-title">Post a Job</h1>
-                <p className="events-intro">Fill in the details, preview, then choose a plan.</p>
+                <p className="events-intro">Choose a plan, fill in the details, then preview and publish.</p>
+              </section>
+              <section className="plan-grid" aria-label="Job listing plans">
+                {promotePlans.map((plan) => (
+                  <button
+                    className={`plan-card${selectedPostJobPlan === plan.name ? " is-selected" : ""}`}
+                    key={plan.name}
+                    type="button"
+                    onClick={() => handlePostJobField("plan", plan.name)}
+                    aria-pressed={selectedPostJobPlan === plan.name}
+                  >
+                    <span className="plan-name">{plan.name}</span>
+                    <strong>{plan.price}</strong>
+                    <span className="plan-cadence">{plan.cadence}</span>
+                    <span className="plan-note">{plan.note}</span>
+                  </button>
+                ))}
               </section>
               <form className="business-form post-job-form"
                 onSubmit={(e) => { e.preventDefault(); setPostJobStep("preview"); window.scrollTo(0, 0); }}>
@@ -7144,7 +7255,7 @@ function App() {
                     <span aria-hidden="true">👁</span> Preview Job
                   </button>
                 </div>
-                <p className="post-job-form-note">After preview you choose a plan. Free listings go live instantly.</p>
+                <p className="post-job-form-note">After preview, your selected plan will be used to publish or continue to checkout.</p>
               </form>
             </>
           )}
@@ -9085,6 +9196,9 @@ function App() {
             {adminStatus === "error" && (
               <p className="form-error">Could not save. Try again.</p>
             )}
+            {adminStatus === "job-payment-incomplete" && (
+              <p className="form-error">Payment is not completed yet.</p>
+            )}
             <div className="directory-actions" style={{ marginTop: "8px" }}>
               <button
                 className="primary-button"
@@ -9675,14 +9789,29 @@ function App() {
                   <p className="eyebrow">All listings</p>
                   <h2 id="admin-jobs-title">Jobs &amp; Hiring</h2>
                 </div>
+                {adminStatus === "job-payment-incomplete" && (
+                  <p className="form-error">Payment is not completed yet.</p>
+                )}
 
                 {adminJobListings.length ? (
                   <div className="admin-grid">
-                    {adminJobListings.map((job) => (
+                    {adminJobListings.map((job) => {
+                      const jobPlan = String(job.plan ?? "free").toLowerCase();
+                      const jobPaymentStatus = String(job.payment_status ?? "unknown").toLowerCase();
+                      const isJobCompPromo = ["featured", "premium"].includes(jobPlan) && jobPaymentStatus === "not_required";
+
+                      return (
                       <article className="admin-card" key={job.id}>
                         <span className="event-type">{job.plan} — {job.status}</span>
+                        <span className={`event-type payment-status payment-${job.payment_status ?? "unknown"}`}>
+                          Payment: {job.payment_status ?? "unknown"}
+                        </span>
+                        {isJobCompPromo && <span className="event-type payment-status payment-comp">Comp promo</span>}
                         <h3>{job.title}</h3>
                         <p>{job.company}</p>
+                        <p>
+                          Status: {job.status ?? "pending"} · Plan: {job.plan ?? "free"} · Payment: {job.payment_status ?? "unknown"}
+                        </p>
                         {job.category && <p>Category: {job.category}</p>}
                         {job.job_type && <p>Type: {job.job_type}</p>}
                         {job.pay_label && <p>Pay: {job.pay_label}</p>}
@@ -9691,6 +9820,9 @@ function App() {
                         {job.email && <p>Email: {job.email}</p>}
                         {job.app_method && <p>Apply via: {job.app_method}</p>}
                         {job.duration && <p>Duration: {job.duration}</p>}
+                        <p style={{ fontWeight: 900, color: "#fbbf24", margin: "10px 0 6px" }}>
+                          Payment: {job.payment_status ?? "unknown"}
+                        </p>
                         {job.description && <p style={{ fontSize: "0.85em", opacity: 0.8 }}>{job.description.slice(0, 120)}{job.description.length > 120 ? "…" : ""}</p>}
                         <p style={{ fontSize: "0.8em", opacity: 0.6 }}>
                           Posted: {new Date(job.created_at).toLocaleDateString()}
@@ -9702,7 +9834,7 @@ function App() {
                               <button
                                 className="directory-link"
                                 type="button"
-                                onClick={() => moderateItem("job_listings", job.id, "approved")}
+                                onClick={() => handleApproveJob(job)}
                               >
                                 Approve
                               </button>
@@ -9721,14 +9853,14 @@ function App() {
                               type="button"
                               onClick={() => moderateItem("job_listings", job.id, "hidden")}
                             >
-                              Hide
+                              Hide / Unpublish
                             </button>
                           )}
                           {(job.status === "hidden" || job.status === "rejected") && (
                             <button
                               className="directory-link"
                               type="button"
-                              onClick={() => moderateItem("job_listings", job.id, "approved")}
+                              onClick={() => handleApproveJob(job)}
                             >
                               Show / Restore
                             </button>
@@ -9740,33 +9872,54 @@ function App() {
                           >
                             Edit
                           </button>
-                          {job.status === "approved" && (
-                            <>
-                              <button
-                                className="directory-link"
-                                type="button"
-                                onClick={() => setJobPlan(job, "free")}
-                                disabled={job.plan === "free"}
-                              >
-                                Plan Free
-                              </button>
-                              <button
-                                className="directory-link"
-                                type="button"
-                                onClick={() => setJobPlan(job, "featured")}
-                                disabled={job.plan === "featured"}
-                              >
-                                Plan Featured
-                              </button>
-                              <button
-                                className="directory-link"
-                                type="button"
-                                onClick={() => setJobPlan(job, "premium")}
-                                disabled={job.plan === "premium"}
-                              >
-                                Plan Premium
-                              </button>
-                            </>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => setPaidJobPlacement(job, "free")}
+                            disabled={jobPlan === "free" && jobPaymentStatus === "not_required"}
+                          >
+                            Plan Free
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => setPaidJobPlacement(job, "featured")}
+                            disabled={jobPlan === "featured" && jobPaymentStatus === "paid"}
+                          >
+                            Paid Featured
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => setPaidJobPlacement(job, "premium")}
+                            disabled={jobPlan === "premium" && jobPaymentStatus === "paid"}
+                          >
+                            Paid Premium
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => compJobPlacement(job, "featured")}
+                            disabled={jobPlan === "featured" && jobPaymentStatus === "not_required"}
+                          >
+                            Free Promo Featured
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => compJobPlacement(job, "premium")}
+                            disabled={jobPlan === "premium" && jobPaymentStatus === "not_required"}
+                          >
+                            Free Promo Premium
+                          </button>
+                          {isJobCompPromo && (
+                            <button
+                              className="directory-link danger-link"
+                              type="button"
+                              onClick={() => clearCompJobPlacement(job)}
+                            >
+                              End Promo
+                            </button>
                           )}
                           <button
                             className="directory-link danger-link"
@@ -9777,7 +9930,8 @@ function App() {
                           </button>
                         </div>
                       </article>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="legal-disclaimer">No job listings yet.</p>
