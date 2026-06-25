@@ -72,6 +72,8 @@ const fetchJobListing = async (supabaseUrl: string, serviceRoleKey: string, jobI
 
 const normalizeJobPlan = (plan: string) => plan.trim().toLowerCase();
 
+const normalizeRentalPlan = (plan: string) => plan.trim().toLowerCase();
+
 const sanitizeJobPayload = (payload: unknown) => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return null;
@@ -137,6 +139,80 @@ const insertJobListing = async (
   return job ?? null;
 };
 
+const sanitizeRentalPayload = (payload: unknown) => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const source = payload as Record<string, unknown>;
+  const allowedFields = [
+    "title",
+    "property_type",
+    "price",
+    "deposit",
+    "price_per_night",
+    "price_per_week",
+    "available_from",
+    "available_to",
+    "max_guests",
+    "house_rules",
+    "pets_allowed",
+    "address",
+    "bedrooms",
+    "bathrooms",
+    "description",
+    "phone",
+    "email",
+    "external_url",
+    "duration",
+    "image_data",
+    "owner_user_id",
+  ];
+  const cleanPayload: Record<string, unknown> = {};
+
+  for (const field of allowedFields) {
+    if (field in source) {
+      cleanPayload[field] = source[field];
+    }
+  }
+
+  return cleanPayload;
+};
+
+const insertRentalListing = async (
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  rentalPayload: Record<string, unknown>,
+  plan: string,
+) => {
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/rental_listings?select=id,title,email,plan,payment_status,status,requested_plan`,
+    {
+      method: "POST",
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        ...rentalPayload,
+        status: "pending",
+        plan,
+        requested_plan: plan,
+        payment_status: "pending",
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not create rental listing.");
+  }
+
+  const [rental] = await response.json();
+  return rental ?? null;
+};
+
 const stripeRequest = async (secretKey: string, params: URLSearchParams) => {
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
@@ -166,8 +242,9 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const { listingType, action, submissionId, jobId, plan, businessName, contactEmail, returnUrl, jobPayload } = await request.json();
-    const cleanListingType = listingType === "job" ? "job" : "business";
+    const { listingType, action, submissionId, jobId, plan, businessName, contactEmail, returnUrl, jobPayload, rentalPayload } =
+      await request.json();
+    const cleanListingType = listingType === "job" ? "job" : listingType === "rental" ? "rental" : "business";
     const secretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
     const appPublicUrl = cleanPublicUrl(Deno.env.get("APP_PUBLIC_URL") ?? returnUrl ?? "");
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -183,6 +260,89 @@ Deno.serve(async (request) => {
 
     if (!supabaseUrl || !serviceRoleKey) {
       return jsonResponse({ error: "Missing Supabase service configuration." }, 500);
+    }
+
+    if (cleanListingType === "rental") {
+      if (action !== "create_and_checkout" || !planAmounts[plan]) {
+        return jsonResponse({ error: "Invalid paid rental plan request." }, 400);
+      }
+
+      const normalizedPlan = normalizeRentalPlan(plan);
+      if (!["featured", "premium"].includes(normalizedPlan)) {
+        return jsonResponse({ error: "Invalid paid rental plan request." }, 400);
+      }
+
+      const cleanRentalPayload = sanitizeRentalPayload(rentalPayload);
+      const title = String(cleanRentalPayload?.title ?? "").trim();
+      const address = String(cleanRentalPayload?.address ?? "").trim();
+      const ownerUserId = String(cleanRentalPayload?.owner_user_id ?? "").trim();
+
+      if (!cleanRentalPayload || !title || !address || !ownerUserId) {
+        return jsonResponse({ error: "Missing required rental fields." }, 400);
+      }
+
+      const insertedRental = await insertRentalListing(supabaseUrl, serviceRoleKey, cleanRentalPayload, normalizedPlan);
+
+      if (
+        !insertedRental?.id ||
+        insertedRental.plan !== normalizedPlan ||
+        insertedRental.requested_plan !== normalizedPlan ||
+        insertedRental.status !== "pending"
+      ) {
+        return jsonResponse({ error: "Could not create rental listing." }, 500);
+      }
+
+      const insertedRentalId = String(insertedRental.id);
+      const params = new URLSearchParams({
+        mode: "subscription",
+        "line_items[0][quantity]": "1",
+        client_reference_id: insertedRentalId,
+        success_url: `${appPublicUrl}?checkout=success`,
+        cancel_url: `${appPublicUrl}?checkout=cancelled`,
+        "metadata[listing_type]": "rental",
+        "metadata[rental_id]": insertedRentalId,
+        "metadata[plan]": plan,
+        "subscription_data[metadata][listing_type]": "rental",
+        "subscription_data[metadata][rental_id]": insertedRentalId,
+        "subscription_data[metadata][plan]": plan,
+        "payment_method_types[0]": "card",
+      });
+
+      if (insertedRental.email || contactEmail) {
+        params.set("customer_email", String(insertedRental.email ?? contactEmail));
+      }
+
+      const priceId = Deno.env.get(planPriceEnv[plan]) ?? "";
+      if (priceId) {
+        params.set("line_items[0][price]", priceId);
+      } else {
+        params.set("line_items[0][price_data][currency]", "usd");
+        params.set("line_items[0][price_data][unit_amount]", String(planAmounts[plan]));
+        params.set("line_items[0][price_data][recurring][interval]", "month");
+        params.set("line_items[0][price_data][product_data][name]", `Abilene Vibes ${plan} Rental Listing`);
+        params.set(
+          "line_items[0][price_data][product_data][description]",
+          `${insertedRental.title ?? businessName ?? "Rental"} monthly rental promotion plan`,
+        );
+      }
+
+      const session = await stripeRequest(secretKey, params);
+
+      await fetch(`${supabaseUrl}/rest/v1/rental_listings?id=eq.${insertedRentalId}`, {
+        method: "PATCH",
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          payment_status: "checkout_started",
+          stripe_session_id: session.id,
+        }),
+      });
+
+      return jsonResponse({ url: session.url });
     }
 
     if (cleanListingType === "job") {

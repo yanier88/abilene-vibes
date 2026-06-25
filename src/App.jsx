@@ -3059,10 +3059,7 @@ function App() {
         .select("id,created_at,title,place,event_date,event_time,event_type,image_url,image_data,status")
         .eq("status", "hidden")
         .order("event_date", { ascending: true }),
-      supabase
-        .from("job_listings")
-        .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,apply_url,duration,plan,status,payment_status,image_data,logo_data,expires_at")
-        .order("created_at", { ascending: false }),
+      supabase.rpc("admin_list_job_listings"),
       supabase
         .from("marketplace_listings")
         .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
@@ -3276,14 +3273,14 @@ function App() {
     const paymentStatus = String(job?.payment_status ?? "").toLowerCase();
     const canApprove =
       (plan === "free" && paymentStatus === "not_required") ||
-      ((plan === "featured" || plan === "premium") && ["paid", "not_required"].includes(paymentStatus));
+      ((plan === "featured" || plan === "premium") && paymentStatus === "paid");
 
     if (!canApprove) {
       setAdminStatus("job-payment-incomplete");
       return;
     }
 
-    await moderateItem("job_listings", job.id, "approved");
+    await setJobPaymentPlan(job, plan, "approved", paymentStatus, job.expires_at ?? null);
   };
 
   const deleteGalleryPhoto = async (id) => {
@@ -3313,8 +3310,8 @@ function App() {
     if (!supabase || !adminSession) return;
     if (!window.confirm("Permanently delete this job listing?")) return;
     setAdminStatus("saving");
-    const { error } = await supabase.from("job_listings").delete().eq("id", id);
-    if (error) { setAdminStatus("error"); return; }
+    const { data, error } = await supabase.rpc("admin_delete_job_listing", { listing_id: id });
+    if (error || data !== true) { setAdminStatus("error"); return; }
     await loadAdminData();
   };
 
@@ -3333,41 +3330,56 @@ function App() {
     }
 
     setAdminStatus("saving");
-    const { error } = await supabase
-      .from("job_listings")
-      .update({
-        title: editingJob.title,
-        company: editingJob.company,
-        category: editingJob.category,
-        job_type: editingJob.job_type,
-        pay_label: editingJob.pay_label,
-        location: editingJob.location,
-        phone: editingJob.phone,
-        email: editingJob.email,
-        description: editingJob.description,
-        requirements: editingJob.requirements,
-        app_method: editingJob.app_method,
-        apply_url: editingJob.apply_url || null,
-        duration: editingJob.duration,
-        plan: editingJob.plan,
-        status: editingJob.status,
-        image_data: editingJob.image_data ?? null,
-        logo_data: editingJob.logo_data ?? null,
-      })
-      .eq("id", editingJob.id);
-    if (error) { setAdminStatus("error"); return; }
+    const { data, error } = await supabase.rpc("admin_update_job_listing", {
+      listing_id: editingJob.id,
+      new_title: editingJob.title,
+      new_company: editingJob.company,
+      new_category: editingJob.category,
+      new_job_type: editingJob.job_type,
+      new_pay_label: editingJob.pay_label,
+      new_location: editingJob.location,
+      new_phone: editingJob.phone,
+      new_email: editingJob.email,
+      new_description: editingJob.description,
+      new_requirements: editingJob.requirements,
+      new_app_method: editingJob.app_method,
+      new_apply_url: editingJob.apply_url || null,
+      new_duration: editingJob.duration,
+      new_plan: editingJob.plan,
+      new_status: editingJob.status,
+      new_image_data: editingJob.image_data ?? null,
+      new_logo_data: editingJob.logo_data ?? null,
+      new_expires_at: editingJob.expires_at ?? null,
+    });
+    if (error || data !== true) { setAdminStatus("error"); return; }
     setAdminStatus("");
     setEditingJob(null);
     setEditJobPage(false);
     await loadAdminData();
   };
 
-  const setJobPlan = async (job, plan) => {
+  const setJobPaymentPlan = async (job, plan, status, paymentStatus, expiresAt = null) => {
     if (!supabase || !adminSession) return;
     const cleanPlan = plan === "premium" ? "premium" : plan === "featured" ? "featured" : "free";
+    const cleanStatus = ["pending", "approved", "hidden", "rejected"].includes(status) ? status : "pending";
+    const cleanPaymentStatus = [
+      "not_required",
+      "pending",
+      "checkout_started",
+      "paid",
+      "failed",
+      "expired",
+      "canceled",
+    ].includes(paymentStatus) ? paymentStatus : "not_required";
     setAdminStatus("saving");
-    const { error } = await supabase.from("job_listings").update({ plan: cleanPlan }).eq("id", job.id);
-    if (error) { setAdminStatus("error"); return; }
+    const { data, error } = await supabase.rpc("admin_set_job_payment_plan", {
+      listing_id: job.id,
+      new_plan: cleanPlan,
+      new_status: cleanStatus,
+      new_payment_status: cleanPaymentStatus,
+      new_expires_at: expiresAt,
+    });
+    if (error || data !== true) { setAdminStatus("error"); return; }
     await loadAdminData();
   };
 
@@ -3377,17 +3389,13 @@ function App() {
     const planLabel = cleanPlan.charAt(0).toUpperCase() + cleanPlan.slice(1);
     if (!window.confirm(`Set "${job.title}" to ${planLabel} paid plan?`)) return;
 
-    setAdminStatus("saving");
-    const { error } = await supabase
-      .from("job_listings")
-      .update({
-        plan: cleanPlan,
-        status: cleanPlan === "free" ? job.status : "approved",
-        payment_status: cleanPlan === "free" ? "not_required" : "paid",
-      })
-      .eq("id", job.id);
-    if (error) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    await setJobPaymentPlan(
+      job,
+      cleanPlan,
+      cleanPlan === "free" ? job.status : "approved",
+      cleanPlan === "free" ? "not_required" : "paid",
+      cleanPlan === "free" ? null : (job.expires_at ?? null),
+    );
   };
 
   const compJobPlacement = async (job, plan) => {
@@ -3399,34 +3407,14 @@ function App() {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + durationDays);
 
-    setAdminStatus("saving");
-    const { error } = await supabase
-      .from("job_listings")
-      .update({
-        plan: cleanPlan,
-        status: "approved",
-        payment_status: "not_required",
-        expires_at: expiresAt.toISOString(),
-      })
-      .eq("id", job.id);
-    if (error) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    await setJobPaymentPlan(job, cleanPlan, "approved", "not_required", expiresAt.toISOString());
   };
 
   const clearCompJobPlacement = async (job) => {
     if (!supabase || !adminSession) return;
     if (!window.confirm(`End free promo for "${job.title}"?`)) return;
 
-    setAdminStatus("saving");
-    const { error } = await supabase
-      .from("job_listings")
-      .update({
-        plan: "free",
-        payment_status: "not_required",
-      })
-      .eq("id", job.id);
-    if (error) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    await setJobPaymentPlan(job, "free", job.status ?? "approved", "not_required", null);
   };
 
   const handleDeleteRental = async (id) => {
@@ -3482,25 +3470,48 @@ function App() {
   };
 
   const handleSetRentalStatus = async (r, nextStatus) => {
-    if (!supabase || !adminSession) return;
-    setAdminRentalActionKey(`${r.id}:status:${nextStatus}`);
-    setAdminStatus("saving");
-    try {
-      const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { status: nextStatus }));
-      if (error || data !== true) { setAdminStatus("error"); return; }
-      await loadAdminData();
-    } finally {
-      setAdminRentalActionKey("");
-    }
+    await handleSetRentalPaymentPlan(
+      r,
+      r.plan ?? "free",
+      nextStatus,
+      r.payment_status ?? "not_required",
+      `status:${nextStatus}`,
+    );
   };
 
-  const handleSetRentalPlan = async (r, nextPlan) => {
+  const canApproveRental = (r) => {
+    const plan = String(r?.plan ?? "free").toLowerCase();
+    const paymentStatus = String(r?.payment_status ?? "").toLowerCase();
+    return (
+      (plan === "free" && paymentStatus === "not_required") ||
+      ((plan === "featured" || plan === "premium") && paymentStatus === "paid")
+    );
+  };
+
+  const handleSetRentalPaymentPlan = async (r, nextPlan, nextStatus, nextPaymentStatus, actionSuffix = "") => {
     if (!supabase || !adminSession) return;
     const cleanPlan = nextPlan === "premium" ? "premium" : nextPlan === "featured" ? "featured" : "free";
-    setAdminRentalActionKey(`${r.id}:plan:${cleanPlan}`);
+    const cleanStatus = ["pending", "approved", "hidden", "rejected"].includes(nextStatus) ? nextStatus : "pending";
+    const cleanPaymentStatus = [
+      "not_required",
+      "pending",
+      "checkout_started",
+      "paid",
+      "failed",
+      "expired",
+      "canceled",
+    ].includes(nextPaymentStatus) ? nextPaymentStatus : "not_required";
+    const actionKey = actionSuffix || `plan:${cleanPlan}:${cleanPaymentStatus}`;
+
+    setAdminRentalActionKey(`${r.id}:${actionKey}`);
     setAdminStatus("saving");
     try {
-      const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(r, { plan: cleanPlan }));
+      const { data, error } = await supabase.rpc("admin_set_rental_payment_plan", {
+        listing_id: r.id,
+        new_plan: cleanPlan,
+        new_status: cleanStatus,
+        new_payment_status: cleanPaymentStatus,
+      });
       if (error || data !== true) { setAdminStatus("error"); return; }
       await loadAdminData();
     } finally {
@@ -3508,12 +3519,46 @@ function App() {
     }
   };
 
-  const handleSetRentalPromo = async (r, promoPlan) => {
-    await handleSetRentalPlan(r, promoPlan);
+  const handleApproveRental = async (r) => {
+    if (!canApproveRental(r)) {
+      setAdminStatus("rental-payment-incomplete");
+      return;
+    }
+
+    await handleSetRentalPaymentPlan(r, r.plan ?? "free", "approved", r.payment_status ?? "not_required", "status:approved");
+  };
+
+  const setPaidRentalPlacement = async (r, plan) => {
+    const cleanPlan = plan === "premium" ? "premium" : plan === "featured" ? "featured" : "free";
+    const planLabel = cleanPlan.charAt(0).toUpperCase() + cleanPlan.slice(1);
+    if (!window.confirm(`Set "${r.title}" to ${planLabel} paid plan?`)) return;
+
+    await handleSetRentalPaymentPlan(
+      r,
+      cleanPlan,
+      cleanPlan === "free" ? (r.status ?? "pending") : "approved",
+      cleanPlan === "free" ? "not_required" : "paid",
+      `paid:${cleanPlan}`,
+    );
+  };
+
+  const compRentalPlacement = async (r, plan) => {
+    const cleanPlan = plan === "premium" ? "premium" : "featured";
+    await handleSetRentalPaymentPlan(r, cleanPlan, "approved", "not_required", `promo:${cleanPlan}`);
+  };
+
+  const clearCompRentalPlacement = async (r) => {
+    if (!window.confirm(`End free promo for "${r.title}"?`)) return;
+    await handleSetRentalPaymentPlan(r, "free", r.status ?? "approved", "not_required", "promo:end");
   };
 
   const handleSaveRental = async () => {
     if (!supabase || !adminSession || !editingRental) return;
+    if (editingRental.status === "approved" && !canApproveRental(editingRental)) {
+      setAdminStatus("rental-payment-incomplete");
+      return;
+    }
+
     setAdminStatus("saving");
     const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(editingRental));
     if (error || data !== true) { setAdminStatus("error"); return; }
@@ -7808,21 +7853,21 @@ function App() {
         const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postRentalForm.duration] ?? 30;
         const expires_at   = new Date(Date.now() + durationDays * 86400000).toISOString();
         const image_data   = postRentalPhotos.map((p) => p.preview);
-        const requestedPlan = postRentalForm.plan || "Free";
+        const requestedPlan = String(postRentalForm.plan || "Free").toLowerCase();
         const description = postRentalForm.description.trim();
         const record = {
           title:         postRentalForm.title.trim(),
           property_type: postRentalForm.propertyType,
           address:       postRentalForm.address.trim(),
-          description:   requestedPlan === "Free"
-            ? (description || null)
-            : `${description ? `${description}\n\n` : ""}Requested plan: ${requestedPlan}`,
+          description:   description || null,
           phone:         postRentalForm.phone.trim()        || null,
           email:         postRentalForm.email.trim()        || null,
           external_url:  postRentalForm.externalUrl.trim()  || null,
           duration:      postRentalForm.duration,
           plan:          "free",
           status:        "pending",
+          payment_status: "not_required",
+          requested_plan: requestedPlan,
           expires_at,
           image_data,
           pets_allowed:  postRentalForm.petsAllowed,
@@ -7844,13 +7889,45 @@ function App() {
             record.bathrooms  = postRentalForm.bathrooms  || null;
           }
         }
-        let { error } = await supabase.from("rental_listings").insert([record], { returning: "minimal" });
-        if (error?.code === "PGRST204" || error?.code === "42703") {
-          const recordWithoutOwner = { ...record };
-          delete recordWithoutOwner.owner_user_id;
-          ({ error } = await supabase.from("rental_listings").insert([recordWithoutOwner], { returning: "minimal" }));
+        if (requestedPlan !== "free") {
+          const checkoutPlan = requestedPlan === "premium" ? "Premium" : "Featured";
+          const rentalPayload = { ...record };
+          delete rentalPayload.plan;
+          delete rentalPayload.status;
+          delete rentalPayload.payment_status;
+          delete rentalPayload.requested_plan;
+          delete rentalPayload.expires_at;
+          const returnUrl = window.location.origin.startsWith("https://") ? window.location.origin : "";
+          const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-checkout-session", {
+            body: {
+              listingType: "rental",
+              action: "create_and_checkout",
+              plan: checkoutPlan,
+              rentalPayload,
+              businessName: record.title,
+              contactEmail: record.email,
+              returnUrl,
+            },
+          });
+
+          if (checkoutData?.url) {
+            openCheckoutUrl(checkoutData.url);
+          } else {
+            if (checkoutError) {
+              console.error("[Rentals] Checkout session failed:", checkoutError);
+            }
+            setPostRentalError("Your rental was saved, but checkout could not open. Please contact us to finish payment.");
+            return;
+          }
+        } else {
+          let { error } = await supabase.from("rental_listings").insert([record], { returning: "minimal" });
+          if (error?.code === "PGRST204" || error?.code === "42703") {
+            const recordWithoutOwner = { ...record };
+            delete recordWithoutOwner.owner_user_id;
+            ({ error } = await supabase.from("rental_listings").insert([recordWithoutOwner], { returning: "minimal" }));
+          }
+          if (error) throw error;
         }
-        if (error) throw error;
         setPostRentalForm({
           title:"", propertyType:"Apartment", price:"", deposit:"",
           pricePerNight:"", pricePerWeek:"",
@@ -9841,7 +9918,7 @@ function App() {
                               <button
                                 className="directory-link"
                                 type="button"
-                                onClick={() => moderateItem("job_listings", job.id, "rejected")}
+                                onClick={() => setJobPaymentPlan(job, job.plan ?? "free", "rejected", job.payment_status ?? "not_required", job.expires_at ?? null)}
                               >
                                 Reject
                               </button>
@@ -9851,7 +9928,7 @@ function App() {
                             <button
                               className="directory-link"
                               type="button"
-                              onClick={() => moderateItem("job_listings", job.id, "hidden")}
+                              onClick={() => setJobPaymentPlan(job, job.plan ?? "free", "hidden", job.payment_status ?? "not_required", job.expires_at ?? null)}
                             >
                               Hide / Unpublish
                             </button>
@@ -10163,21 +10240,28 @@ function App() {
                     </button>
                   ))}
                 </div>
+                {adminStatus === "rental-payment-incomplete" && (
+                  <p className="form-error">Payment is not completed yet.</p>
+                )}
                 {filteredAdminRentalListings.length > 0 ? (
                   <div className="admin-cards-grid">
                     {filteredAdminRentalListings.map((r) => {
                       const rentalStatus = r.status ?? "approved";
                       const rentalPlan = String(r.plan ?? "free").toLowerCase();
-                      const requestedRentalPlanMatch = String(r.description ?? "").match(/requested\s*plan\s*:?\s*(featured|premium)/i);
-                      const requestedRentalPlan = requestedRentalPlanMatch
-                        ? requestedRentalPlanMatch[1].charAt(0).toUpperCase() + requestedRentalPlanMatch[1].slice(1).toLowerCase()
+                      const rentalPaymentStatus = String(r.payment_status ?? "unknown").toLowerCase();
+                      const requestedRentalPlan = r.requested_plan
+                        ? String(r.requested_plan).charAt(0).toUpperCase() + String(r.requested_plan).slice(1).toLowerCase()
                         : "";
+                      const isRentalCompPromo = ["featured", "premium"].includes(rentalPlan) && rentalPaymentStatus === "not_required";
                       const approvingRental = adminRentalActionKey === `${r.id}:status:approved`;
                       const rejectingRental = adminRentalActionKey === `${r.id}:status:rejected`;
                       const hidingRental = adminRentalActionKey === `${r.id}:status:hidden`;
-                      const settingFreeRental = adminRentalActionKey === `${r.id}:plan:free`;
-                      const settingFeaturedRental = adminRentalActionKey === `${r.id}:plan:featured`;
-                      const settingPremiumRental = adminRentalActionKey === `${r.id}:plan:premium`;
+                      const settingFreeRental = adminRentalActionKey === `${r.id}:paid:free`;
+                      const settingPaidFeaturedRental = adminRentalActionKey === `${r.id}:paid:featured`;
+                      const settingPaidPremiumRental = adminRentalActionKey === `${r.id}:paid:premium`;
+                      const settingPromoFeaturedRental = adminRentalActionKey === `${r.id}:promo:featured`;
+                      const settingPromoPremiumRental = adminRentalActionKey === `${r.id}:promo:premium`;
+                      const endingPromoRental = adminRentalActionKey === `${r.id}:promo:end`;
                       const deletingRental = adminRentalActionKey === `${r.id}:delete`;
 
                       return (
@@ -10192,8 +10276,9 @@ function App() {
                           {r.price && <p className="admin-card-meta">${r.price}/mo</p>}
                           {r.price_per_night && <p className="admin-card-meta">${r.price_per_night}/night</p>}
                           <p className="admin-card-meta">
-                            Status: <strong>{rentalStatus}</strong> · Plan: <strong>{rentalPlan}</strong>
+                            Status: <strong>{rentalStatus}</strong> - Plan: <strong>{rentalPlan}</strong> - Payment: <strong>{r.payment_status ?? "unknown"}</strong>
                           </p>
+                          {isRentalCompPromo && <span className="event-type payment-status payment-comp">Comp promo</span>}
                           {requestedRentalPlan && (
                             <p className="admin-card-meta">
                               Requested plan: <strong>{requestedRentalPlan}</strong>
@@ -10215,7 +10300,7 @@ function App() {
                               <button
                                 className="directory-link"
                                 type="button"
-                                onClick={() => handleSetRentalStatus(r, "approved")}
+                                onClick={() => handleApproveRental(r)}
                                 disabled={approvingRental}
                               >
                                 {approvingRental ? "Approving..." : "Approve"}
@@ -10237,14 +10322,14 @@ function App() {
                               onClick={() => handleToggleRentalStatus(r)}
                               disabled={hidingRental}
                             >
-                              {hidingRental ? "Updating..." : "Hide"}
+                              {hidingRental ? "Updating..." : "Hide / Unpublish"}
                             </button>
                           )}
                           {(rentalStatus === "hidden" || rentalStatus === "rejected") && (
                             <button
                               className="directory-link"
                               type="button"
-                              onClick={() => handleSetRentalStatus(r, "approved")}
+                              onClick={() => handleApproveRental(r)}
                               disabled={approvingRental}
                             >
                               {approvingRental ? "Approving..." : "Show / Restore"}
@@ -10257,49 +10342,55 @@ function App() {
                           >
                             Edit
                           </button>
-                          {rentalStatus === "approved" && (
-                            <>
-                              <button
-                                className="directory-link"
-                                type="button"
-                                onClick={() => handleSetRentalPlan(r, "free")}
-                                disabled={rentalPlan === "free" || settingFreeRental}
-                              >
-                                {settingFreeRental ? "Updating..." : "Plan Free"}
-                              </button>
-                              <button
-                                className="directory-link"
-                                type="button"
-                                onClick={() => handleSetRentalPlan(r, "featured")}
-                                disabled={rentalPlan === "featured" || settingFeaturedRental}
-                              >
-                                {settingFeaturedRental ? "Updating..." : "Plan Featured"}
-                              </button>
-                              <button
-                                className="directory-link"
-                                type="button"
-                                onClick={() => handleSetRentalPlan(r, "premium")}
-                                disabled={rentalPlan === "premium" || settingPremiumRental}
-                              >
-                                {settingPremiumRental ? "Updating..." : "Plan Premium"}
-                              </button>
-                              <button
-                                className="directory-link"
-                                type="button"
-                                onClick={() => handleSetRentalPromo(r, "featured")}
-                                disabled={rentalPlan === "featured" || settingFeaturedRental}
-                              >
-                                {settingFeaturedRental ? "Updating..." : "Promo Featured Free"}
-                              </button>
-                              <button
-                                className="directory-link"
-                                type="button"
-                                onClick={() => handleSetRentalPromo(r, "premium")}
-                                disabled={rentalPlan === "premium" || settingPremiumRental}
-                              >
-                                {settingPremiumRental ? "Updating..." : "Promo Premium Free"}
-                              </button>
-                            </>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => setPaidRentalPlacement(r, "free")}
+                            disabled={settingFreeRental || (rentalPlan === "free" && rentalPaymentStatus === "not_required")}
+                          >
+                            {settingFreeRental ? "Updating..." : "Plan Free"}
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => setPaidRentalPlacement(r, "featured")}
+                            disabled={settingPaidFeaturedRental || (rentalPlan === "featured" && rentalPaymentStatus === "paid")}
+                          >
+                            {settingPaidFeaturedRental ? "Updating..." : "Paid Featured"}
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => setPaidRentalPlacement(r, "premium")}
+                            disabled={settingPaidPremiumRental || (rentalPlan === "premium" && rentalPaymentStatus === "paid")}
+                          >
+                            {settingPaidPremiumRental ? "Updating..." : "Paid Premium"}
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => compRentalPlacement(r, "featured")}
+                            disabled={settingPromoFeaturedRental || (rentalPlan === "featured" && rentalPaymentStatus === "not_required")}
+                          >
+                            {settingPromoFeaturedRental ? "Updating..." : "Free Promo Featured"}
+                          </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => compRentalPlacement(r, "premium")}
+                            disabled={settingPromoPremiumRental || (rentalPlan === "premium" && rentalPaymentStatus === "not_required")}
+                          >
+                            {settingPromoPremiumRental ? "Updating..." : "Free Promo Premium"}
+                          </button>
+                          {isRentalCompPromo && (
+                            <button
+                              className="directory-link danger-link"
+                              type="button"
+                              onClick={() => clearCompRentalPlacement(r)}
+                              disabled={endingPromoRental}
+                            >
+                              {endingPromoRental ? "Updating..." : "End Promo"}
+                            </button>
                           )}
                           <button
                             className="directory-link danger-link"

@@ -8,6 +8,51 @@
 alter table public.rental_listings
 add column if not exists owner_user_id text;
 
+-- 1b. Add payment columns if missing.
+alter table public.rental_listings
+add column if not exists requested_plan text;
+
+alter table public.rental_listings
+add column if not exists payment_status text not null default 'not_required';
+
+alter table public.rental_listings
+add column if not exists stripe_session_id text;
+
+alter table public.rental_listings
+add column if not exists stripe_subscription_id text;
+
+alter table public.rental_listings
+add column if not exists stripe_payment_intent_id text;
+
+alter table public.rental_listings
+add column if not exists stripe_customer_id text;
+
+alter table public.rental_listings
+add column if not exists paid_at timestamptz;
+
+-- 1c. Add payment lookup indexes if missing.
+create index if not exists idx_rental_listings_requested_plan
+on public.rental_listings (requested_plan);
+
+create index if not exists idx_rental_listings_payment_status
+on public.rental_listings (payment_status);
+
+create index if not exists idx_rental_listings_stripe_session_id
+on public.rental_listings (stripe_session_id)
+where stripe_session_id is not null;
+
+create index if not exists idx_rental_listings_stripe_subscription_id
+on public.rental_listings (stripe_subscription_id)
+where stripe_subscription_id is not null;
+
+create index if not exists idx_rental_listings_stripe_payment_intent_id
+on public.rental_listings (stripe_payment_intent_id)
+where stripe_payment_intent_id is not null;
+
+create index if not exists idx_rental_listings_stripe_customer_id
+on public.rental_listings (stripe_customer_id)
+where stripe_customer_id is not null;
+
 -- 2. Enable RLS.
 alter table public.rental_listings enable row level security;
 
@@ -61,6 +106,13 @@ to anon, authenticated
 with check (
   plan = 'free'
   and status = 'pending'
+  and payment_status = 'not_required'
+  and requested_plan = 'free'
+  and stripe_session_id is null
+  and stripe_subscription_id is null
+  and stripe_payment_intent_id is null
+  and stripe_customer_id is null
+  and paid_at is null
   and length(title) > 0
   and length(address) > 0
   and owner_user_id is not null
@@ -182,6 +234,11 @@ returns table (
   duration text,
   plan text,
   status text,
+  payment_status text,
+  stripe_session_id text,
+  stripe_subscription_id text,
+  paid_at timestamptz,
+  requested_plan text,
   image_data text[]
 )
 language plpgsql
@@ -219,6 +276,11 @@ begin
     rl.duration,
     rl.plan,
     rl.status,
+    rl.payment_status,
+    rl.stripe_session_id,
+    rl.stripe_subscription_id,
+    rl.paid_at,
+    rl.requested_plan,
     rl.image_data
   from public.rental_listings rl
   where coalesce(rl.status, 'approved') in ('pending', 'approved', 'hidden', 'rejected')
@@ -293,6 +355,46 @@ begin
 end;
 $$;
 
+-- 12b. Admin-safe payment/plan update for Rentals Stripe controls.
+create or replace function public.admin_set_rental_payment_plan(
+  listing_id uuid,
+  new_plan text,
+  new_status text,
+  new_payment_status text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_rentals_admin() then
+    raise exception 'Not authorized';
+  end if;
+
+  if new_plan not in ('free', 'featured', 'premium') then
+    raise exception 'Invalid rental plan';
+  end if;
+
+  if new_status not in ('pending', 'approved', 'hidden', 'rejected') then
+    raise exception 'Invalid rental status';
+  end if;
+
+  if new_payment_status not in ('not_required', 'pending', 'checkout_started', 'paid', 'failed', 'expired', 'canceled') then
+    raise exception 'Invalid rental payment status';
+  end if;
+
+  update public.rental_listings
+  set
+    plan = new_plan,
+    status = new_status,
+    payment_status = new_payment_status
+  where id = listing_id;
+
+  return found;
+end;
+$$;
+
 -- 13. Admin delete through RPC, including legacy rentals without owner_user_id.
 create or replace function public.admin_delete_rental_listing(
   listing_id uuid
@@ -315,6 +417,11 @@ end;
 $$;
 
 grant execute on function public.is_rentals_admin to authenticated;
+revoke execute on function public.admin_list_rental_listings from public;
+revoke execute on function public.admin_list_rental_listings from anon;
 grant execute on function public.admin_list_rental_listings to authenticated;
 grant execute on function public.admin_update_rental_listing to authenticated;
+revoke execute on function public.admin_set_rental_payment_plan from public;
+revoke execute on function public.admin_set_rental_payment_plan from anon;
+grant execute on function public.admin_set_rental_payment_plan to authenticated;
 grant execute on function public.admin_delete_rental_listing to authenticated;

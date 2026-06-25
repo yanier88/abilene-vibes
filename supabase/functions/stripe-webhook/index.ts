@@ -96,6 +96,26 @@ const updateJobPayment = async (jobId: string, updates: Record<string, unknown>)
   });
 };
 
+const updateRentalPayment = async (rentalId: string, updates: Record<string, unknown>) => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  if (!supabaseUrl || !serviceRoleKey || !rentalId) {
+    return;
+  }
+
+  await fetch(`${supabaseUrl}/rest/v1/rental_listings?id=eq.${rentalId}`, {
+    method: "PATCH",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(updates),
+  });
+};
+
 const stripeGet = async (path: string, searchParams?: URLSearchParams) => {
   const secretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 
@@ -171,8 +191,34 @@ const fetchJobListingIdBySubscription = async (subscriptionId: string) => {
   return job?.id ?? "";
 };
 
+const fetchRentalListingIdBySubscription = async (subscriptionId: string) => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  if (!supabaseUrl || !serviceRoleKey || !subscriptionId) {
+    return "";
+  }
+
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/rental_listings?stripe_subscription_id=eq.${encodeURIComponent(subscriptionId)}&select=id&limit=1`,
+    {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    return "";
+  }
+
+  const [rental] = await response.json();
+  return rental?.id ?? "";
+};
+
 const stripeListingType = (metadata: { listing_type?: unknown } | undefined) =>
-  metadata?.listing_type === "job" ? "job" : "business";
+  metadata?.listing_type === "job" ? "job" : metadata?.listing_type === "rental" ? "rental" : "business";
 
 const invoiceListingType = (invoice: Record<string, unknown>) => {
   const metadata = invoice.metadata as { listing_type?: unknown } | undefined;
@@ -180,8 +226,11 @@ const invoiceListingType = (invoice: Record<string, unknown>) => {
   const parent = invoice.parent as { subscription_details?: { metadata?: { listing_type?: unknown } } } | undefined;
 
   if (stripeListingType(metadata) === "job") return "job";
+  if (stripeListingType(metadata) === "rental") return "rental";
   if (stripeListingType(subscriptionDetails?.metadata) === "job") return "job";
+  if (stripeListingType(subscriptionDetails?.metadata) === "rental") return "rental";
   if (stripeListingType(parent?.subscription_details?.metadata) === "job") return "job";
+  if (stripeListingType(parent?.subscription_details?.metadata) === "rental") return "rental";
   return "business";
 };
 
@@ -342,6 +391,7 @@ Deno.serve(async (request) => {
     const session = event.data.object;
     const listingType = stripeListingType(session.metadata);
     const jobId = session.metadata?.job_id ?? session.client_reference_id ?? "";
+    const rentalId = session.metadata?.rental_id ?? session.client_reference_id ?? "";
     const submissionId = session.client_reference_id ?? session.metadata?.submission_id ?? "";
     const paidAt = new Date().toISOString();
     const paymentIntentId = session.payment_intent ?? "";
@@ -357,6 +407,20 @@ Deno.serve(async (request) => {
 
     if (listingType === "job") {
       await updateJobPayment(jobId, {
+        payment_status: "paid",
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: session.payment_intent ?? null,
+        stripe_customer_id: session.customer ?? null,
+        stripe_subscription_id: session.subscription ?? null,
+        paid_at: paidAt,
+      });
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (listingType === "rental") {
+      await updateRentalPayment(rentalId, {
         payment_status: "paid",
         stripe_session_id: session.id,
         stripe_payment_intent_id: session.payment_intent ?? null,
@@ -391,10 +455,18 @@ Deno.serve(async (request) => {
     const session = event.data.object;
     const listingType = stripeListingType(session.metadata);
     const jobId = session.metadata?.job_id ?? session.client_reference_id ?? "";
+    const rentalId = session.metadata?.rental_id ?? session.client_reference_id ?? "";
     const submissionId = session.client_reference_id ?? session.metadata?.submission_id ?? "";
 
     if (listingType === "job") {
       await updateJobPayment(jobId, { payment_status: "expired" });
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (listingType === "rental") {
+      await updateRentalPayment(rentalId, { payment_status: "expired" });
       return new Response(JSON.stringify({ received: true }), {
         headers: { "Content-Type": "application/json" },
       });
@@ -413,6 +485,14 @@ Deno.serve(async (request) => {
     if (listingType === "job") {
       const jobId = await fetchJobListingIdBySubscription(subscriptionId);
       await updateJobPayment(jobId, { payment_status: "failed" });
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (listingType === "rental") {
+      const rentalId = await fetchRentalListingIdBySubscription(subscriptionId);
+      await updateRentalPayment(rentalId, { payment_status: "failed" });
       return new Response(JSON.stringify({ received: true }), {
         headers: { "Content-Type": "application/json" },
       });
@@ -452,6 +532,12 @@ Deno.serve(async (request) => {
       });
     }
 
+    if (listingType === "rental") {
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     await savePaymentRecord({
       submissionId,
       stripeSessionId: null,
@@ -472,6 +558,17 @@ Deno.serve(async (request) => {
     if (listingType === "job") {
       const jobId = await fetchJobListingIdBySubscription(subscriptionId);
       await updateJobPayment(jobId, {
+        payment_status: "canceled",
+        status: "hidden",
+      });
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    if (listingType === "rental") {
+      const rentalId = await fetchRentalListingIdBySubscription(subscriptionId);
+      await updateRentalPayment(rentalId, {
         payment_status: "canceled",
         status: "hidden",
       });
