@@ -8,6 +8,9 @@
 alter table public.rental_listings
 add column if not exists owner_user_id text;
 
+alter table public.rental_listings
+add column if not exists contact_person text;
+
 -- 1b. Add payment columns if missing.
 alter table public.rental_listings
 add column if not exists requested_plan text;
@@ -128,6 +131,29 @@ grant usage on schema public to anon, authenticated;
 grant select, insert on public.rental_listings to anon, authenticated;
 
 -- 8. Owner-only update through RPC.
+drop function if exists public.owner_update_rental_listing(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  date,
+  date,
+  text,
+  text,
+  boolean,
+  text,
+  text
+);
+
 create or replace function public.owner_update_rental_listing(
   listing_id uuid,
   owner_id text,
@@ -148,7 +174,8 @@ create or replace function public.owner_update_rental_listing(
   new_house_rules text,
   new_pets_allowed boolean,
   new_bedrooms text,
-  new_bathrooms text
+  new_bathrooms text,
+  new_contact_person text default null
 )
 returns boolean
 language plpgsql
@@ -160,6 +187,7 @@ begin
   set
     title = new_title,
     property_type = new_property_type,
+    contact_person = coalesce(new_contact_person, contact_person),
     address = new_address,
     description = new_description,
     phone = new_phone,
@@ -208,6 +236,8 @@ grant execute on function public.owner_delete_rental_listing to anon, authentica
 
 -- 11. Admin read through RPC. This is not a global authenticated table policy:
 -- it requires a real Supabase Auth session whose email is in public.admin_users.
+drop function if exists public.admin_list_rental_listings();
+
 create or replace function public.admin_list_rental_listings()
 returns table (
   id uuid,
@@ -225,6 +255,7 @@ returns table (
   house_rules text,
   pets_allowed boolean,
   address text,
+  contact_person text,
   bedrooms text,
   bathrooms text,
   description text,
@@ -267,6 +298,7 @@ begin
     rl.house_rules,
     rl.pets_allowed,
     rl.address,
+    rl.contact_person,
     rl.bedrooms,
     rl.bathrooms,
     rl.description,
@@ -290,6 +322,32 @@ $$;
 
 -- 12. Admin update through RPC. This is not a global authenticated table policy:
 -- it requires a real Supabase Auth session whose email is in public.admin_users.
+drop function if exists public.admin_update_rental_listing(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  boolean,
+  text[],
+  text,
+  text,
+  text,
+  text,
+  date,
+  date,
+  text,
+  text,
+  text,
+  text
+);
+
 create or replace function public.admin_update_rental_listing(
   listing_id uuid,
   new_title text,
@@ -313,7 +371,8 @@ create or replace function public.admin_update_rental_listing(
   new_max_guests text,
   new_house_rules text,
   new_bedrooms text,
-  new_bathrooms text
+  new_bathrooms text,
+  new_contact_person text default null
 )
 returns boolean
 language plpgsql
@@ -329,6 +388,7 @@ begin
   set
     title = new_title,
     property_type = new_property_type,
+    contact_person = coalesce(new_contact_person, contact_person),
     address = new_address,
     description = new_description,
     phone = new_phone,

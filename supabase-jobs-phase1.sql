@@ -12,6 +12,7 @@ create table if not exists public.job_listings (
   job_type      text        not null    default 'Full Time',
   pay_label     text,
   location      text        not null    default 'Abilene, TX',
+  contact_person text,
   phone         text,
   email         text,
   description   text,
@@ -24,6 +25,9 @@ create table if not exists public.job_listings (
   logo_data     text,
   expires_at    timestamptz
 );
+
+alter table public.job_listings
+add column if not exists contact_person text;
 
 -- Enable row-level security
 alter table public.job_listings enable row level security;

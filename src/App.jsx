@@ -1136,6 +1136,7 @@ const businessSubmissionToBusiness = (business) => ({
   name: business.business_name,
   category: business.category,
   phone: business.phone,
+  contactName: business.contact_name ?? "",
   contactEmail: business.contact_email ?? "",
   address: business.address ?? "",
   social: business.social ?? "",
@@ -1943,7 +1944,7 @@ function App() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [postJobForm, setPostJobForm] = useState({
     title: "", company: "", category: "", jobType: "", payMin: "", payMax: "",
-    location: "Abilene, TX", phone: "", email: "", description: "", requirements: "",
+    location: "Abilene, TX", contactPerson: "", phone: "", email: "", description: "", requirements: "",
     image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free",
   });
   const [postJobPreview, setPostJobPreview] = useState(false);
@@ -1979,7 +1980,7 @@ function App() {
     pricePerNight: "", pricePerWeek: "",
     availableFrom: "", availableTo: "", maxGuests: "", houseRules: "", petsAllowed: false,
     address: "Abilene, TX", bedrooms: "", bathrooms: "",
-    description: "", phone: "", email: "", externalUrl: "",
+    description: "", contactPerson: "", phone: "", email: "", externalUrl: "",
     duration: "30 Days", plan: "Free",
   });
   const [postRentalStep, setPostRentalStep] = useState("form"); // "form" | "preview"
@@ -2092,7 +2093,7 @@ function App() {
     if (!supabase) return;
     supabase
       .from("job_listings")
-      .select("id,created_at,title,company,category,job_type,pay_label,location,phone,email,description,requirements,app_method,apply_url,duration,plan,image_data,logo_data,expires_at")
+      .select("id,created_at,title,company,category,job_type,pay_label,location,contact_person,phone,email,description,requirements,app_method,apply_url,duration,plan,image_data,logo_data,expires_at")
       .eq("status", "approved")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -2113,6 +2114,7 @@ function App() {
               image: row.image_data,
               description: row.description,
               requirements: row.requirements,
+              contactPerson: row.contact_person,
               contact: row.phone,
               email: row.email,
               appMethod: row.app_method,
@@ -2127,7 +2129,7 @@ function App() {
 
   const loadRentalsPublic = useCallback(() => {
     if (!supabase) return;
-    const baseSelect = "id,created_at,expires_at,title,property_type,price,deposit,price_per_night,price_per_week,available_from,available_to,max_guests,house_rules,pets_allowed,address,bedrooms,bathrooms,description,phone,email,external_url,duration,plan,status,image_data";
+    const baseSelect = "id,created_at,expires_at,title,property_type,price,deposit,price_per_night,price_per_week,available_from,available_to,max_guests,house_rules,pets_allowed,address,contact_person,bedrooms,bathrooms,description,phone,email,external_url,duration,plan,status,image_data";
     const queryRentals = (selectFields) =>
       supabase
         .from("rental_listings")
@@ -2151,7 +2153,7 @@ function App() {
     if (!supabase) return;
     supabase
       .from("business_submissions")
-      .select("id,business_name,category,phone,address,social,description,image_data,plan,payment_status,placement_source,placement_expires_at")
+      .select("id,business_name,category,contact_name,contact_email,phone,address,social,description,image_data,plan,payment_status,placement_source,placement_expires_at")
       .eq("status", "approved")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -3442,6 +3444,7 @@ function App() {
       new_title: rental.title,
       new_property_type: rental.property_type,
       new_address: rental.address,
+      new_contact_person: rental.contact_person || null,
       new_description: rental.description || null,
       new_phone: rental.phone || null,
       new_email: rental.email || null,
@@ -6688,6 +6691,11 @@ function App() {
 
           <section className="job-detail-section job-detail-contact-section" aria-labelledby="jd-contact">
             <h2 id="jd-contact" className="job-detail-section-title">Contact</h2>
+            {j.contactPerson && (
+              <p className="job-detail-contact-line">
+                Contact: {j.contactPerson}
+              </p>
+            )}
             {j.contact && (
               <p className="job-detail-contact-line">
                 <span aria-hidden="true">📞</span> {j.contact}
@@ -6800,6 +6808,7 @@ function App() {
               job_type: postJobForm.jobType || "Full Time",
               pay_label: payLabel,
               location: postJobForm.location || "Abilene, TX",
+              contact_person: postJobForm.contactPerson || null,
               phone: postJobForm.phone,
               email: postJobForm.email,
               description: postJobForm.description,
@@ -6844,6 +6853,7 @@ function App() {
               image: data.image_data,
               description: data.description,
               requirements: data.requirements,
+              contactPerson: data.contact_person,
               contact: data.phone,
               email: data.email,
               appMethod: data.app_method,
@@ -6865,7 +6875,7 @@ function App() {
           return;
         }
 
-        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", contactPerson: "", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
         setPostJobPreview(false); setPostJobStep("form");
         setPostJobError(null);
@@ -6893,6 +6903,7 @@ function App() {
             job_type: postJobForm.jobType || "Full Time",
             pay_label: payLabel,
             location: postJobForm.location || "Abilene, TX",
+            contact_person: postJobForm.contactPerson || null,
             phone: postJobForm.phone,
             email: postJobForm.email,
             description: postJobForm.description,
@@ -6939,7 +6950,7 @@ function App() {
           setPostJobError("Connection unavailable. Check your internet and try again.");
           return;
         }
-        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", contactPerson: "", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
         setPostJobPreview(false); setPostJobStep("form");
         setPostJobError(null);
@@ -6967,6 +6978,7 @@ function App() {
             job_type: postJobForm.jobType || "Full Time",
             pay_label: payLabel,
             location: postJobForm.location || "Abilene, TX",
+            contact_person: postJobForm.contactPerson || null,
             phone: postJobForm.phone,
             email: postJobForm.email,
             description: postJobForm.description,
@@ -7013,7 +7025,7 @@ function App() {
           setPostJobError("Connection unavailable. Check your internet and try again.");
           return;
         }
-        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
+        setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", contactPerson: "", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
         setPostJobPreview(false); setPostJobStep("form");
         setPostJobError(null);
@@ -7232,6 +7244,12 @@ function App() {
                         placeholder="https://yourcompany.com/apply" />
                     </label>
                   )}
+                  <label className="form-field">
+                    <span>Contact Person</span>
+                    <input type="text" value={postJobForm.contactPerson}
+                      onChange={(e) => handlePostJobField("contactPerson", e.target.value)}
+                      placeholder="e.g. Hiring Manager" />
+                  </label>
                   <label className="form-field">
                     <span>Contact phone</span>
                     <input type="tel" value={postJobForm.phone}
@@ -7609,6 +7627,7 @@ function App() {
                 <p>{r.description}</p>
               </div>
             )}
+            {r.contact_person && <p className="job-detail-meta">Contact: {r.contact_person}</p>}
             <div className="job-detail-apply-row">
               {r.phone && (
                 <a className="jobs-post-button job-detail-apply-btn" href={`tel:${r.phone.replace(/\D/g, "")}`}>
@@ -7860,6 +7879,7 @@ function App() {
           property_type: postRentalForm.propertyType,
           address:       postRentalForm.address.trim(),
           description:   description || null,
+          contact_person: postRentalForm.contactPerson.trim() || null,
           phone:         postRentalForm.phone.trim()        || null,
           email:         postRentalForm.email.trim()        || null,
           external_url:  postRentalForm.externalUrl.trim()  || null,
@@ -7933,7 +7953,7 @@ function App() {
           pricePerNight:"", pricePerWeek:"",
           availableFrom:"", availableTo:"", maxGuests:"", houseRules:"", petsAllowed:false,
           address:"Abilene, TX", bedrooms:"", bathrooms:"",
-          description:"", phone:"", email:"", externalUrl:"",
+          description:"", contactPerson:"", phone:"", email:"", externalUrl:"",
           duration:"30 Days", plan:"Free",
         });
         setPostRentalPhotos([]);
@@ -7992,6 +8012,7 @@ function App() {
                 </>
               )}
               {postRentalForm.description  && <p><strong>Description:</strong> {postRentalForm.description}</p>}
+              {postRentalForm.contactPerson && <p><strong>Contact:</strong> {postRentalForm.contactPerson}</p>}
               {postRentalForm.phone        && <p><strong>Phone:</strong> {postRentalForm.phone}</p>}
               {postRentalForm.email        && <p><strong>Email:</strong> {postRentalForm.email}</p>}
               {postRentalForm.externalUrl  && <p><strong>Link:</strong> {postRentalForm.externalUrl}</p>}
@@ -8282,6 +8303,16 @@ function App() {
             </div>
 
             {/* Contact */}
+            <div className="post-job-field">
+              <label className="post-job-label">Contact Person</label>
+              <input
+                type="text"
+                className="post-job-input"
+                placeholder="e.g. Property Manager"
+                value={postRentalForm.contactPerson}
+                onChange={(e) => handleRentalField("contactPerson", e.target.value)}
+              />
+            </div>
             <div className="post-job-field">
               <label className="post-job-label">Phone</label>
               <input
@@ -8576,6 +8607,8 @@ function App() {
                 )}
                 <h2>{business.name}</h2>
                 {business.description && <p>{business.description}</p>}
+                {business.contactName && <p>Contact: {business.contactName}</p>}
+                {business.contactEmail && <p>Email: {business.contactEmail}</p>}
                 {business.address && <p>{business.address}</p>}
                 {business.phone && <p>{business.phone}</p>}
 
@@ -8620,7 +8653,7 @@ function App() {
                         openTrackedBusinessLink(event, business, "visits", visitUrl(business.social), "_blank")
                       }
                     >
-                      Visit
+                      Website
                     </a>
                   )}
                 </div>
@@ -8888,6 +8921,8 @@ function App() {
                   )}
                   <h2>{business.name}</h2>
                   {business.description && <p>{business.description}</p>}
+                  {business.contactName && <p>Contact: {business.contactName}</p>}
+                  {business.contactEmail && <p>Email: {business.contactEmail}</p>}
                   {business.address && <p>{business.address}</p>}
                   {business.phone && <p>{business.phone}</p>}
 
@@ -8964,6 +8999,7 @@ function App() {
             {[
               { label: "Title",        field: "title" },
               { label: "Address",      field: "address" },
+              { label: "Contact Person", field: "contact_person" },
               { label: "Phone",        field: "phone" },
               { label: "Email",        field: "email" },
               { label: "Website URL",  field: "external_url" },
@@ -9893,6 +9929,7 @@ function App() {
                         {job.job_type && <p>Type: {job.job_type}</p>}
                         {job.pay_label && <p>Pay: {job.pay_label}</p>}
                         {job.location && <p>Location: {job.location}</p>}
+                        {job.contact_person && <p>Contact Person: {job.contact_person}</p>}
                         {job.phone && <p>Phone: {job.phone}</p>}
                         {job.email && <p>Email: {job.email}</p>}
                         {job.app_method && <p>Apply via: {job.app_method}</p>}
@@ -10273,6 +10310,7 @@ function App() {
                           <p className="admin-card-type">{r.property_type ?? "Rental"}</p>
                           <p className="admin-card-title">{r.title}</p>
                           <p className="admin-card-meta">{r.address}</p>
+                          {r.contact_person && <p className="admin-card-meta">Contact Person: {r.contact_person}</p>}
                           {r.price && <p className="admin-card-meta">${r.price}/mo</p>}
                           {r.price_per_night && <p className="admin-card-meta">${r.price_per_night}/night</p>}
                           <p className="admin-card-meta">
