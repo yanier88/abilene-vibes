@@ -210,10 +210,18 @@ const formatEventDisplayDate = (date, time) => {
   return formattedTime ? `${formattedDate} - ${formattedTime}` : formattedDate;
 };
 
+const localDateInputValue = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
 const eventSubmissionToEvent = (event) => ({
   id: event.id,
   title: event.title,
   place: event.place,
+  description: event.description || "",
+  eventAddress: event.map_url || "",
+  websiteUrl: event.website_url || "",
+  dateLabel: formatEventDate(event.event_date),
+  timeLabel: formatEventTime(event.event_time),
   date: formatEventDisplayDate(event.event_date, event.event_time),
   type: event.event_type,
   image: event.image_data || event.image_url || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80",
@@ -549,6 +557,8 @@ const marketplaceCategories = [
   { label: "Local Businesses", icon: "🏪" },
 ];
 
+// Archived seed data only; live Marketplace renders Supabase listings.
+// eslint-disable-next-line no-unused-vars
 const marketplaceStarterListings = [
   {
     title: 'Samsung TV 65"',
@@ -725,7 +735,9 @@ const parseListingImages = (raw) => {
   try {
     const arr = JSON.parse(raw);
     if (Array.isArray(arr)) return arr.filter(Boolean);
-  } catch {}
+  } catch {
+    // Legacy rows store a single data URL instead of a JSON array.
+  }
   return [raw]; // legacy single-photo string
 };
 
@@ -1930,6 +1942,7 @@ function App() {
   const [sellItemStatus, setSellItemStatus] = useState("");
   const [sellDuration, setSellDuration] = useState("30");
   const [ownerUserId, setOwnerUserId] = useState("");
+  const effectiveOwnerId = ownerUserId || visitorKey;
   const [editingListing, setEditingListing] = useState(null);
   const [deletingListing, setDeletingListing] = useState(null);
   const [editDeleteStatus, setEditDeleteStatus] = useState("");
@@ -1947,7 +1960,6 @@ function App() {
     location: "Abilene, TX", contactPerson: "", phone: "", email: "", description: "", requirements: "",
     image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free",
   });
-  const [postJobPreview, setPostJobPreview] = useState(false);
   const [postJobImagePreview, setPostJobImagePreview] = useState(null);
   const [postJobLogoPreview, setPostJobLogoPreview] = useState(null);
   const [postJobStep, setPostJobStep] = useState("form"); // "form" | "preview" | "plan"
@@ -2125,7 +2137,7 @@ function App() {
           );
         }
       });
-  }, [supabase]);
+  }, []);
 
   const loadRentalsPublic = useCallback(() => {
     if (!supabase) return;
@@ -2147,7 +2159,7 @@ function App() {
         if (!fallbackError && fallbackData) setRentalListings(fallbackData);
       });
     });
-  }, [supabase]);
+  }, []);
 
   const loadBusinessesPublic = useCallback(() => {
     if (!supabase) return;
@@ -2161,7 +2173,7 @@ function App() {
           setBusinesses(data.map(businessSubmissionToBusiness));
         }
       });
-  }, [supabase]);
+  }, []);
 
   const loadGalleryPublic = useCallback(() => {
     if (!supabase) return;
@@ -2181,21 +2193,22 @@ function App() {
           );
         }
       });
-  }, [supabase]);
+  }, []);
 
   const loadEventsPublic = useCallback(() => {
     if (!supabase) return;
     supabase
       .from("event_submissions")
-      .select("id,title,place,event_date,event_time,event_type,image_url,image_data,status")
+      .select("id,title,place,description,map_url,website_url,event_date,event_time,event_type,image_url,image_data,status")
       .eq("status", "approved")
+      .gte("event_date", localDateInputValue())
       .order("event_date", { ascending: true })
       .then(({ data, error }) => {
         if (!error && data) {
           setApprovedEvents(data.map(eventSubmissionToEvent));
         }
       });
-  }, [supabase]);
+  }, []);
 
   const loadNewsPublic = useCallback(() => {
     if (!supabase) return;
@@ -2213,7 +2226,7 @@ function App() {
         if (error || !data) { setLocalNewsItems([]); return; }
         setLocalNewsItems(data);
       });
-  }, [supabase]);
+  }, []);
 
   const loadReviewsPublic = useCallback(() => {
     if (!supabase) return;
@@ -2230,20 +2243,30 @@ function App() {
         }, {});
         setApprovedReviews(nextReviews);
       });
-  }, [supabase]);
+  }, []);
 
   const loadMarketplacePublic = useCallback(() => {
     if (!supabase) return;
     supabase.rpc("expire_marketplace_listings").then(() => {
       supabase
-        .from("marketplace_listings")
-        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
-        .order("created_at", { ascending: false })
+        .rpc("list_marketplace_listings", { owner_id: effectiveOwnerId })
         .then(({ data, error }) => {
-          if (!error && data) setMarketplaceListings(data.map(mapListingFromDb));
+          if (!error && data) {
+            setMarketplaceListings(data.map(mapListingFromDb));
+            return;
+          }
+
+          supabase
+            .from("marketplace_listings")
+            .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status")
+            .eq("status", "active")
+            .order("created_at", { ascending: false })
+            .then(({ data: publicData, error: publicError }) => {
+              if (!publicError && publicData) setMarketplaceListings(publicData.map(mapListingFromDb));
+            });
         });
     });
-  }, [supabase]);
+  }, [effectiveOwnerId]);
 
   // Keep adminSessionRef in sync so Realtime callbacks always see the latest value
   useEffect(() => { adminSessionRef.current = adminSession; }, [adminSession]);
@@ -2253,13 +2276,6 @@ function App() {
   const editingListingRef = useRef(null);
   useEffect(() => { editingJobRef.current = editingJob; }, [editingJob]);
   useEffect(() => { editingListingRef.current = editingListing; }, [editingListing]);
-  // Reset gallery slide index when a new listing is opened.
-  useEffect(() => { setListingGalleryIndex(0); }, [selectedListing]);
-  // Populate existing photos when edit modal opens.
-  useEffect(() => {
-    if (editingListing) setEditListingPhotos(editingListing.images ?? (editingListing.image ? [editingListing.image] : []));
-  }, [editingListing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Admin back-button trap for mobile browsers (Android physical back button).
   // When the admin is logged in, keep one "sentinel" entry above the real history so
   // pressing Back pops that entry (triggering popstate) instead of leaving the page.
@@ -2279,7 +2295,7 @@ function App() {
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [adminSession]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [adminSession]);
 
   useEffect(() => {
     const weatherUrl =
@@ -2382,8 +2398,6 @@ function App() {
   useEffect(() => {
     if (!supabase) return;
 
-    console.log("[Realtime] Initializing subscriptions...");
-
     // Reads the ref — always current, never stale, never causes re-sub
     const reloadAdmin = () => {
       if (adminSessionRef.current) loadAdminData(adminSessionRef.current);
@@ -2392,15 +2406,12 @@ function App() {
     const mkChannel = (name, table, handler) =>
       supabase
         .channel(name)
-        .on("postgres_changes", { event: "*", schema: "public", table }, (payload) => {
-          console.log(`[Realtime] ${table} change received:`, payload.eventType, payload);
+        .on("postgres_changes", { event: "*", schema: "public", table }, () => {
           handler();
         })
-        .subscribe((status, err) => {
+        .subscribe((_status, err) => {
           if (err) {
             console.error(`[Realtime] ${name} error:`, err);
-          } else {
-            console.log(`[Realtime] ${name} status:`, status);
           }
         });
 
@@ -2416,7 +2427,6 @@ function App() {
     ];
 
     return () => {
-      console.log("[Realtime] Cleaning up subscriptions.");
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2939,9 +2949,12 @@ function App() {
     const { error } = await supabase.from("event_submissions").insert({
       title: formData.get("title").trim(),
       place: formData.get("place").trim(),
+      description: formData.get("description").trim(),
+      map_url: formData.get("eventAddress").trim(),
+      website_url: formData.get("websiteUrl").trim(),
       event_date: formData.get("eventDate"),
       event_time: formatEventTime(formData.get("eventTime")),
-      event_type: formData.get("eventType").trim(),
+      event_type: "Event",
       image_data: imageData,
       status: "approved",
     });
@@ -2982,7 +2995,7 @@ function App() {
 
   const businessDisplayImage = (business) => business.image || business.image_data || businessImageForCategory(business.category);
 
-  const loadAdminData = async (sessionOverride = adminSession, showRefreshSuccess = false) => {
+  async function loadAdminData(sessionOverride = adminSession, showRefreshSuccess = false) {
     if (!supabase || !sessionOverride) {
       return;
     }
@@ -3053,12 +3066,12 @@ function App() {
         .select("created_at,business_id,business_name,action_type"),
       supabase
         .from("event_submissions")
-        .select("id,created_at,title,place,event_date,event_time,event_type,image_url,image_data,status")
+        .select("id,created_at,title,place,description,map_url,website_url,event_date,event_time,event_type,image_url,image_data,status")
         .eq("status", "approved")
         .order("event_date", { ascending: true }),
       supabase
         .from("event_submissions")
-        .select("id,created_at,title,place,event_date,event_time,event_type,image_url,image_data,status")
+        .select("id,created_at,title,place,description,map_url,website_url,event_date,event_time,event_type,image_url,image_data,status")
         .eq("status", "hidden")
         .order("event_date", { ascending: true }),
       supabase.rpc("admin_list_job_listings"),
@@ -3204,7 +3217,7 @@ function App() {
     }
 
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
-  };
+  }
 
   const handleAdminLogin = async (event) => {
     event.preventDefault();
@@ -3955,14 +3968,20 @@ function App() {
     const place = window.prompt("Event place", event.place);
     if (place === null) return;
 
+    const description = window.prompt("Event description", event.description ?? "");
+    if (description === null) return;
+
+    const eventAddress = window.prompt("Event address", event.map_url ?? "");
+    if (eventAddress === null) return;
+
+    const websiteUrl = window.prompt("Event website URL", event.website_url ?? "");
+    if (websiteUrl === null) return;
+
     const eventDate = window.prompt("Event date (YYYY-MM-DD)", event.event_date);
     if (eventDate === null) return;
 
     const eventTime = window.prompt("Event time", event.event_time);
     if (eventTime === null) return;
-
-    const eventType = window.prompt("Event type", event.event_type);
-    if (eventType === null) return;
 
     setAdminStatus("saving");
     const { error } = await supabase
@@ -3970,9 +3989,11 @@ function App() {
       .update({
         title: title.trim(),
         place: place.trim(),
+        description: description.trim(),
+        map_url: eventAddress.trim(),
+        website_url: websiteUrl.trim(),
         event_date: eventDate.trim(),
         event_time: formatEventTime(eventTime),
-        event_type: eventType.trim(),
       })
       .eq("id", event.id);
 
@@ -4074,16 +4095,12 @@ function App() {
     const eventTime = window.prompt("Event time", defaultTime);
     if (eventTime === null) return;
 
-    const eventType = window.prompt("Event type", event.type);
-    if (eventType === null) return;
-
     setAdminStatus("saving");
     const wasCreated = await createEditableEventFromStatic(event, {
       title: title.trim(),
       place: place.trim(),
       event_date: eventDate.trim(),
       event_time: formatEventTime(eventTime),
-      event_type: eventType.trim(),
     });
 
     if (wasCreated) {
@@ -4226,10 +4243,6 @@ function App() {
   const hiddenStaticItemSet = new Set(hiddenStaticItems);
 
   // ── Marketplace computed ──────────────────────────────────
-  const effectiveOwnerId = ownerUserId || visitorKey;
-  const visibleStarterListings = marketplaceStarterListings.filter(
-    (l) => !hiddenStaticItemSet.has(marketplaceListingKey(l)),
-  );
   const allMarketplaceListings = [
     ...marketplaceListings,
     // starter listings removed — only real Supabase listings shown
@@ -4265,8 +4278,7 @@ function App() {
     if (!adminMarketplaceRestorableStatuses.includes(status)) return false;
     return marketplaceAdminStatusFilter === "all" || status === marketplaceAdminStatusFilter;
   });
-  const isStarterOrLegacyListing = (l) => !l.isStarterListing && (!l.ownerUserId || l.ownerUserId === "legacy-owner");
-  const isListingOwner = (l) => !!(l.ownerUserId === effectiveOwnerId || isStarterOrLegacyListing(l));
+  const isListingOwner = (l) => !!(l.ownerUserId && l.ownerUserId === effectiveOwnerId);
   const myMarketplaceListings = marketplaceListings.filter((l) => isListingOwner(l));
   const myFilteredListings = myMarketplaceListings.filter((l) =>
     myListingTab === "Active"
@@ -4279,6 +4291,7 @@ function App() {
   );
 
   const openListing = (l) => {
+    setListingGalleryIndex(0);
     setSelectedListing(l);
     inListingDetailRef.current = true;
     navigateTo("marketplace-item");
@@ -4294,6 +4307,13 @@ function App() {
     e?.preventDefault();
     e?.stopPropagation();
     setDeletingListing({ ...l });
+  };
+
+  const openOwnerEditListing = (e, l) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setEditListingPhotos(l.images ?? (l.image ? [l.image] : []));
+    setEditingListing({ ...l });
   };
 
   const setListingStatus = async (l, newStatus) => {
@@ -4319,7 +4339,6 @@ function App() {
 
     const ts = new Date().toISOString();
     const update = { status: newStatus };
-    if (isStarterOrLegacyListing(l)) update.owner_user_id = effectiveOwnerId;
     if (newStatus === "sold") update.sold_at = ts;
     if (newStatus === "active") update.sold_at = null;
     if (newStatus === "deleted") update.deleted_at = ts;
@@ -4388,7 +4407,15 @@ function App() {
       contact: data.get("contact").trim(),
       description: data.get("description").trim(),
     };
-    if (isStarterOrLegacyListing(editingListing)) update.owner_user_id = effectiveOwnerId;
+    if (adminSession) {
+      const cleanStatus = ["active", "sold", "expired", "hidden", "deleted"].includes(editingListing.status)
+        ? editingListing.status
+        : "active";
+      update.status = cleanStatus;
+      if (cleanStatus === "sold" && !editingListing.soldAt) update.sold_at = new Date().toISOString();
+      if (cleanStatus === "active") update.sold_at = null;
+      if (cleanStatus === "deleted" && !editingListing.deletedAt) update.deleted_at = new Date().toISOString();
+    }
     setEditDeleteStatus("saving");
     try {
       // Combine kept existing photos with newly added photos.
@@ -4462,7 +4489,7 @@ function App() {
       // sellItemPhotos holds pre-compressed base64 strings (set during onChange).
       // Save as JSON array; parseListingImages handles old single-string rows on load.
       const imageData = sellItemPhotos.length === 0 ? "" : JSON.stringify(sellItemPhotos);
-      const { data: row, error } = await supabase
+      const { error } = await supabase
         .from("marketplace_listings")
         .insert({
           title: data.get("title").trim(),
@@ -4475,11 +4502,9 @@ function App() {
           status: "active",
           owner_user_id: effectiveOwnerId,
           expires_at: expiresAt,
-        })
-        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
-        .single();
+        });
       if (error) { setSellItemStatus("error"); return; }
-      setMarketplaceListings((items) => [mapListingFromDb(row), ...items]);
+      await loadMarketplacePublic();
       setMarketplaceSearch("");
       setMarketplaceFilter("All");
       setSellItemStatus("saved");
@@ -4705,15 +4730,7 @@ function App() {
   const spotlightItem =
     premiumLobbyItems[premiumCarouselIndex % Math.max(premiumLobbyItems.length, 1)] ??
     paidBusinesses.map(toBusinessLobbyItem)[0];
-  const spotlightEvent = allEvents[0] ?? null;
-  const [spotlightEventDate, spotlightEventTime = ""] = (spotlightEvent?.date ?? "").split(" - ");
   const openLobbyPromotionItem = async (item, placement) => {
-    if (!item && spotlightEvent) {
-      await trackLobbySectionClick("upcoming-highlight", "Upcoming Highlight");
-      navigateTo("events");
-      return;
-    }
-
     if (!item) {
       await trackLobbySectionClick("upcoming-highlight", "Upcoming Highlight");
       return;
@@ -5032,26 +5049,13 @@ function App() {
                   </p>
                 </div>
               </>
-            ) : spotlightEvent ? (
-              <>
-                <img src={spotlightEvent.image} alt="" />
-                <div>
-                  <span>Upcoming Highlight</span>
-                  <strong>{spotlightEvent.title}</strong>
-                  <p>{spotlightEvent.place}</p>
-                  <p>
-                    {spotlightEventDate}
-                    {spotlightEventTime && ` - ${spotlightEventTime}`}
-                  </p>
-                </div>
-              </>
             ) : (
               <>
                 <img src={appAsset("lobby-correcta.jpg")} alt="" />
                 <div>
                   <span>Upcoming Highlight</span>
                   <strong>Upcoming local highlights will appear here soon.</strong>
-                  <p>Check back soon for Abilene events.</p>
+                  <p>Check back soon for local highlights.</p>
                 </div>
               </>
             )}
@@ -5256,7 +5260,7 @@ function App() {
 
   if (page === "events") {
     return withSplash(
-      <main className="app events-page">
+      <main className="app events-page official-events-page">
         <div className="events-shell">
           <button className="back-button" onClick={backToLobby}>
             Back to lobby
@@ -5272,26 +5276,35 @@ function App() {
 
           <section className="event-list" aria-label="Featured Abilene events">
             {allEvents.length === 0 && (
-              <p className="events-intro">Check back soon for Abilene events.</p>
+              <div className="events-empty-state">
+                <h2>No events scheduled right now.</h2>
+                <p>Check back soon for new events happening around Abilene.</p>
+              </div>
             )}
             {allEvents.map((event) => (
               <article className="event-card" key={event.id ?? `${event.title}-${event.date}`}>
                 <img className="event-image" src={event.image} alt="" loading="lazy" />
 
                 <div className="event-copy">
-                  <span className="event-type">{event.type}</span>
                   <h2>{event.title}</h2>
+                  <p className="event-detail">{event.dateLabel}</p>
+                  {event.timeLabel && <p className="event-detail">{event.timeLabel}</p>}
                   <p className="event-detail">{event.place}</p>
-                  <p className="event-detail">{event.date}</p>
+                  {event.description && <p className="event-description">{event.description}</p>}
                   <div className="place-actions">
                     <a
                       className="place-link"
-                      href={mapSearchUrl(`${event.title}, ${event.place}, Abilene TX`)}
+                      href={mapSearchUrl(event.eventAddress || `${event.place}, Abilene TX`)}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Directions
+                      Get Directions
                     </a>
+                    {event.websiteUrl && (
+                      <a className="place-link" href={event.websiteUrl} target="_blank" rel="noreferrer">
+                        Website
+                      </a>
+                    )}
                   </div>
                 </div>
               </article>
@@ -6144,12 +6157,20 @@ function App() {
                   })()}
                   {isListingOwner(l) ? (
                     <div className="marketplace-owner-actions">
-                      <button className="directory-link" type="button" onClick={(e) => handleMarkSold(e, l)}>
-                        Mark as Sold
-                      </button>
-                      <button className="directory-link danger-link" type="button" onClick={(e) => handleDeleteListing(e, l)}>
-                        Delete
-                      </button>
+                      {[
+                        ["Edit", "directory-link marketplace-owner-edit", openOwnerEditListing],
+                        ["Mark as Sold", "directory-link", handleMarkSold],
+                        ["Delete", "directory-link danger-link", handleDeleteListing],
+                      ].map(([label, className, handler]) => (
+                        <button
+                          key={`${marketplaceListingKey(l)}-${label}`}
+                          className={className}
+                          type="button"
+                          onClick={(e) => handler(e, l)}
+                        >
+                          {label}
+                        </button>
+                      ))}
                     </div>
                   ) : (
                     l.contact && (
@@ -6210,7 +6231,7 @@ function App() {
                     {l.expiresAt && <p>Expires: {formatMarketplaceExpiry(l.expiresAt)}</p>}
                     <div className="directory-actions">
                       {l.status !== "deleted" && (
-                        <button className="directory-link" type="button" onClick={() => setEditingListing({ ...l })}>
+                        <button className="directory-link" type="button" onClick={(e) => openOwnerEditListing(e, l)}>
                           Edit
                         </button>
                       )}
@@ -6799,7 +6820,7 @@ function App() {
           const durationDays = { "30 Days": 30, "60 Days": 60, "90 Days": 90 }[postJobForm.duration] ?? 30;
           const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
 
-          const { data, error } = await supabase
+          const { error } = await supabase
             .from("job_listings")
             .insert({
               title: postJobForm.title,
@@ -6824,49 +6845,9 @@ function App() {
               expires_at: expiresAt,
             });
 
-          console.log("[Jobs Stripe Debug] free insert result", {
-            data,
-            error,
-            plan: "free",
-            status: "pending",
-            payment_status: "not_required",
-          });
-
           if (error) {
             console.error("[Jobs] Supabase insert error:", error.message);
-            // Fall back to in-memory so the user still sees their post
             setPostJobError("Could not save this job for review. Please try again.");
-            return;
-          } else if (false && data) {
-            const savedJob = {
-              id: data.id,
-              title: data.title,
-              company: data.company,
-              pay: data.pay_label || "Pay not specified",
-              location: data.location,
-              type: data.job_type,
-              schedule: "",
-              posted: "Posted Today",
-              category: data.category,
-              tag: "New Today",
-              filters: [data.job_type, "New Today"],
-              image: data.image_data,
-              description: data.description,
-              requirements: data.requirements,
-              contactPerson: data.contact_person,
-              contact: data.phone,
-              email: data.email,
-              appMethod: data.app_method,
-              applyUrl: data.apply_url,
-              duration: data.duration,
-              plan: data.plan,
-            };
-            if (data.status === "approved") {
-              setPostedJobs((prev) => [savedJob, ...prev]);
-            }
-          } else if (false) {
-            // insert succeeded but returned no row — use local fallback
-            setPostJobError("Could not confirm this job was saved for review. Please try again.");
             return;
           }
         } else {
@@ -6877,7 +6858,7 @@ function App() {
 
         setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", contactPerson: "", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
-        setPostJobPreview(false); setPostJobStep("form");
+        setPostJobStep("form");
         setPostJobError(null);
         navigateTo("jobs");
       } catch (err) {
@@ -6924,21 +6905,12 @@ function App() {
             contactEmail: postJobForm.email,
             returnUrl,
           };
-          console.log("[Jobs Stripe Debug] featured checkout payload", checkoutPayload);
           const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-checkout-session", {
             body: checkoutPayload,
           });
-          console.log("[Jobs Stripe Debug] featured checkout result", {
-            data: checkoutData,
-            error: checkoutError,
-            url: checkoutData?.url,
-            checkoutUrl: checkoutData?.checkoutUrl,
-          });
 
           if (checkoutData?.url) {
-            console.log("[Jobs Stripe Debug] featured opening checkout URL", checkoutData.url);
             openCheckoutUrl(checkoutData.url);
-            console.log("[Jobs Stripe Debug] featured openCheckoutUrl called");
           } else {
             if (checkoutError) {
               console.error("[Jobs] Checkout session failed (featured):", checkoutError);
@@ -6952,7 +6924,7 @@ function App() {
         }
         setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", contactPerson: "", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
-        setPostJobPreview(false); setPostJobStep("form");
+        setPostJobStep("form");
         setPostJobError(null);
         navigateTo("jobs");
       } catch (err) {
@@ -6999,21 +6971,12 @@ function App() {
             contactEmail: postJobForm.email,
             returnUrl,
           };
-          console.log("[Jobs Stripe Debug] premium checkout payload", checkoutPayload);
           const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-checkout-session", {
             body: checkoutPayload,
           });
-          console.log("[Jobs Stripe Debug] premium checkout result", {
-            data: checkoutData,
-            error: checkoutError,
-            url: checkoutData?.url,
-            checkoutUrl: checkoutData?.checkoutUrl,
-          });
 
           if (checkoutData?.url) {
-            console.log("[Jobs Stripe Debug] premium opening checkout URL", checkoutData.url);
             openCheckoutUrl(checkoutData.url);
-            console.log("[Jobs Stripe Debug] premium openCheckoutUrl called");
           } else {
             if (checkoutError) {
               console.error("[Jobs] Checkout session failed (premium):", checkoutError);
@@ -7027,7 +6990,7 @@ function App() {
         }
         setPostJobForm({ title: "", company: "", category: "", jobType: "", payMin: "", payMax: "", location: "Abilene, TX", contactPerson: "", phone: "", email: "", description: "", requirements: "", image: null, logo: null, appMethod: "Phone", duration: "30 Days", applyUrl: "", plan: "Free" });
         setPostJobImagePreview(null); setPostJobLogoPreview(null);
-        setPostJobPreview(false); setPostJobStep("form");
+        setPostJobStep("form");
         setPostJobError(null);
         navigateTo("jobs");
       } catch (err) {
@@ -7059,7 +7022,7 @@ function App() {
           </button>
 
           {/* ── PLAN SELECTION ── */}
-          {false && postJobStep === "plan" && (
+          {postJobStep === "plan" && (
             <div className="post-job-plan-wrap">
               <section className="marketplace-hero jobs-hero" aria-labelledby="plan-title">
                 <p className="eyebrow">Choose a Plan</p>
@@ -9445,6 +9408,18 @@ function App() {
                       <span>Place</span>
                       <input name="place" type="text" placeholder="Venue or area" required />
                     </label>
+                    <label className="form-field form-field-full">
+                      <span>Description</span>
+                      <textarea name="description" rows={3} placeholder="What should people know about this event?" required />
+                    </label>
+                    <label className="form-field form-field-full">
+                      <span>Event Address</span>
+                      <input name="eventAddress" type="text" placeholder="202 Pine St #201, Abilene, TX 79601" required />
+                    </label>
+                    <label className="form-field form-field-full">
+                      <span>Website URL</span>
+                      <input name="websiteUrl" type="url" placeholder="Optional event website link" />
+                    </label>
                     <label className="form-field">
                       <span>Date</span>
                       <input name="eventDate" type="date" required />
@@ -9452,10 +9427,6 @@ function App() {
                     <label className="form-field">
                       <span>Time</span>
                       <input name="eventTime" type="text" placeholder="8:00 PM" required />
-                    </label>
-                    <label className="form-field">
-                      <span>Type</span>
-                      <input name="eventType" type="text" placeholder="Live music, Family, Food..." required />
                     </label>
                     <label className="form-field">
                       <span>Photo</span>
@@ -10122,8 +10093,8 @@ function App() {
                             <textarea rows={4} name="description" defaultValue={editingListing.description ?? ""} />
                           </label>
                           <label className="form-field form-field-full">
-                            <span>Replace photo (optional)</span>
-                            <input type="file" name="photo" accept="image/*" />
+                            <span>Add photos ({5 - editListingPhotos.length} remaining)</span>
+                            <input type="file" name="newPhotos" accept="image/*" multiple disabled={editListingPhotos.length >= 5} />
                           </label>
                         </div>
                         <div className="directory-actions marketplace-admin-modal-actions">
@@ -10163,9 +10134,9 @@ function App() {
                   <div className="admin-grid">
                     {adminMarketplaceVisibleListings.map((listing) => (
                       <article className="admin-card" key={listing.id}>
-                        {listing.image_data && (
+                        {parseListingImages(listing.image_data)[0] && (
                           <img
-                            src={listing.image_data}
+                            src={parseListingImages(listing.image_data)[0]}
                             alt={listing.title}
                             style={{ width: "100%", maxHeight: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }}
                           />
@@ -10193,7 +10164,7 @@ function App() {
                           <button
                             className="directory-link marketplace-admin-action"
                             type="button"
-                            onClick={() => setEditingListing({ ...mapListingFromDb(listing), _origStatus: listing.status })}
+                            onClick={(e) => openOwnerEditListing(e, { ...mapListingFromDb(listing), _origStatus: listing.status })}
                             disabled={Boolean(marketplaceActionKey)}
                           >
                             Edit

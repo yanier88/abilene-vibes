@@ -71,6 +71,33 @@ create table if not exists public.payment_records (
 grant select on public.payment_records to authenticated;
 grant select, insert, update, delete on public.payment_records to service_role;
 
+create table if not exists public.admin_users (
+  email text primary key,
+  created_at timestamptz not null default now()
+);
+
+alter table public.admin_users enable row level security;
+
+insert into public.admin_users (email)
+values ('cabrerahernandezyanier@gmail.com')
+on conflict (email) do nothing;
+
+create or replace function public.is_service_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.admin_users
+    where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  );
+$$;
+
+grant execute on function public.is_service_admin() to authenticated;
+
 grant usage on schema public to anon, authenticated;
 grant insert, select on public.business_submissions to anon;
 grant select, update, delete on public.business_submissions to authenticated;
@@ -97,12 +124,14 @@ to anon
 using (status = 'approved');
 
 drop policy if exists "Allow authenticated business moderation" on public.business_submissions;
+drop policy if exists "Allow authenticated business select" on public.business_submissions;
+drop policy if exists "Allow authenticated business update" on public.business_submissions;
 create policy "Allow authenticated business moderation"
 on public.business_submissions
 for all
 to authenticated
-using (true)
-with check (true);
+using (public.is_service_admin())
+with check (public.is_service_admin());
 
 create table if not exists public.gallery_submissions (
   id uuid primary key default gen_random_uuid(),
@@ -137,12 +166,14 @@ to anon
 using (status = 'approved');
 
 drop policy if exists "Allow authenticated gallery moderation" on public.gallery_submissions;
+drop policy if exists "Allow authenticated gallery select" on public.gallery_submissions;
+drop policy if exists "Allow authenticated gallery update" on public.gallery_submissions;
 create policy "Allow authenticated gallery moderation"
 on public.gallery_submissions
 for all
 to authenticated
-using (true)
-with check (true);
+using (public.is_service_admin())
+with check (public.is_service_admin());
 
 create table if not exists public.hidden_static_items (
   item_key text primary key,
@@ -168,8 +199,8 @@ create policy "Allow authenticated hidden static management"
 on public.hidden_static_items
 for all
 to authenticated
-using (true)
-with check (true);
+using (public.is_service_admin())
+with check (public.is_service_admin());
 
 create table if not exists public.public_likes (
   id uuid primary key default gen_random_uuid(),
@@ -208,8 +239,8 @@ create policy "Allow authenticated like management"
 on public.public_likes
 for all
 to authenticated
-using (true)
-with check (true);
+using (public.is_service_admin())
+with check (public.is_service_admin());
 
 create table if not exists public.business_reviews (
   id uuid primary key default gen_random_uuid(),
@@ -253,8 +284,8 @@ create policy "Allow authenticated review moderation"
 on public.business_reviews
 for all
 to authenticated
-using (true)
-with check (true);
+using (public.is_service_admin())
+with check (public.is_service_admin());
 
 create table if not exists public.business_interactions (
   id uuid primary key default gen_random_uuid(),
@@ -285,8 +316,8 @@ create policy "Allow authenticated business interaction reads"
 on public.business_interactions
 for all
 to authenticated
-using (true)
-with check (true);
+using (public.is_service_admin())
+with check (public.is_service_admin());
 
 create table if not exists public.public_item_interactions (
   id uuid primary key default gen_random_uuid(),
@@ -319,8 +350,8 @@ create policy "Allow authenticated item interaction reads"
 on public.public_item_interactions
 for all
 to authenticated
-using (true)
-with check (true);
+using (public.is_service_admin())
+with check (public.is_service_admin());
 
 create table if not exists public.local_news_items (
   id uuid primary key default gen_random_uuid(),
@@ -381,8 +412,10 @@ create policy "Allow authenticated local news management"
 on public.local_news_items
 for all
 to authenticated
-using (true)
+using (public.is_service_admin())
 with check (
+  public.is_service_admin()
+  and
   verification_status in ('verified', 'needs_review')
   and status in ('approved', 'draft', 'rejected')
   and news_category in ('Fires', 'Arrests', 'New Spots', 'Sports', 'Campus', 'Flying Bison', 'Local Buzz')
@@ -399,10 +432,18 @@ create table if not exists public.event_submissions (
   event_date date not null,
   event_time text not null,
   event_type text not null,
+  description text,
+  map_url text,
+  website_url text,
   image_url text,
   image_data text,
   status text not null default 'approved'
 );
+
+alter table public.event_submissions
+  add column if not exists description text,
+  add column if not exists map_url text,
+  add column if not exists website_url text;
 
 alter table public.event_submissions enable row level security;
 
@@ -413,7 +454,7 @@ drop policy if exists "Allow public approved event reads" on public.event_submis
 create policy "Allow public approved event reads"
 on public.event_submissions
 for select
-to anon
+to anon, authenticated
 using (status = 'approved');
 
 drop policy if exists "Allow authenticated event management" on public.event_submissions;
@@ -421,5 +462,5 @@ create policy "Allow authenticated event management"
 on public.event_submissions
 for all
 to authenticated
-using (true)
-with check (true);
+using (public.is_service_admin())
+with check (public.is_service_admin());
