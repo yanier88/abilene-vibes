@@ -7,8 +7,6 @@ const appAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
 
 const mapSearchUrl = (query) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
-const telUrl = (phone) => `tel:${phone.replace(/\D/g, "")}`;
-
 const paidPlanNames = new Set(["Featured", "Premium"]);
 
 const lobbyAboutRotationMs = 2000;
@@ -228,233 +226,6 @@ const eventSubmissionToEvent = (event) => ({
 });
 
 const calendarDays = [];
-
-const shoppingPlaces = [
-  {
-    title: "Mall of Abilene",
-    type: "Mall",
-    place: "4310 Buffalo Gap Rd, Abilene, TX",
-    note: "A familiar stop for fashion, gifts, snacks, and easy indoor shopping.",
-    website: "https://www.mallofabilene.com/",
-    image: "https://images.unsplash.com/photo-1519567241046-7f570eee3ce6?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Downtown Abilene Shops",
-    type: "Local shops",
-    place: "Downtown Abilene, TX",
-    note: "Walkable boutiques, gifts, art, books, and small local favorites near restaurants and events.",
-    website: "https://www.google.com/maps/search/downtown+Abilene+TX+shopping",
-    image: appAsset("227005f7-a560-45d7-bea9-557e2cee61f3.jpg"),
-  },
-  {
-    title: "Boutiques & Gifts",
-    type: "Style finds",
-    place: "Abilene, TX boutiques",
-    note: "Find outfits, accessories, gifts, and local finds for a night out or weekend plans.",
-    website: "https://www.google.com/maps/search/boutiques+in+Abilene+TX",
-    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Antiques & Vintage",
-    type: "Treasure hunt",
-    place: "Abilene, TX antique stores",
-    note: "Browse vintage pieces, home decor, collectibles, and one-of-a-kind local finds.",
-    website: "https://www.google.com/maps/search/antique+stores+in+Abilene+TX",
-    image: "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Ross Dress for Less",
-    type: "Discount fashion",
-    place: "3449 Catclaw Dr, Abilene, TX 79606",
-    note: "Popular stop for clothing, shoes, home finds, and name-brand deals.",
-    website: "https://www.rossstores.com/",
-    image: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Burlington",
-    type: "Discount retail",
-    place: "3526 S Clack St, Abilene, TX 79606",
-    note: "Shop clothes, shoes, baby items, home goods, gifts, and everyday deals.",
-    website: "https://stores.burlington.com/tx/abilene/",
-    image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Academy Sports + Outdoors",
-    type: "Sports & outdoors",
-    place: "3518 S Clack St, Abilene, TX 79606",
-    note: "Gear for sports, outdoors, fitness, hunting, fishing, shoes, and family recreation.",
-    website: "https://www.academy.com/storelocator/texas/abilene/store-0070",
-    image: "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Target",
-    type: "Everyday shopping",
-    place: "3710 Ridgemont Dr, Abilene, TX 79606",
-    note: "A go-to for clothing, beauty, home, tech, groceries, gifts, and quick pickup runs.",
-    website: "https://www.target.com/sl/abilene/219",
-    image: "https://images.unsplash.com/photo-1556742031-c6961e8560b0?auto=format&fit=crop&w=900&q=80",
-  },
-];
-
-const nightlifePlaces = [
-  {
-    name: "Guitars and Cadillacs",
-    kind: "Dance hall",
-    phone: "(325) 692-8077",
-    address: "3881 Vine St, Abilene, TX 79602",
-    website: "http://guitars-cadillacs.com",
-    image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    name: "The Ugly Lime",
-    kind: "Bar",
-    phone: "(325) 695-8185",
-    address: "4109 S Danville Dr, Abilene, TX 79605",
-    website: "https://www.instagram.com/theuglylimebar/",
-    image: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    name: "Mi Gente Club",
-    kind: "Club",
-    phone: "(325) 675-9776",
-    address: "157 Burger St, Abilene, TX 79603",
-    website: "https://www.google.com/search?q=Mi+Gente+Club+Abilene+TX",
-    image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    name: "The Station",
-    kind: "Lounge",
-    phone: "(325) 437-1336",
-    address: "618 S Pioneer Dr, Abilene, TX 79605",
-    website: "https://www.google.com/search?q=The+Station+Abilene+TX+lounge",
-    image: "https://images.unsplash.com/photo-1470337458703-46ad1756a187?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    name: "Club Rodeo",
-    kind: "Dance hall",
-    phone: "(325) 692-8077",
-    address: "3881 Vine St, Abilene, TX 79602",
-    website: "http://guitars-cadillacs.com",
-    image: "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    name: "Suite",
-    kind: "Club",
-    phone: "(325) 698-1234",
-    address: "4250 Ridgemont Dr, Abilene, TX 79606",
-    website: "https://www.mcmelegantesuites.com/",
-    image: "https://images.unsplash.com/photo-1505236858219-8359eb29e329?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    name: "Paramount Theatre",
-    kind: "Theatre",
-    phone: "(325) 676-9620",
-    address: "352 Cypress St, Abilene, TX 79601",
-    website: "https://www.paramountabilene.com/",
-    image: "https://images.unsplash.com/photo-1503095396549-807759245b35?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    name: "Cinemark",
-    kind: "Cinema",
-    phone: "(325) 670-0097",
-    address: "672 E Overland Trl, Abilene, TX 79601",
-    website: "https://www.cinemark.com/theatres/tx-abilene/cinemark-abilene-and-xd",
-    image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=900&q=85",
-  },
-];
-
-const eatsPlaces = [
-  {
-    name: "Grain Theory",
-    kind: "Brewpub",
-    note: "Craft beer, burgers, and a strong downtown patio mood.",
-    phone: "(325) 513-6628",
-    address: "202 Pine St Ste 201, Abilene, TX 79601",
-    menuUrl: "https://www.graintheory.beer/",
-    image: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "The Beehive",
-    kind: "Steakhouse",
-    note: "Classic Abilene dinner spot for date night or a slower evening.",
-    phone: "(325) 675-0600",
-    address: "442 Cedar St, Abilene, TX 79601",
-    menuUrl: "https://www.beehivesaloon.com/",
-    image: "https://images.unsplash.com/photo-1558030006-450675393462?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Vagabond Pizza",
-    kind: "Pizza",
-    note: "Easy slices, late conversations, and a casual downtown stop.",
-    phone: "(325) 268-4321",
-    address: "1056 N 2nd St, Abilene, TX 79601",
-    menuUrl: "https://www.vagabondpizza.com/",
-    image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Front Porch Coffee",
-    kind: "Coffee",
-    note: "A low-key daytime reset before the night starts moving.",
-    phone: "(325) 400-0288",
-    address: "702 N 2nd St, Abilene, TX 79601",
-    menuUrl: "https://order.toasttab.com/online/the-front-porch-coffee",
-    image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Galveston Seafood Company",
-    kind: "Seafood",
-    note: "Coastal plates, fried favorites, and seafood baskets for a casual Abilene dinner.",
-    phone: "(325) 232-6580",
-    address: "818 E Hwy 80, Abilene, TX 79601",
-    menuUrl: "https://www.galvestonseafoodcompany.com/",
-    image: "https://images.unsplash.com/photo-1565680018434-b513d5e5fd47?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Bonzai Japanese Steak House",
-    kind: "Japanese",
-    note: "Hibachi, sushi, and a fun dinner pick when the table wants a little show.",
-    phone: "(325) 692-2333",
-    address: "1802 S Clack St, Abilene, TX 79605",
-    menuUrl: "https://www.allmenus.com/tx/abilene/328920-bonzai-japanese-steakhouse/menu/",
-    image: "https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Abuelo's Mexican Restaurant",
-    kind: "Mexican",
-    note: "A polished Mexican dinner spot for enchiladas, fajitas, margaritas, and groups.",
-    phone: "(325) 692-4776",
-    address: "4782 S 14th St, Abilene, TX 79605",
-    menuUrl: "https://www.abuelos.com/restaurants/abilene/",
-    image: "https://images.unsplash.com/photo-1565299507177-b0ac66763828?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Miguel's Mex Tex Cafe",
-    kind: "Mex-Tex",
-    note: "A local favorite for Mexican comfort plates, casual lunches, and family dinners.",
-    phone: "(325) 698-8100",
-    address: "3001 S Danville Dr, Abilene, TX 79605",
-    menuUrl: "https://www.allmenus.com/tx/abilene/749188-miguels-mex-tex-cafe/menu/",
-    image: "https://images.unsplash.com/photo-1615870216519-2f9fa575fa5c?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Texas Roadhouse",
-    kind: "Steakhouse",
-    note: "Big steaks, rolls, ribs, and a reliable crowd-pleaser for dinner with family or friends.",
-    phone: "(325) 691-0509",
-    address: "1381 S Danville Dr, Abilene, TX 79605",
-    menuUrl: "https://www.texasroadhouse.com/locations/texas/abilene",
-    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80",
-  },
-  {
-    name: "Golden Corral",
-    kind: "Buffet",
-    note: "A family buffet option when everyone wants something different on one easy stop.",
-    phone: "(325) 692-4592",
-    address: "4357 S Danville Dr, Abilene, TX 79605",
-    menuUrl: "https://www.goldencorral.com/locations/location-detail/978/golden-corral-south-danville-drive/",
-    image: "https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&w=800&q=80",
-  },
-];
 
 const galleryShots = [
   {
@@ -770,9 +541,11 @@ const promoteCategories = [
   { label: "Restaurants", icon: "restaurant" },
   { label: "Clubs & Bars", icon: "bars" },
   { label: "Barber Shop", icon: "barber" },
-  { label: "Hotels", icon: "hotels" },
+  { label: "Sports & Fitness", icon: "fitness" },
   { label: "Rentals", icon: "rentals" },
   { label: "Groceries", icon: "groceries" },
+  { label: "Shopping", icon: "shopping" },
+  { label: "Family & Kids", icon: "family" },
   { label: "Dealers", icon: "dealers" },
   { label: "Insurance", icon: "insurance" },
   { label: "Health", icon: "health" },
@@ -927,9 +700,9 @@ const lobbyActions = [
   },
   {
     page: "hotels",
-    label: "Hotels",
-    description: "Find hotels in Abilene.",
-    icon: "hotels",
+    label: "Sports & Fitness",
+    description: "Find gyms, training, sports, and fitness spots in Abilene.",
+    icon: "fitness",
     tone: "purple",
   },
   {
@@ -1006,124 +779,6 @@ const adminTabs = [
   { id: "analytics", label: "Analytics" },
 ];
 
-const familyPlaces = [
-  {
-    title: "Abilene Zoo",
-    type: "Zoo",
-    place: "2070 Zoo Ln, Abilene, TX",
-    note: "A full family day with animals, walking paths, photos, and easy kid-friendly plans.",
-    website: "https://abilenezoo.org/",
-    image: "https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "PrimeTime Family Entertainment",
-    type: "Arcade & games",
-    place: "4541 Loop 322, Abilene, TX",
-    note: "Bowling, arcade games, movies, food, and an easy indoor plan for every age.",
-    website: "https://primetimeabilene.com/",
-    image: "https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Adventure Cove",
-    type: "Water park",
-    place: "2742 S 9th St, Abilene, TX",
-    note: "A summer-friendly stop for slides, water play, and a full afternoon outside.",
-    website: "https://www.abilenetx.gov/adventurecove",
-    image: "https://images.unsplash.com/photo-1505731110654-99d7f7f8e39c?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Family Life Center",
-    type: "Indoor activities",
-    place: "Abilene, TX",
-    note: "A useful indoor option for active family time, youth programs, and group activities.",
-    website: "https://www.google.com/search?q=Family+Life+Center+Abilene+TX",
-    image: "https://images.unsplash.com/photo-1526976668912-1a811878dd37?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Storybook Sculpture Trail",
-    type: "Downtown walk",
-    place: "Downtown Abilene, TX",
-    note: "A relaxed walk through downtown with sculptures, photos, snacks, and easy stops nearby.",
-    website: "https://www.google.com/search?q=Storybook+Sculpture+Trail+Abilene+TX",
-    image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80",
-  },
-];
-
-const hotelPlaces = [
-  {
-    title: "DoubleTree Downtown",
-    type: "Downtown hotel",
-    place: "500 Cypress St, Abilene, TX",
-    note: "A polished stay by the convention center, museums, restaurants, and downtown events.",
-    bookingUrl: "https://www.hilton.com/en/hotels/abidtdt-doubletree-abilene-downtown-convention-center/",
-    image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "MCM Elegante Suites",
-    type: "Suite hotel",
-    place: "4250 Ridgemont Dr, Abilene, TX",
-    note: "Roomy suite-style stays with extra space for families, longer visits, and event weekends.",
-    bookingUrl: "https://www.mcmelegantesuites.com/",
-    image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Courtyard Abilene Northeast",
-    type: "Modern hotel",
-    place: "2141 Scottish Rd, Abilene, TX",
-    note: "A clean, easy stay near ACU, restaurants, and northeast Abilene plans.",
-    bookingUrl: "https://www.marriott.com/en-us/hotels/abine-courtyard-abilene-northeast/overview/",
-    image: "https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "TownePlace Suites Northeast",
-    type: "Extended stay",
-    place: "2141 Scottish Rd, Abilene, TX",
-    note: "A practical extended-stay option with more room for work trips and longer family visits.",
-    bookingUrl: "https://www.marriott.com/en-us/hotels/abits-towneplace-suites-abilene-northeast/overview/",
-    image: "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Apartment Rentals",
-    type: "Furnished stays",
-    place: "Abilene, TX",
-    note: "Search apartment-style stays for longer visits, visiting relatives, or flexible weekend plans.",
-    bookingUrl: "https://www.airbnb.com/abilene-tx/stays/apartments",
-    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Downtown Hotels",
-    type: "Near events",
-    place: "Downtown Abilene, TX",
-    note: "Best for nightlife, Paramount Theatre plans, restaurants, and walkable weekend stops.",
-    bookingUrl: "https://www.google.com/maps/search/hotels+near+downtown+Abilene+TX",
-    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Short-Term Rentals",
-    type: "Home stays",
-    place: "Abilene, TX",
-    note: "Great for families, groups, visiting relatives, and longer event weekends.",
-    bookingUrl: "https://www.airbnb.com/s/Abilene--TX/homes",
-    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Family-Friendly Stays",
-    type: "Pool & comfort",
-    place: "Abilene, TX",
-    note: "Look for pools, breakfast, parking, and easy drives to the zoo and family stops.",
-    bookingUrl: "https://www.google.com/maps/search/family+friendly+hotels+Abilene+TX",
-    image: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    title: "Event Weekend Stays",
-    type: "Quick booking",
-    place: "Near Abilene venues",
-    note: "Useful when you are coming in for concerts, sports, downtown events, or nightlife.",
-    bookingUrl: "https://www.google.com/maps/search/hotels+near+Abilene+TX+events",
-    image: "https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=900&q=80",
-  },
-];
-
 const initialBusinesses = [
   {
     id: "grain-theory",
@@ -1184,6 +839,102 @@ const businessServiceSections = {
     categories: ["Groceries", "Grocery"],
     emptyMessage: "No grocery listings yet.",
     savedName: "grocery store",
+  },
+  shopping: {
+    page: "shopping",
+    title: "Shopping",
+    eyebrow: "Local finds",
+    intro: "Find shops, boutiques, gifts, and local favorites shared through Abilene Vibes.",
+    ariaLabel: "Abilene shopping businesses",
+    addButton: "Add Shopping Business",
+    closeButton: "Close Shopping Form",
+    formTitle: "Add Shopping Business",
+    namePlaceholder: "Shopping business name",
+    descriptionPlaceholder: "Tell people what they can find here.",
+    category: "Shopping",
+    categories: ["Shopping"],
+    emptyMessage: "No shopping listings yet.",
+    savedName: "shopping business",
+  },
+  nightlife: {
+    page: "nightlife",
+    title: "Nightlife",
+    eyebrow: "After dark",
+    intro: "Find clubs, bars, lounges, and nightlife businesses shared through Abilene Vibes.",
+    ariaLabel: "Abilene nightlife businesses",
+    addButton: "Add Nightlife Business",
+    closeButton: "Close Nightlife Form",
+    formTitle: "Add Nightlife Business",
+    namePlaceholder: "Nightlife business name",
+    descriptionPlaceholder: "Tell people what they can find here.",
+    category: "Clubs & Bars",
+    categories: ["Clubs & Bars"],
+    emptyMessage: "No nightlife listings yet.",
+    savedName: "nightlife business",
+  },
+  eats: {
+    page: "eats",
+    title: "Eats",
+    eyebrow: "Food before the fun",
+    intro: "Find restaurants and food trucks shared through Abilene Vibes.",
+    ariaLabel: "Abilene restaurants and food trucks",
+    addButton: "Add Eats Business",
+    closeButton: "Close Eats Form",
+    formTitle: "Add Eats Business",
+    namePlaceholder: "Restaurant or food truck name",
+    descriptionPlaceholder: "Tell people what they can find here.",
+    category: "Restaurants",
+    categories: ["Restaurants", "Food trucks", "Food Trucks"],
+    emptyMessage: "No Eats listings yet.",
+    savedName: "Eats business",
+  },
+  family: {
+    page: "family",
+    title: "Family & Kids",
+    eyebrow: "Family fun",
+    intro: "Find family entertainment, kids activities, birthday spots, parks, and local places for all ages.",
+    ariaLabel: "Abilene family and kids businesses",
+    addButton: "Add Family & Kids Business",
+    closeButton: "Close Family & Kids Form",
+    formTitle: "Add Family & Kids Business",
+    namePlaceholder: "Family or kids business name",
+    descriptionPlaceholder: "Tell families about activities, parties, ages, and what to expect.",
+    category: "Family & Kids",
+    categories: ["Family & Kids", "Family", "Kids", "Children Activities"],
+    emptyMessage: "No Family & Kids listings yet.",
+    savedName: "Family & Kids business",
+  },
+  hotels: {
+    page: "hotels",
+    title: "Sports & Fitness",
+    eyebrow: "Move local",
+    intro: "Find gyms, training, sports, and fitness spots in Abilene.",
+    ariaLabel: "Abilene sports and fitness businesses",
+    addButton: "Add Sports & Fitness Business",
+    closeButton: "Close Sports & Fitness Form",
+    formTitle: "Add Sports & Fitness Business",
+    namePlaceholder: "Sports or fitness business name",
+    descriptionPlaceholder: "Tell people about training, classes, sports, facilities, and what to expect.",
+    category: "Sports & Fitness",
+    categories: [
+      "Sports & Fitness",
+      "Gym",
+      "Fitness Center",
+      "CrossFit",
+      "Yoga",
+      "Pilates",
+      "Boxing",
+      "Martial Arts",
+      "Soccer Academy",
+      "Basketball Training",
+      "Baseball Training",
+      "Tennis Club",
+      "Swimming Pools",
+      "Dance Studio",
+      "Personal Trainer",
+    ],
+    emptyMessage: "No Sports & Fitness listings yet.",
+    savedName: "Sports & Fitness business",
   },
   dealers: {
     page: "dealers",
@@ -1285,11 +1036,29 @@ const categorySectionMap = {
   Barber: "barbers",
   "Barber Shop": "barbers",
   Barbershop: "barbers",
-  Hotels: "hotels",
-  "Hotels & Rents": "hotels",
+  "Sports & Fitness": "hotels",
+  Gym: "hotels",
+  "Fitness Center": "hotels",
+  CrossFit: "hotels",
+  Yoga: "hotels",
+  Pilates: "hotels",
+  Boxing: "hotels",
+  "Martial Arts": "hotels",
+  "Soccer Academy": "hotels",
+  "Basketball Training": "hotels",
+  "Baseball Training": "hotels",
+  "Tennis Club": "hotels",
+  "Swimming Pools": "hotels",
+  "Dance Studio": "hotels",
+  "Personal Trainer": "hotels",
   Rentals: "rentals",
   Groceries: "groceries",
   Grocery: "groceries",
+  Shopping: "shopping",
+  "Family & Kids": "family",
+  Family: "family",
+  Kids: "family",
+  "Children Activities": "family",
   Dealer: "dealers",
   Dealers: "dealers",
   "Car Dealer": "dealers",
@@ -1313,8 +1082,24 @@ const businessImageForCategory = (category) => {
     return appAsset("nightlife-station.jpg");
   }
 
-  if (category === "Hotels" || category === "Hotels & Rents") {
-    return "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80";
+  if (
+    category === "Sports & Fitness" ||
+    category === "Gym" ||
+    category === "Fitness Center" ||
+    category === "CrossFit" ||
+    category === "Yoga" ||
+    category === "Pilates" ||
+    category === "Boxing" ||
+    category === "Martial Arts" ||
+    category === "Soccer Academy" ||
+    category === "Basketball Training" ||
+    category === "Baseball Training" ||
+    category === "Tennis Club" ||
+    category === "Swimming Pools" ||
+    category === "Dance Studio" ||
+    category === "Personal Trainer"
+  ) {
+    return appAsset("sports&fitness-bg.jpg");
   }
 
   if (category === "Food trucks" || category === "Restaurants") {
@@ -1433,13 +1218,14 @@ function LobbyActionIcon({ icon }) {
     );
   }
 
-  if (icon === "hotels") {
+  if (icon === "fitness") {
     return (
       <svg viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M8 58V30l16-12 16 12v28" />
-        <path d="M17 58V42h14v16" />
-        <path d="M38 58V10h17v48" />
-        <path d="M43 18h5M43 28h5M43 38h5" />
+        <path d="M8 36h8V24H8v12Z" />
+        <path d="M48 36h8V24h-8v12Z" />
+        <path d="M16 40h8V20h-8v20Z" />
+        <path d="M40 40h8V20h-8v20Z" />
+        <path d="M24 30h16" />
       </svg>
     );
   }
@@ -1615,13 +1401,14 @@ function PromoteCategoryIcon({ icon }) {
     );
   }
 
-  if (icon === "hotels") {
+  if (icon === "fitness") {
     return (
       <svg viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M10 50V18h16c7 0 12 5 12 12v20" />
-        <path d="M10 34h44v16" />
-        <path d="M18 26h9" />
-        <path d="M54 24v26" />
+        <path d="M8 36h8V24H8v12Z" />
+        <path d="M48 36h8V24h-8v12Z" />
+        <path d="M16 40h8V20h-8v20Z" />
+        <path d="M40 40h8V20h-8v20Z" />
+        <path d="M24 30h16" />
       </svg>
     );
   }
@@ -1643,6 +1430,28 @@ function PromoteCategoryIcon({ icon }) {
         <path d="M10 12h8l6 28h22l6-20H20" />
         <circle cx="28" cy="50" r="4" />
         <circle cx="44" cy="50" r="4" />
+      </svg>
+    );
+  }
+
+  if (icon === "shopping") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M16 24h32l4 30H12l4-30Z" />
+        <path d="M24 24v-6c0-5 4-9 8-9s8 4 8 9v6" />
+        <path d="M24 34v1" />
+        <path d="M40 34v1" />
+      </svg>
+    );
+  }
+
+  if (icon === "family") {
+    return (
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="24" cy="15" r="7" />
+        <path d="M13 57V39c0-8 5-14 11-14s11 6 11 14v18" />
+        <circle cx="44" cy="25" r="5" />
+        <path d="M35 57V43c0-7 4-12 9-12s9 5 9 12v14" />
       </svg>
     );
   }
@@ -1877,6 +1686,7 @@ function App() {
   const [selectedPlan, setSelectedPlan] = useState(promotePlans[0].name);
   const [showGroceryForm, setShowGroceryForm] = useState(false);
   const [openBusinessServiceFormPage, setOpenBusinessServiceFormPage] = useState("");
+  const [selectedSportsFitnessSubcategory, setSelectedSportsFitnessSubcategory] = useState("");
   const [businessSubmitted, setBusinessSubmitted] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState("");
   const [businesses, setBusinesses] = useState([]);
@@ -2017,6 +1827,7 @@ function App() {
     postRentalStep: "form",
     showGroceryForm: false,
     openBusinessServiceFormPage: "",
+    selectedSportsFitnessSubcategory: "",
   });
   const pageRef = useRef(page);
   const previousPageRef = useRef(page);
@@ -2055,8 +1866,17 @@ function App() {
       postRentalStep,
       showGroceryForm,
       openBusinessServiceFormPage,
+      selectedSportsFitnessSubcategory,
     };
-  }, [page, imageViewerPhoto, postJobStep, postRentalStep, showGroceryForm, openBusinessServiceFormPage]);
+  }, [
+    page,
+    imageViewerPhoto,
+    postJobStep,
+    postRentalStep,
+    showGroceryForm,
+    openBusinessServiceFormPage,
+    selectedSportsFitnessSubcategory,
+  ]);
 
   useEffect(() => {
     const splashTimer = window.setTimeout(() => {
@@ -2478,6 +2298,7 @@ function App() {
         postJobStep: currentPostJobStep,
         showGroceryForm: currentShowGroceryForm,
         openBusinessServiceFormPage: currentOpenBusinessServiceFormPage,
+        selectedSportsFitnessSubcategory: currentSportsFitnessSubcategory,
       } = backHandlerStateRef.current;
 
       // 1. Zoom overlay — close it, stay on current page.
@@ -2519,16 +2340,36 @@ function App() {
       }
 
       if (businessServicePages.includes(currentPage) && currentOpenBusinessServiceFormPage === currentPage) {
+        if (currentPage === "hotels" && currentSportsFitnessSubcategory) {
+          setSelectedSportsFitnessSubcategory("");
+          setBusinessSubmitted(false);
+          setSubmissionStatus("");
+          return;
+        }
+
         setOpenBusinessServiceFormPage("");
+        if (currentPage === "hotels") {
+          setSelectedSportsFitnessSubcategory("");
+        }
         setBusinessSubmitted(false);
         setSubmissionStatus("");
+        return;
+      }
+
+      if (currentPage === "family") {
+        navigateTo("lobby", { replace: true });
+        return;
+      }
+
+      if (currentPage === "shopping" || currentPage === "nightlife" || currentPage === "eats" || currentPage === "hotels") {
+        navigateTo("lobby", { replace: true });
         return;
       }
 
       if (
         currentPage === "news" ||
         currentPage === "marketplace" ||
-        businessServicePages.includes(currentPage) ||
+        (businessServicePages.includes(currentPage) && currentPage !== "family" && currentPage !== "hotels") ||
         currentPage === "jobs" ||
         currentPage === "rentals"
       ) {
@@ -3663,26 +3504,31 @@ function App() {
     await loadAdminData();
   };
 
-  const applyBusinessCategoryPhoto = async (business) => {
-    if (!supabase || !adminSession) {
+  const changeBusinessPhoto = async (businessId, file) => {
+    if (!supabase || !adminSession || !file || !file.size) {
       return;
     }
 
-    const shouldUpdate = window.confirm(`Use the default ${business.category || "category"} photo for "${business.business_name}"?`);
-
-    if (!shouldUpdate) {
-      return;
-    }
-
-    setAdminStatus("saving");
-    const { error } = await supabase.from("business_submissions").update({ image_data: null }).eq("id", business.id);
-
-    if (error) {
+    if (!file.type.startsWith("image/") || file.size > 15 * 1024 * 1024) {
       setAdminStatus("error");
       return;
     }
 
-    await loadAdminData();
+    setAdminStatus("saving");
+
+    try {
+      const imageData = await optimizeGalleryImage(file);
+      const { error } = await supabase.from("business_submissions").update({ image_data: imageData }).eq("id", businessId);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      await loadAdminData();
+    } catch {
+      setAdminStatus("error");
+    }
   };
 
   const compBusinessPlacement = async (business, selectedPromoPlan = "") => {
@@ -4757,8 +4603,6 @@ function App() {
   const openUpcomingHighlight = async () => {
     await openLobbyPromotionItem(spotlightItem, "highlight");
   };
-  const categoryBusinessesFor = (section) =>
-    paidBusinesses.filter((business) => categorySectionMap[business.category] === section);
   const directoryBusinesses = [...allBusinesses].sort(
     (a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99),
   );
@@ -4840,9 +4684,17 @@ function App() {
         </button>
       )}
       {options.showCategoryPhoto && (
-        <button className="directory-link" type="button" onClick={() => applyBusinessCategoryPhoto(business)}>
-          Use Category Photo
-        </button>
+        <label className="directory-link file-action">
+          Change Photo
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(inputEvent) => {
+              changeBusinessPhoto(business.id, inputEvent.target.files?.[0]);
+              inputEvent.target.value = "";
+            }}
+          />
+        </label>
       )}
       <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Free")}>
         Plan Free
@@ -5352,351 +5204,6 @@ function App() {
     );
   }
 
-  if (page === "shopping") {
-    return withSplash(
-      <main className="app events-page">
-        <div className="events-shell">
-          <button className="back-button" onClick={backToLobby}>
-            Back to lobby
-          </button>
-
-          <section className="events-header" aria-labelledby="shopping-title">
-            <p className="eyebrow">Local finds</p>
-            <h1 id="shopping-title">Shopping</h1>
-            <p className="events-intro">Explore shops, boutiques, gifts, and local favorites around Abilene.</p>
-          </section>
-
-          <section className="event-list" aria-label="Abilene shopping places">
-            {shoppingPlaces.map((item) => (
-              <article className="event-card" key={item.title}>
-                <img className="event-image" src={item.image} alt="" loading="lazy" />
-
-                <div className="event-content">
-                  <span className="event-type">{item.type}</span>
-                  <h2>{item.title}</h2>
-                  <p className="event-detail">{item.note}</p>
-                  <div className="place-actions">
-                    <a
-                      className="place-link"
-                      href={mapSearchUrl(`${item.title}, ${item.place}`)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Directions
-                    </a>
-                    <a className="place-link" href={item.website} target="_blank" rel="noreferrer">
-                      Visit
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </section>
-        </div>
-      </main>,
-    );
-  }
-
-  if (page === "nightlife") {
-    return withSplash(
-      <main className="app nightlife-page">
-        <div className="nightlife-shell">
-          <button className="back-button" onClick={backToLobby}>
-            Back to lobby
-          </button>
-
-          <section className="nightlife-header" aria-labelledby="nightlife-title">
-            <p className="eyebrow">After dark</p>
-            <h1 id="nightlife-title">Nightlife</h1>
-          </section>
-
-          <section className="nightlife-grid" aria-label="Abilene nightlife places">
-            {categoryBusinessesFor("nightlife").map((business) => (
-              <article className="nightlife-card paid-placement-card" key={business.id}>
-                <img
-                  className="nightlife-image"
-                  src={businessDisplayImage(business)}
-                  alt=""
-                  loading="lazy"
-                />
-                <span className="event-type">{business.plan} local</span>
-                <h2>{business.name}</h2>
-                {business.description && <p className="paid-placement-note">{business.description}</p>}
-                <div className="place-actions nightlife-actions">
-                  {business.phone && (
-                    <a className="place-link" href={telUrl(business.phone)}>
-                      Call
-                    </a>
-                  )}
-                  <a
-                    className="place-link"
-                    href={mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Directions
-                  </a>
-                  {business.social && (
-                    <a className="place-link" href={visitUrl(business.social)} target="_blank" rel="noreferrer">
-                      Visit
-                    </a>
-                  )}
-                </div>
-              </article>
-            ))}
-            {nightlifePlaces.map((place) => (
-              <article className="nightlife-card" key={place.name}>
-                {place.images ? (
-                  <div className="nightlife-photo-pair" aria-hidden="true">
-                    {place.images.map((image) => (
-                      <img key={image} src={image} alt="" loading="lazy" />
-                    ))}
-                  </div>
-                ) : (
-                  <img className="nightlife-image" src={place.image} alt="" loading="lazy" />
-                )}
-                <span className="event-type">{place.kind}</span>
-                <h2>{place.name}</h2>
-                <div className="place-actions nightlife-actions">
-                  <a className="place-link" href={telUrl(place.phone)}>
-                    Call
-                  </a>
-                  <a
-                    className="place-link"
-                    href={mapSearchUrl(`${place.name}, ${place.address || "Abilene TX"}`)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Directions
-                  </a>
-                  <a className="place-link" href={place.website} target="_blank" rel="noreferrer">
-                    Visit
-                  </a>
-                </div>
-              </article>
-            ))}
-          </section>
-        </div>
-      </main>,
-    );
-  }
-
-  if (page === "eats") {
-    return withSplash(
-      <main className="app eats-page">
-        <div className="eats-shell">
-          <button className="back-button" onClick={backToLobby}>
-            Back to lobby
-          </button>
-
-          <section className="eats-header" aria-labelledby="eats-title">
-            <p className="eyebrow">Food before the fun</p>
-            <h1 id="eats-title">Eats</h1>
-            <p className="events-intro">
-              Quick picks for dinner, coffee, and downtown stops before the night opens up.
-            </p>
-          </section>
-
-          <section className="eats-grid" aria-label="Abilene restaurants and coffee spots">
-            {categoryBusinessesFor("eats").map((business) => (
-              <article className="eats-card paid-placement-card" key={business.id}>
-                <button
-                  className="image-open-button"
-                  type="button"
-                  onClick={() => openImageViewer(businessDisplayImage(business), business.name)}
-                  aria-label={`Open ${business.name} photo`}
-                >
-                  <img
-                    className="eats-image"
-                    src={businessDisplayImage(business)}
-                    alt=""
-                    loading="lazy"
-                  />
-                </button>
-
-                <div className="eats-copy">
-                  <span className="event-type">{business.plan} local</span>
-                  <h2>{business.name}</h2>
-                  {business.description && <p>{business.description}</p>}
-                  <div className="place-actions">
-                    {business.phone && (
-                      <a className="place-link" href={telUrl(business.phone)}>
-                        Call
-                      </a>
-                    )}
-                    <a
-                      className="place-link"
-                      href={mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Directions
-                    </a>
-                    {business.social && (
-                      <a className="place-link" href={visitUrl(business.social)} target="_blank" rel="noreferrer">
-                        Visit
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </article>
-            ))}
-            {eatsPlaces.map((place) => (
-              <article className="eats-card" key={place.name}>
-                <button
-                  className="image-open-button"
-                  type="button"
-                  onClick={() => openImageViewer(place.image, place.name)}
-                  aria-label={`Open ${place.name} photo`}
-                >
-                  <img className="eats-image" src={place.image} alt="" loading="lazy" />
-                </button>
-
-                <div className="eats-copy">
-                  <span className="event-type">{place.kind}</span>
-                  <h2>{place.name}</h2>
-                  <p>{place.note}</p>
-                  <div className="place-actions">
-                    <a className="place-link" href={telUrl(place.phone)}>
-                      Call
-                    </a>
-                    <a
-                      className="place-link"
-                      href={mapSearchUrl(`${place.name}, ${place.address}`)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Directions
-                    </a>
-                    <a className="place-link" href={place.menuUrl} target="_blank" rel="noreferrer">
-                      Menu
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </section>
-        </div>
-      </main>,
-    );
-  }
-
-  if (page === "family") {
-    return withSplash(
-      <main className="app events-page">
-        <div className="events-shell">
-          <button className="back-button" onClick={backToLobby}>
-            Back to lobby
-          </button>
-
-          <section className="events-header" aria-labelledby="family-title">
-            <p className="eyebrow">For everyone</p>
-            <h1 id="family-title">Family & Kids</h1>
-            <p className="events-intro">Zoo days, water fun, games, and easy plans for the whole family.</p>
-          </section>
-
-          <section className="event-list" aria-label="Family and kids picks">
-            {familyPlaces.map((item) => (
-              <article className="event-card" key={item.title}>
-                <img className="event-image" src={item.image} alt="" loading="lazy" />
-                <div className="event-copy">
-                  <span className="event-type">{item.type}</span>
-                  <h2>{item.title}</h2>
-                  <p className="event-detail">{item.place}</p>
-                  <p className="event-detail">{item.note}</p>
-                  <div className="place-actions">
-                    <a
-                      className="place-link"
-                      href={mapSearchUrl(`${item.title}, ${item.place}`)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Directions
-                    </a>
-                    <a className="place-link" href={item.website} target="_blank" rel="noreferrer">
-                      Visit
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </section>
-        </div>
-      </main>,
-    );
-  }
-
-  if (page === "hotels") {
-    return withSplash(
-      <main className="app events-page">
-        <div className="events-shell">
-          <button className="back-button" onClick={backToLobby}>
-            Back to lobby
-          </button>
-
-          <section className="events-header" aria-labelledby="hotels-title">
-            <p className="eyebrow">Stay nearby</p>
-            <h1 id="hotels-title">Hotels</h1>
-            <p className="events-intro">Find hotels near events, food, family stops, and downtown plans.</p>
-          </section>
-
-          <section className="event-list" aria-label="Hotels">
-            {categoryBusinessesFor("hotels").map((business) => (
-              <article className="event-card paid-placement-card" key={business.id}>
-                <img
-                  className="event-image"
-                  src={businessDisplayImage(business)}
-                  alt=""
-                  loading="lazy"
-                />
-                <div className="event-copy">
-                  <span className="event-type">{business.plan} local</span>
-                  <h2>{business.name}</h2>
-                  {business.address && <p className="event-detail">{business.address}</p>}
-                  {business.description && <p className="event-detail">{business.description}</p>}
-                  <div className="place-actions">
-                    <a
-                      className="place-link"
-                      href={mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Map
-                    </a>
-                    {business.social && (
-                      <a className="place-link" href={visitUrl(business.social)} target="_blank" rel="noreferrer">
-                        Visit
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </article>
-            ))}
-            {hotelPlaces.map((item) => (
-              <article className="event-card" key={item.title}>
-                <img className="event-image" src={item.image} alt="" loading="lazy" />
-                <div className="event-copy">
-                  <span className="event-type">{item.type}</span>
-                  <h2>{item.title}</h2>
-                  <p className="event-detail">{item.place}</p>
-                  <p className="event-detail">{item.note}</p>
-                  <div className="place-actions">
-                    <a className="place-link" href={mapSearchUrl(item.place)} target="_blank" rel="noreferrer">
-                      Map
-                    </a>
-                    <a className="place-link" href={item.bookingUrl} target="_blank" rel="noreferrer">
-                      Search
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </section>
-        </div>
-      </main>,
-    );
-  }
-
   if (page === "gallery") {
     return withSplash(
       <main className="app gallery-page">
@@ -5807,8 +5314,10 @@ function App() {
                   >
                     <img src={shot.image} alt="" loading="lazy" />
                   </button>
-                  <figcaption>{shot.title}</figcaption>
-                  {renderLikeButton("photo", photoKey)}
+                  <figcaption className="gallery-card-body">
+                    <span>{shot.title}</span>
+                    {renderLikeButton("photo", photoKey)}
+                  </figcaption>
                 </figure>
               );
             })}
@@ -8634,6 +8143,8 @@ function App() {
   if (businessServiceSections[page]) {
     const serviceSection = businessServiceSections[page];
     const serviceBusinesses = businessServiceBusinessesByPage[page] ?? [];
+    const isSportsFitnessPage = page === "hotels";
+    const sportsFitnessSubcategories = isSportsFitnessPage ? serviceSection.categories.slice(1) : [];
     const showServiceForm = page === "groceries" ? showGroceryForm : openBusinessServiceFormPage === page;
     const setServiceFormOpen = (isOpen) => {
       if (page === "groceries") {
@@ -8641,29 +8152,42 @@ function App() {
       } else {
         setOpenBusinessServiceFormPage(isOpen ? page : "");
       }
+      if (!isOpen && isSportsFitnessPage) {
+        setSelectedSportsFitnessSubcategory("");
+      }
     };
 
     return withSplash(
       <main
-        className={`app directory-page${page === "groceries" ? " groceries-page" : ""}${page === "dealers" ? " dealers-page" : ""}${page === "barbers" ? " barbers-page" : ""}${page === "insurance" ? " insurance-page" : ""}${page === "health" ? " health-page" : ""}${page === "schools" ? " schools-page" : ""}`}
+        className={`app directory-page${page === "groceries" ? " groceries-page" : ""}${page === "shopping" ? " shopping-page" : ""}${page === "nightlife" ? " nightlife-page" : ""}${page === "eats" ? " eats-page" : ""}${page === "family" ? " family-page" : ""}${page === "hotels" ? " sports-fitness-page" : ""}${page === "dealers" ? " dealers-page" : ""}${page === "barbers" ? " barbers-page" : ""}${page === "insurance" ? " insurance-page" : ""}${page === "health" ? " health-page" : ""}${page === "schools" ? " schools-page" : ""}`}
         style={
           page === "groceries"
             ? { "--groceries-bg": `url("${appAsset("groceries-bg.png")}")` }
-            : page === "dealers"
-              ? { "--dealers-bg": `url("${appAsset("dealers-bg.png")}")` }
-              : page === "barbers"
-                ? { "--barbers-bg": `url("${appAsset("barbers-bg.png")}")` }
-                : page === "insurance"
-                  ? { "--insurance-bg": `url("${appAsset("insurance-bg.png")}")` }
-                  : page === "health"
-                    ? { "--health-bg": `url("${appAsset("health-bg.png")}")` }
-                    : page === "schools"
-                      ? { "--schools-bg": `url("${appAsset("schools-bg.png")}")` }
-                      : undefined
+            : page === "shopping"
+              ? { "--shopping-bg": `url("${appAsset("shopping-bg.jpg")}")` }
+              : page === "nightlife"
+                ? { "--nightlife-bg": `url("${appAsset("nightlife-bg.jpg")}")` }
+                : page === "eats"
+                  ? { "--eats-bg": `url("${appAsset("eats-bg.jpg")}")` }
+                  : page === "family"
+                    ? { "--family-bg": `url("${appAsset("family&kids-bg.jpg")}")` }
+                    : page === "hotels"
+                      ? { "--sports-fitness-bg": `url("${appAsset("sports&fitness-bg.jpg")}")` }
+                      : page === "dealers"
+                        ? { "--dealers-bg": `url("${appAsset("dealers-bg.png")}")` }
+                        : page === "barbers"
+                          ? { "--barbers-bg": `url("${appAsset("barbers-bg.png")}")` }
+                          : page === "insurance"
+                            ? { "--insurance-bg": `url("${appAsset("insurance-bg.png")}")` }
+                            : page === "health"
+                              ? { "--health-bg": `url("${appAsset("health-bg.png")}")` }
+                              : page === "schools"
+                                ? { "--schools-bg": `url("${appAsset("schools-bg.png")}")` }
+                                : undefined
         }
       >
         <div className="directory-shell">
-          <button className="back-button" onClick={() => navigateTo("more")}>
+          <button className="back-button" onClick={page === "shopping" || page === "nightlife" || page === "eats" || page === "family" || page === "hotels" ? backToLobby : () => navigateTo("more")}>
             Back
           </button>
 
@@ -8681,6 +8205,9 @@ function App() {
               setSelectedCategory(serviceSection.category);
               if (willOpen) {
                 setSelectedPlan(promotePlans[0].name);
+                if (isSportsFitnessPage) {
+                  setSelectedSportsFitnessSubcategory("");
+                }
               }
               setBusinessSubmitted(false);
               setSubmissionStatus("");
@@ -8692,6 +8219,34 @@ function App() {
 
           {showServiceForm && (
             <>
+              {isSportsFitnessPage && !selectedSportsFitnessSubcategory && (
+                <section className="business-form service-subcategory-picker" aria-label="Choose a Sports & Fitness subcategory">
+                  <div className="business-form-heading">
+                    <p className="eyebrow">Choose category</p>
+                    <h2>Sports & Fitness type</h2>
+                  </div>
+                  <div className="service-subcategory-grid">
+                    {sportsFitnessSubcategories.map((subcategory) => (
+                      <button
+                        key={subcategory}
+                        type="button"
+                        onClick={() => {
+                          setSelectedSportsFitnessSubcategory(subcategory);
+                          setSelectedCategory(subcategory);
+                          setSelectedPlan(promotePlans[0].name);
+                          setBusinessSubmitted(false);
+                          setSubmissionStatus("");
+                        }}
+                      >
+                        {subcategory}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {(!isSportsFitnessPage || selectedSportsFitnessSubcategory) && (
+                <>
               <section className="plan-grid" aria-label={`${serviceSection.title} plans`}>
                 {promotePlans.map((plan) => (
                   <button
@@ -8714,12 +8269,16 @@ function App() {
               </section>
 
               <form className="business-form" onSubmit={handleBusinessSubmit} noValidate>
-                <input type="hidden" name="categoryOverride" value={serviceSection.category} />
+                <input
+                  type="hidden"
+                  name="categoryOverride"
+                  value={isSportsFitnessPage ? selectedSportsFitnessSubcategory : serviceSection.category}
+                />
                 <input type="hidden" name="planOverride" value={selectedPlan} />
 
                 <div className="business-form-heading">
                   <p className="eyebrow">{selectedPlan} plan</p>
-                  <h2>{serviceSection.formTitle}</h2>
+                  <h2>{isSportsFitnessPage ? selectedSportsFitnessSubcategory : serviceSection.formTitle}</h2>
                 </div>
 
                 <div className="form-grid">
@@ -8858,6 +8417,8 @@ function App() {
                       : `Continue to ${selectedPlan} Checkout`}
                 </button>
               </form>
+                </>
+              )}
             </>
           )}
 
