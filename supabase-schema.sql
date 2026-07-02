@@ -20,6 +20,7 @@ create table if not exists public.business_submissions (
   stripe_payment_intent_id text,
   stripe_customer_id text,
   stripe_subscription_id text,
+  owner_user_id text,
   paid_at timestamptz
 );
 
@@ -51,6 +52,18 @@ add column if not exists placement_source text not null default 'paid';
 
 alter table public.business_submissions
 add column if not exists placement_expires_at timestamptz;
+
+alter table public.business_submissions
+add column if not exists owner_user_id text;
+
+alter table public.business_submissions
+alter column owner_user_id drop default;
+
+alter table public.business_submissions
+alter column owner_user_id type text using owner_user_id::text;
+
+create index if not exists business_submissions_owner_user_id_idx
+on public.business_submissions (owner_user_id);
 
 create table if not exists public.payment_records (
   id uuid primary key default gen_random_uuid(),
@@ -97,6 +110,135 @@ as $$
 $$;
 
 grant execute on function public.is_service_admin() to authenticated;
+
+drop function if exists public.owner_update_business_submission(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text
+);
+
+drop function if exists public.owner_hide_business_submission(uuid);
+
+create or replace function public.owner_update_business_submission(
+  p_business_id uuid,
+  p_owner_id text,
+  p_business_name text,
+  p_contact_name text,
+  p_contact_email text,
+  p_phone text,
+  p_address text,
+  p_social text,
+  p_description text,
+  p_image_data text default null
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  changed_count integer;
+begin
+  update public.business_submissions
+  set
+    business_name = coalesce(nullif(trim(p_business_name), ''), business_name),
+    contact_name = coalesce(nullif(trim(p_contact_name), ''), contact_name),
+    contact_email = nullif(trim(coalesce(p_contact_email, '')), ''),
+    phone = coalesce(nullif(trim(p_phone), ''), phone),
+    address = nullif(trim(coalesce(p_address, '')), ''),
+    social = nullif(trim(coalesce(p_social, '')), ''),
+    description = nullif(trim(coalesce(p_description, '')), ''),
+    image_data = coalesce(p_image_data, image_data)
+  where id = p_business_id
+    and (
+      public.is_service_admin()
+      or (
+        length(trim(coalesce(p_owner_id, ''))) > 0
+        and owner_user_id = p_owner_id
+      )
+    );
+
+  get diagnostics changed_count = row_count;
+  return changed_count = 1;
+end;
+$$;
+
+create or replace function public.owner_hide_business_submission(
+  p_business_id uuid,
+  p_owner_id text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  changed_count integer;
+begin
+  update public.business_submissions
+  set status = 'hidden'
+  where id = p_business_id
+    and status <> 'hidden'
+    and (
+      public.is_service_admin()
+      or (
+        length(trim(coalesce(p_owner_id, ''))) > 0
+        and owner_user_id = p_owner_id
+      )
+    );
+
+  get diagnostics changed_count = row_count;
+  return changed_count = 1;
+end;
+$$;
+
+revoke execute on function public.owner_update_business_submission(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text
+) from public;
+
+revoke execute on function public.owner_update_business_submission(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text
+) from anon;
+
+grant execute on function public.owner_update_business_submission(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text
+) to anon, authenticated, service_role;
+
+revoke execute on function public.owner_hide_business_submission(uuid, text) from public;
+grant execute on function public.owner_hide_business_submission(uuid, text) to anon, authenticated, service_role;
 
 grant usage on schema public to anon, authenticated;
 grant insert, select on public.business_submissions to anon;

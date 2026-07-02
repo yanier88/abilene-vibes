@@ -813,6 +813,8 @@ const businessSubmissionToBusiness = (business) => ({
   paymentStatus: business.payment_status ?? "",
   placementSource: business.placement_source ?? "paid",
   placementExpiresAt: business.placement_expires_at ?? "",
+  ownerUserId: business.owner_user_id ?? "",
+  owner_user_id: business.owner_user_id ?? "",
 });
 
 const planRank = {
@@ -1690,6 +1692,9 @@ function App() {
   const [businessSubmitted, setBusinessSubmitted] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState("");
   const [businesses, setBusinesses] = useState([]);
+  const [editingOwnerBusiness, setEditingOwnerBusiness] = useState(null);
+  const [deletingOwnerBusiness, setDeletingOwnerBusiness] = useState(null);
+  const [ownerBusinessStatus, setOwnerBusinessStatus] = useState("");
   const [hiddenStaticItems, setHiddenStaticItems] = useState([]);
   const [visitorKey] = useState(() => {
     const storageKey = "abilene-vibes-visitor";
@@ -1717,6 +1722,9 @@ function App() {
   const [adminPassword, setAdminPassword] = useState("");
   const [adminStatus, setAdminStatus] = useState("");
   const [adminTab, setAdminTab] = useState("events");
+  const [adminBusinessActionKey, setAdminBusinessActionKey] = useState("");
+  const [deletingAdminBusiness, setDeletingAdminBusiness] = useState(null);
+  const [adminGalleryActionKey, setAdminGalleryActionKey] = useState("");
   const [pendingGalleryPhotos, setPendingGalleryPhotos] = useState([]);
   const [publishedGalleryPhotos, setPublishedGalleryPhotos] = useState([]);
   const [pendingBusinesses, setPendingBusinesses] = useState([]);
@@ -1983,16 +1991,24 @@ function App() {
 
   const loadBusinessesPublic = useCallback(() => {
     if (!supabase) return;
-    supabase
-      .from("business_submissions")
-      .select("id,business_name,category,contact_name,contact_email,phone,address,social,description,image_data,plan,payment_status,placement_source,placement_expires_at")
-      .eq("status", "approved")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (!error && data) {
-          setBusinesses(data.map(businessSubmissionToBusiness));
-        }
+    const baseSelect = "id,business_name,category,contact_name,contact_email,phone,address,social,description,image_data,plan,payment_status,placement_source,placement_expires_at";
+    const queryBusinesses = (selectFields) =>
+      supabase
+        .from("business_submissions")
+        .select(selectFields)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false });
+
+    queryBusinesses(`${baseSelect},owner_user_id`).then(({ data, error }) => {
+      if (!error && data) {
+        setBusinesses(data.map(businessSubmissionToBusiness));
+        return;
+      }
+      if (error?.code !== "42703") return;
+      queryBusinesses(baseSelect).then(({ data: fallbackData, error: fallbackError }) => {
+        if (!fallbackError && fallbackData) setBusinesses(fallbackData.map(businessSubmissionToBusiness));
       });
+    });
   }, []);
 
   const loadGalleryPublic = useCallback(() => {
@@ -2492,6 +2508,7 @@ function App() {
         status: "pending",
         payment_status: business.plan === "Free" ? "not_required" : "pending",
         placement_source: "paid",
+        owner_user_id: effectiveOwnerId,
       });
 
       if (error) {
@@ -3124,6 +3141,26 @@ function App() {
     await loadAdminData();
   };
 
+  const moderateBusiness = async (business, status) => {
+    const action = status === "approved" ? "approve" : "reject";
+    setAdminBusinessActionKey(`${business.id}:${action}`);
+    try {
+      await moderateItem("business_submissions", business.id, status);
+    } finally {
+      setAdminBusinessActionKey("");
+    }
+  };
+
+  const moderateGalleryPhoto = async (photo, status) => {
+    const action = status === "approved" ? "approve" : "reject";
+    setAdminGalleryActionKey(`${photo.id}:${action}`);
+    try {
+      await moderateItem("gallery_submissions", photo.id, status);
+    } finally {
+      setAdminGalleryActionKey("");
+    }
+  };
+
   const handleApproveJob = async (job) => {
     const plan = String(job?.plan ?? "free").toLowerCase();
     const paymentStatus = String(job?.payment_status ?? "").toLowerCase();
@@ -3150,16 +3187,22 @@ function App() {
       return;
     }
 
+    setAdminGalleryActionKey(`${id}:delete`);
     setAdminStatus("saving");
-    const { error } = await supabase.from("gallery_submissions").delete().eq("id", id);
 
-    if (error) {
-      setAdminStatus("error");
-      return;
+    try {
+      const { error } = await supabase.from("gallery_submissions").delete().eq("id", id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      setApprovedGalleryPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
+      await loadAdminData();
+    } finally {
+      setAdminGalleryActionKey("");
     }
-
-    setApprovedGalleryPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
-    await loadAdminData();
   };
 
   const handleDeleteJob = async (id) => {
@@ -3436,16 +3479,45 @@ function App() {
       return;
     }
 
+    setAdminBusinessActionKey(`${id}:delete`);
     setAdminStatus("saving");
+
+    try {
+      const { error } = await supabase.from("business_submissions").delete().eq("id", id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
+      await loadAdminData();
+    } finally {
+      setAdminBusinessActionKey("");
+    }
+  };
+
+  const confirmDeleteAdminBusiness = async () => {
+    if (!supabase || !adminSession || !deletingAdminBusiness) {
+      return;
+    }
+
+    const id = deletingAdminBusiness.id;
+    setAdminBusinessActionKey(`${id}:delete`);
+    setAdminStatus("saving");
+
     const { error } = await supabase.from("business_submissions").delete().eq("id", id);
 
     if (error) {
       setAdminStatus("error");
+      setAdminBusinessActionKey("");
       return;
     }
 
     setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
+    setDeletingAdminBusiness(null);
     await loadAdminData();
+    setAdminBusinessActionKey("");
   };
 
   const editBusiness = async (business) => {
@@ -3481,27 +3553,33 @@ function App() {
         ? { placement_source: "paid", placement_expires_at: null, payment_status: "not_required" }
         : {};
 
+    setAdminBusinessActionKey(`${business.id}:edit`);
     setAdminStatus("saving");
-    const { error } = await supabase
-      .from("business_submissions")
-      .update({
-        business_name: businessName.trim() || business.business_name,
-        category: category.trim() || business.category,
-        phone: phone.trim() || business.phone,
-        address: address.trim(),
-        social: social.trim(),
-        description: description.trim(),
-        plan: cleanPlan,
-        ...placementUpdates,
-      })
-      .eq("id", business.id);
 
-    if (error) {
-      setAdminStatus("error");
-      return;
+    try {
+      const { error } = await supabase
+        .from("business_submissions")
+        .update({
+          business_name: businessName.trim() || business.business_name,
+          category: category.trim() || business.category,
+          phone: phone.trim() || business.phone,
+          address: address.trim(),
+          social: social.trim(),
+          description: description.trim(),
+          plan: cleanPlan,
+          ...placementUpdates,
+        })
+        .eq("id", business.id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      await loadAdminData();
+    } finally {
+      setAdminBusinessActionKey("");
     }
-
-    await loadAdminData();
   };
 
   const changeBusinessPhoto = async (businessId, file) => {
@@ -3514,6 +3592,7 @@ function App() {
       return;
     }
 
+    setAdminBusinessActionKey(`${businessId}:photo`);
     setAdminStatus("saving");
 
     try {
@@ -3528,6 +3607,8 @@ function App() {
       await loadAdminData();
     } catch {
       setAdminStatus("error");
+    } finally {
+      setAdminBusinessActionKey("");
     }
   };
 
@@ -3549,24 +3630,30 @@ function App() {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + durationDays);
 
+    setAdminBusinessActionKey(`${business.id}:${cleanPlan === "Premium" ? "comp-premium" : "comp-featured"}`);
     setAdminStatus("saving");
-    const { error } = await supabase
-      .from("business_submissions")
-      .update({
-        plan: cleanPlan,
-        status: "approved",
-        payment_status: "not_required",
-        placement_source: "comp",
-        placement_expires_at: expiresAt.toISOString(),
-      })
-      .eq("id", business.id);
 
-    if (error) {
-      setAdminStatus("error");
-      return;
+    try {
+      const { error } = await supabase
+        .from("business_submissions")
+        .update({
+          plan: cleanPlan,
+          status: "approved",
+          payment_status: "not_required",
+          placement_source: "comp",
+          placement_expires_at: expiresAt.toISOString(),
+        })
+        .eq("id", business.id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      await loadAdminData();
+    } finally {
+      setAdminBusinessActionKey("");
     }
-
-    await loadAdminData();
   };
 
   const setPaidBusinessPlacement = async (business, plan) => {
@@ -3581,24 +3668,31 @@ function App() {
       return;
     }
 
+    const action = cleanPlan === "Free" ? "plan-free" : cleanPlan === "Premium" ? "paid-premium" : "paid-featured";
+    setAdminBusinessActionKey(`${business.id}:${action}`);
     setAdminStatus("saving");
-    const { error } = await supabase
-      .from("business_submissions")
-      .update({
-        plan: cleanPlan,
-        status: cleanPlan === "Free" ? business.status : "approved",
-        payment_status: cleanPlan === "Free" ? "not_required" : "paid",
-        placement_source: "paid",
-        placement_expires_at: null,
-      })
-      .eq("id", business.id);
 
-    if (error) {
-      setAdminStatus("error");
-      return;
+    try {
+      const { error } = await supabase
+        .from("business_submissions")
+        .update({
+          plan: cleanPlan,
+          status: cleanPlan === "Free" ? business.status : "approved",
+          payment_status: cleanPlan === "Free" ? "not_required" : "paid",
+          placement_source: "paid",
+          placement_expires_at: null,
+        })
+        .eq("id", business.id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      await loadAdminData();
+    } finally {
+      setAdminBusinessActionKey("");
     }
-
-    await loadAdminData();
   };
 
   const cancelBusinessSubscription = async (business) => {
@@ -3623,21 +3717,27 @@ function App() {
       return;
     }
 
+    setAdminBusinessActionKey(`${business.id}:cancel-subscription`);
     setAdminStatus("saving");
-    const { error } = await supabase.functions.invoke("cancel-subscription", {
-      body: {
-        submissionId: business.id,
-        cancelAtPeriodEnd,
-      },
-    });
 
-    if (error) {
-      setAdminStatus("error");
-      window.alert(error.message ?? "Could not cancel this subscription.");
-      return;
+    try {
+      const { error } = await supabase.functions.invoke("cancel-subscription", {
+        body: {
+          submissionId: business.id,
+          cancelAtPeriodEnd,
+        },
+      });
+
+      if (error) {
+        setAdminStatus("error");
+        window.alert(error.message ?? "Could not cancel this subscription.");
+        return;
+      }
+
+      await loadAdminData(undefined, true);
+    } finally {
+      setAdminBusinessActionKey("");
     }
-
-    await loadAdminData(undefined, true);
   };
 
   const clearCompBusinessPlacement = async (business) => {
@@ -3651,22 +3751,28 @@ function App() {
       return;
     }
 
+    setAdminBusinessActionKey(`${business.id}:end-promo`);
     setAdminStatus("saving");
-    const { error } = await supabase
-      .from("business_submissions")
-      .update({
-        plan: "Free",
-        placement_source: "paid",
-        placement_expires_at: null,
-      })
-      .eq("id", business.id);
 
-    if (error) {
-      setAdminStatus("error");
-      return;
+    try {
+      const { error } = await supabase
+        .from("business_submissions")
+        .update({
+          plan: "Free",
+          placement_source: "paid",
+          placement_expires_at: null,
+        })
+        .eq("id", business.id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      await loadAdminData();
+    } finally {
+      setAdminBusinessActionKey("");
     }
-
-    await loadAdminData();
   };
 
   const deleteEvent = async (id) => {
@@ -3702,16 +3808,22 @@ function App() {
       return;
     }
 
+    setAdminBusinessActionKey(`${id}:hide`);
     setAdminStatus("saving");
-    const { error } = await supabase.from("business_submissions").update({ status: "hidden" }).eq("id", id);
 
-    if (error) {
-      setAdminStatus("error");
-      return;
+    try {
+      const { error } = await supabase.from("business_submissions").update({ status: "hidden" }).eq("id", id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
+      await loadAdminData();
+    } finally {
+      setAdminBusinessActionKey("");
     }
-
-    setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
-    await loadAdminData();
   };
 
   const restoreBusiness = async (business) => {
@@ -3719,16 +3831,22 @@ function App() {
       return;
     }
 
+    setAdminBusinessActionKey(`${business.id}:restore`);
     setAdminStatus("saving");
-    const { error } = await supabase.from("business_submissions").update({ status: "approved" }).eq("id", business.id);
 
-    if (error) {
-      setAdminStatus("error");
-      return;
+    try {
+      const { error } = await supabase.from("business_submissions").update({ status: "approved" }).eq("id", business.id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      setBusinesses((currentBusinesses) => [businessSubmissionToBusiness(business), ...currentBusinesses]);
+      await loadAdminData();
+    } finally {
+      setAdminBusinessActionKey("");
     }
-
-    setBusinesses((currentBusinesses) => [businessSubmissionToBusiness(business), ...currentBusinesses]);
-    await loadAdminData();
   };
 
   const hideStaticBusiness = async (business) => {
@@ -4023,21 +4141,27 @@ function App() {
       return;
     }
 
-    setAdminStatus("saving");
     const itemKey = staticGalleryKey(photo);
-    const { error } = await supabase.from("hidden_static_items").insert({
-      item_key: itemKey,
-      item_type: "gallery",
-      title: photo.title,
-    });
+    setAdminGalleryActionKey(`${itemKey}:hide`);
+    setAdminStatus("saving");
 
-    if (error) {
-      setAdminStatus("error");
-      return;
+    try {
+      const { error } = await supabase.from("hidden_static_items").insert({
+        item_key: itemKey,
+        item_type: "gallery",
+        title: photo.title,
+      });
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
+      await loadAdminData();
+    } finally {
+      setAdminGalleryActionKey("");
     }
-
-    setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
-    await loadAdminData();
   };
 
   const restoreStaticGalleryPhoto = async (photo) => {
@@ -4045,17 +4169,58 @@ function App() {
       return;
     }
 
-    setAdminStatus("saving");
     const itemKey = staticGalleryKey(photo);
-    const { error } = await supabase.from("hidden_static_items").delete().eq("item_key", itemKey);
+    setAdminGalleryActionKey(`${itemKey}:restore`);
+    setAdminStatus("saving");
 
-    if (error) {
-      setAdminStatus("error");
+    try {
+      const { error } = await supabase.from("hidden_static_items").delete().eq("item_key", itemKey);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
+      await loadAdminData();
+    } finally {
+      setAdminGalleryActionKey("");
+    }
+  };
+
+  const deleteStaticGalleryPhoto = async (photo) => {
+    if (!supabase || !adminSession) {
       return;
     }
 
-    setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
-    await loadAdminData();
+    const itemKey = staticGalleryKey(photo);
+    const shouldDelete = window.confirm(`Permanently remove "${photo.title}" from the app?`);
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setAdminGalleryActionKey(`${itemKey}:delete`);
+    setAdminStatus("saving");
+
+    try {
+      const { error } = await supabase.from("hidden_static_items").upsert({
+        item_key: itemKey,
+        item_type: "deleted",
+        title: photo.title,
+      });
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
+      setDeletedStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
+      await loadAdminData();
+    } finally {
+      setAdminGalleryActionKey("");
+    }
   };
 
   const deleteStaticItem = async (itemKey, title) => {
@@ -4676,57 +4841,267 @@ function App() {
     </button>
   );
 
-  const renderBusinessPlanButtons = (business, options = {}) => (
-    <>
-      {options.showEdit !== false && (
-        <button className="directory-link" type="button" onClick={() => editBusiness(business)}>
+  const isEditableBusiness = (business) =>
+    !!business?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(business.id));
+
+  const isBusinessOwner = (business) =>
+    !!(business?.owner_user_id && business.owner_user_id === effectiveOwnerId);
+
+  const canManageBusiness = (business) => isEditableBusiness(business) && (!!adminSession || isBusinessOwner(business));
+
+  const mergeOwnerBusinessUpdate = (businessId, update) => {
+    setBusinesses((items) => items.map((item) => (item.id === businessId ? { ...item, ...update } : item)));
+  };
+
+  const handleOwnerBusinessEditSubmit = async (event) => {
+    event.preventDefault();
+    if (!supabase || !editingOwnerBusiness || !canManageBusiness(editingOwnerBusiness)) return;
+
+    const data = new FormData(event.currentTarget);
+    const imageFile = data.get("businessImage");
+    const update = {
+      name: data.get("businessName").trim(),
+      contactName: data.get("contactName").trim(),
+      contactEmail: data.get("contactEmail").trim(),
+      phone: data.get("phone").trim(),
+      address: data.get("address").trim(),
+      social: data.get("social").trim(),
+      description: data.get("description").trim(),
+    };
+
+    setOwnerBusinessStatus("saving");
+
+    try {
+      const nextImage = imageFile && imageFile.size ? await optimizeGalleryImage(imageFile) : editingOwnerBusiness.image;
+      const { data: result, error } = await supabase.rpc("owner_update_business_submission", {
+        p_business_id: editingOwnerBusiness.id,
+        p_owner_id: effectiveOwnerId,
+        p_business_name: update.name,
+        p_contact_name: update.contactName,
+        p_contact_email: update.contactEmail,
+        p_phone: update.phone,
+        p_address: update.address,
+        p_social: update.social,
+        p_description: update.description,
+        p_image_data: nextImage,
+      });
+
+      if (error || result !== true) {
+        setOwnerBusinessStatus("error");
+        return;
+      }
+
+      mergeOwnerBusinessUpdate(editingOwnerBusiness.id, { ...update, image: nextImage });
+      setEditingOwnerBusiness(null);
+      setOwnerBusinessStatus("");
+    } catch {
+      setOwnerBusinessStatus("error");
+    }
+  };
+
+  const confirmHideOwnerBusiness = async () => {
+    if (!supabase || !deletingOwnerBusiness || !canManageBusiness(deletingOwnerBusiness)) return;
+
+    setOwnerBusinessStatus("saving");
+    const { data: result, error } = await supabase.rpc("owner_hide_business_submission", {
+      p_business_id: deletingOwnerBusiness.id,
+      p_owner_id: effectiveOwnerId,
+    });
+
+    if (error || result !== true) {
+      setOwnerBusinessStatus("error");
+      return;
+    }
+
+    setBusinesses((items) => items.filter((item) => item.id !== deletingOwnerBusiness.id));
+    setDeletingOwnerBusiness(null);
+    setOwnerBusinessStatus("");
+  };
+
+  const renderOwnerBusinessActions = (business) =>
+    canManageBusiness(business) ? (
+      <>
+        <button className="directory-link" type="button" onClick={() => { setEditingOwnerBusiness({ ...business }); setOwnerBusinessStatus(""); }}>
           Edit
         </button>
-      )}
-      {options.showCategoryPhoto && (
-        <label className="directory-link file-action">
-          Change Photo
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(inputEvent) => {
-              changeBusinessPhoto(business.id, inputEvent.target.files?.[0]);
-              inputEvent.target.value = "";
-            }}
-          />
-        </label>
-      )}
-      <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Free")}>
-        Plan Free
-      </button>
-      <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Featured")}>
-        Paid Featured
-      </button>
-      <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Premium")}>
-        Paid Premium
-      </button>
-      <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Featured")}>
-        Free Promo Featured
-      </button>
-      <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Premium")}>
-        Free Promo Premium
-      </button>
-      {business.placement_source === "comp" && (
-        <button className="directory-link danger-link" type="button" onClick={() => clearCompBusinessPlacement(business)}>
-          End Promo
+        <button className="directory-link danger-link" type="button" onClick={() => { setDeletingOwnerBusiness({ ...business }); setOwnerBusinessStatus(""); }}>
+          Delete
         </button>
+      </>
+    ) : null;
+
+  const renderOwnerBusinessModals = () => (
+    <>
+      {editingOwnerBusiness && (
+        <div className="admin-modal-backdrop" role="presentation">
+          <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="owner-business-edit-title">
+            <div className="admin-modal-heading">
+              <p className="eyebrow">Business</p>
+              <h2 id="owner-business-edit-title">Edit Business</h2>
+            </div>
+            <form className="gallery-form" onSubmit={handleOwnerBusinessEditSubmit}>
+              <div className="form-grid">
+                <label className="form-field">
+                  <span>Business Name</span>
+                  <input name="businessName" type="text" defaultValue={editingOwnerBusiness.name ?? ""} required />
+                </label>
+                <label className="form-field">
+                  <span>Contact Name</span>
+                  <input name="contactName" type="text" defaultValue={editingOwnerBusiness.contactName ?? ""} required />
+                </label>
+                <label className="form-field">
+                  <span>Contact Email</span>
+                  <input name="contactEmail" type="email" defaultValue={editingOwnerBusiness.contactEmail ?? ""} required />
+                </label>
+                <label className="form-field">
+                  <span>Phone</span>
+                  <input name="phone" type="tel" defaultValue={editingOwnerBusiness.phone ?? ""} required />
+                </label>
+                <label className="form-field">
+                  <span>Address</span>
+                  <input name="address" type="text" defaultValue={editingOwnerBusiness.address ?? ""} />
+                </label>
+                <label className="form-field">
+                  <span>Social / Website</span>
+                  <input name="social" type="text" defaultValue={editingOwnerBusiness.social ?? ""} />
+                </label>
+                <label className="form-field form-field-wide">
+                  <span>Business Photo</span>
+                  <input name="businessImage" type="file" accept="image/*" />
+                </label>
+              </div>
+              <label className="form-field">
+                <span>Description</span>
+                <textarea name="description" rows="4" defaultValue={editingOwnerBusiness.description ?? ""} />
+              </label>
+              <div className="admin-modal-actions">
+                <button className="primary-button admin-modal-primary" type="submit" disabled={ownerBusinessStatus === "saving"}>
+                  {ownerBusinessStatus === "saving" ? "Saving..." : "Save Changes"}
+                </button>
+                <button className="directory-link" type="button" onClick={() => { setEditingOwnerBusiness(null); setOwnerBusinessStatus(""); }}>
+                  Go Back
+                </button>
+              </div>
+              {ownerBusinessStatus === "error" && <p className="form-error">Could not save this business.</p>}
+            </form>
+          </section>
+        </div>
       )}
-      {business.placement_source !== "comp" &&
-        business.plan !== "Free" &&
-        business.payment_status !== "not_required" &&
-        business.stripe_subscription_id &&
-        ["paid", "cancel_pending"].includes(business.payment_status) && (
-        <button className="directory-link danger-link" type="button" onClick={() => cancelBusinessSubscription(business)}>
-          Cancel Subscription
-        </button>
+      {deletingOwnerBusiness && (
+        <div className="admin-modal-backdrop" role="presentation">
+          <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="owner-business-delete-title">
+            <div className="admin-modal-heading">
+              <p className="eyebrow">Business</p>
+              <h2 id="owner-business-delete-title">Delete Business?</h2>
+            </div>
+            <p>Hide this business from Abilene Vibes?</p>
+            <p>{deletingOwnerBusiness.name}</p>
+            <div className="admin-modal-actions">
+              <button className="directory-link danger-link" type="button" onClick={confirmHideOwnerBusiness} disabled={ownerBusinessStatus === "saving"}>
+                {ownerBusinessStatus === "saving" ? "Deleting..." : "Delete"}
+              </button>
+              <button className="directory-link" type="button" onClick={() => { setDeletingOwnerBusiness(null); setOwnerBusinessStatus(""); }}>
+                Go Back
+              </button>
+            </div>
+            {ownerBusinessStatus === "error" && <p className="form-error">Could not delete this business.</p>}
+          </section>
+        </div>
       )}
     </>
   );
+
+  const renderAdminBusinessDeleteModal = () => (
+    deletingAdminBusiness ? (
+      <div className="admin-modal-backdrop" role="presentation">
+        <section className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-business-delete-title">
+          <div className="admin-modal-heading">
+            <p className="eyebrow">Admin Business</p>
+            <h2 id="admin-business-delete-title">Delete Business?</h2>
+          </div>
+          <p>Permanently delete this business from Abilene Vibes?</p>
+          <p>{deletingAdminBusiness.business_name}</p>
+          <div className="admin-modal-actions">
+            <button
+              className="directory-link danger-link"
+              type="button"
+              onClick={confirmDeleteAdminBusiness}
+              disabled={adminBusinessActionKey.startsWith(`${deletingAdminBusiness.id}:`)}
+            >
+              {adminBusinessActionKey === `${deletingAdminBusiness.id}:delete` ? "Deleting..." : "Confirm Delete"}
+            </button>
+            <button
+              className="directory-link"
+              type="button"
+              onClick={() => setDeletingAdminBusiness(null)}
+              disabled={adminBusinessActionKey.startsWith(`${deletingAdminBusiness.id}:`)}
+            >
+              Cancel
+            </button>
+          </div>
+          {adminStatus === "error" && <p className="form-error">Could not delete this business.</p>}
+        </section>
+      </div>
+    ) : null
+  );
+
+  const renderBusinessPlanButtons = (business, options = {}) => {
+    const isBusinessAction = (action) => adminBusinessActionKey === `${business.id}:${action}`;
+    const isBusinessBusy = adminBusinessActionKey.startsWith(`${business.id}:`);
+
+    return (
+      <>
+        {options.showEdit !== false && (
+          <button className="directory-link" type="button" onClick={() => editBusiness(business)} disabled={isBusinessBusy}>
+            {isBusinessAction("edit") ? "Updating..." : "Edit"}
+          </button>
+        )}
+        {options.showCategoryPhoto && (
+          <label className="directory-link file-action">
+            {isBusinessAction("photo") ? "Uploading..." : "Change Photo"}
+            <input
+              type="file"
+              accept="image/*"
+              disabled={isBusinessBusy}
+              onChange={(inputEvent) => {
+                changeBusinessPhoto(business.id, inputEvent.target.files?.[0]);
+                inputEvent.target.value = "";
+              }}
+            />
+          </label>
+        )}
+        <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Free")} disabled={isBusinessBusy}>
+          {isBusinessAction("plan-free") ? "Updating..." : "Plan Free"}
+        </button>
+        <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Featured")} disabled={isBusinessBusy}>
+          {isBusinessAction("paid-featured") ? "Updating..." : "Paid Featured"}
+        </button>
+        <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Premium")} disabled={isBusinessBusy}>
+          {isBusinessAction("paid-premium") ? "Updating..." : "Paid Premium"}
+        </button>
+        <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Featured")} disabled={isBusinessBusy}>
+          {isBusinessAction("comp-featured") ? "Updating..." : "Free Promo Featured"}
+        </button>
+        <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Premium")} disabled={isBusinessBusy}>
+          {isBusinessAction("comp-premium") ? "Updating..." : "Free Promo Premium"}
+        </button>
+        {business.placement_source === "comp" && (
+          <button className="directory-link danger-link" type="button" onClick={() => clearCompBusinessPlacement(business)} disabled={isBusinessBusy}>
+            {isBusinessAction("end-promo") ? "Updating..." : "End Promo"}
+          </button>
+        )}
+        {business.placement_source !== "comp" &&
+          business.plan !== "Free" &&
+          business.payment_status !== "not_required" &&
+          business.stripe_subscription_id &&
+          ["paid", "cancel_pending"].includes(business.payment_status) && (
+          <button className="directory-link danger-link" type="button" onClick={() => cancelBusinessSubscription(business)} disabled={isBusinessBusy}>
+            {isBusinessAction("cancel-subscription") ? "Cancelling..." : "Cancel Subscription"}
+          </button>
+        )}
+      </>
+    );
+  };
 
   const renderBusinessReviews = (business) => {
     const reviews = approvedReviews[business.id] ?? [];
@@ -8128,6 +8503,7 @@ function App() {
                       Website
                     </a>
                   )}
+                  {renderOwnerBusinessActions(business)}
                 </div>
 
                 {renderLikeButton("business", business.id)}
@@ -8135,6 +8511,7 @@ function App() {
               </article>
             ))}
           </section>
+          {renderOwnerBusinessModals()}
         </div>
       </main>,
     );
@@ -8492,6 +8869,7 @@ function App() {
                         Website
                       </a>
                     )}
+                    {renderOwnerBusinessActions(business)}
                   </div>
 
                   {renderLikeButton("business", business.id)}
@@ -8502,6 +8880,7 @@ function App() {
           ) : (
             <p className="legal-disclaimer">{serviceSection.emptyMessage}</p>
           )}
+          {renderOwnerBusinessModals()}
         </div>
       </main>,
     );
@@ -8920,6 +9299,7 @@ function App() {
 
           {supabase && adminSession && (
             <>
+              {renderAdminBusinessDeleteModal()}
               <div className="admin-toolbar">
                 <button
                   className="directory-link"
@@ -9179,16 +9559,18 @@ function App() {
                           <button
                             className="directory-link"
                             type="button"
-                            onClick={() => moderateItem("gallery_submissions", photo.id, "approved")}
+                            onClick={() => moderateGalleryPhoto(photo, "approved")}
+                            disabled={adminGalleryActionKey.startsWith(`${photo.id}:`)}
                           >
-                            Approve
+                            {adminGalleryActionKey === `${photo.id}:approve` ? "Approving..." : "Approve"}
                           </button>
                           <button
                             className="directory-link"
                             type="button"
-                            onClick={() => moderateItem("gallery_submissions", photo.id, "rejected")}
+                            onClick={() => moderateGalleryPhoto(photo, "rejected")}
+                            disabled={adminGalleryActionKey.startsWith(`${photo.id}:`)}
                           >
-                            Reject
+                            {adminGalleryActionKey === `${photo.id}:reject` ? "Rejecting..." : "Reject"}
                           </button>
                         </div>
                       </article>
@@ -9227,23 +9609,26 @@ function App() {
                           <button
                             className="directory-link"
                             type="button"
-                            onClick={() => moderateItem("business_submissions", business.id, "approved")}
+                            onClick={() => moderateBusiness(business, "approved")}
+                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
                           >
-                            Approve
+                            {adminBusinessActionKey === `${business.id}:approve` ? "Approving..." : "Approve"}
                           </button>
                           <button
                             className="directory-link"
                             type="button"
-                            onClick={() => moderateItem("business_submissions", business.id, "rejected")}
+                            onClick={() => moderateBusiness(business, "rejected")}
+                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
                           >
-                            Reject
+                            {adminBusinessActionKey === `${business.id}:reject` ? "Rejecting..." : "Reject"}
                           </button>
                           <button
                             className="directory-link danger-link"
                             type="button"
-                            onClick={() => deleteBusiness(business.id)}
+                            onClick={() => { setDeletingAdminBusiness({ ...business }); setAdminStatus(""); }}
+                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
                           >
-                            Delete
+                            {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       </article>
@@ -9377,21 +9762,22 @@ function App() {
                           )}
                           <div className="directory-actions">
                             {renderBusinessPlanButtons(business)}
-                            <button
-                              className="directory-link"
-                              type="button"
-                              onClick={() => moderateItem("business_submissions", business.id, "approved")}
-                              disabled={business.status === "approved"}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              className="directory-link danger-link"
-                              type="button"
-                              onClick={() => deleteBusiness(business.id)}
-                            >
-                              Delete
-                            </button>
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => moderateBusiness(business, "approved")}
+                            disabled={business.status === "approved" || adminBusinessActionKey.startsWith(`${business.id}:`)}
+                          >
+                            {adminBusinessActionKey === `${business.id}:approve` ? "Approving..." : "Approve"}
+                          </button>
+                          <button
+                            className="directory-link danger-link"
+                            type="button"
+                            onClick={() => deleteBusiness(business.id)}
+                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
+                          >
+                            {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
+                          </button>
                           </div>
                         </article>
                       );
@@ -9832,6 +10218,7 @@ function App() {
                       const settingPromoPremiumRental = adminRentalActionKey === `${r.id}:promo:premium`;
                       const endingPromoRental = adminRentalActionKey === `${r.id}:promo:end`;
                       const deletingRental = adminRentalActionKey === `${r.id}:delete`;
+                      const isRentalBusy = adminRentalActionKey.startsWith(`${r.id}:`);
 
                       return (
                       <article key={r.id} className="admin-card">
@@ -9871,7 +10258,7 @@ function App() {
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleApproveRental(r)}
-                                disabled={approvingRental}
+                                disabled={isRentalBusy}
                               >
                                 {approvingRental ? "Approving..." : "Approve"}
                               </button>
@@ -9879,7 +10266,7 @@ function App() {
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleSetRentalStatus(r, "rejected")}
-                                disabled={rejectingRental}
+                                disabled={isRentalBusy}
                               >
                                 {rejectingRental ? "Updating..." : "Reject"}
                               </button>
@@ -9890,7 +10277,7 @@ function App() {
                               className="directory-link"
                               type="button"
                               onClick={() => handleToggleRentalStatus(r)}
-                              disabled={hidingRental}
+                              disabled={isRentalBusy}
                             >
                               {hidingRental ? "Updating..." : "Hide / Unpublish"}
                             </button>
@@ -9900,7 +10287,7 @@ function App() {
                               className="directory-link"
                               type="button"
                               onClick={() => handleApproveRental(r)}
-                              disabled={approvingRental}
+                              disabled={isRentalBusy}
                             >
                               {approvingRental ? "Approving..." : "Show / Restore"}
                             </button>
@@ -9916,7 +10303,7 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => setPaidRentalPlacement(r, "free")}
-                            disabled={settingFreeRental || (rentalPlan === "free" && rentalPaymentStatus === "not_required")}
+                            disabled={isRentalBusy || (rentalPlan === "free" && rentalPaymentStatus === "not_required")}
                           >
                             {settingFreeRental ? "Updating..." : "Plan Free"}
                           </button>
@@ -9924,7 +10311,7 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => setPaidRentalPlacement(r, "featured")}
-                            disabled={settingPaidFeaturedRental || (rentalPlan === "featured" && rentalPaymentStatus === "paid")}
+                            disabled={isRentalBusy || (rentalPlan === "featured" && rentalPaymentStatus === "paid")}
                           >
                             {settingPaidFeaturedRental ? "Updating..." : "Paid Featured"}
                           </button>
@@ -9932,7 +10319,7 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => setPaidRentalPlacement(r, "premium")}
-                            disabled={settingPaidPremiumRental || (rentalPlan === "premium" && rentalPaymentStatus === "paid")}
+                            disabled={isRentalBusy || (rentalPlan === "premium" && rentalPaymentStatus === "paid")}
                           >
                             {settingPaidPremiumRental ? "Updating..." : "Paid Premium"}
                           </button>
@@ -9940,7 +10327,7 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => compRentalPlacement(r, "featured")}
-                            disabled={settingPromoFeaturedRental || (rentalPlan === "featured" && rentalPaymentStatus === "not_required")}
+                            disabled={isRentalBusy || (rentalPlan === "featured" && rentalPaymentStatus === "not_required")}
                           >
                             {settingPromoFeaturedRental ? "Updating..." : "Free Promo Featured"}
                           </button>
@@ -9948,7 +10335,7 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => compRentalPlacement(r, "premium")}
-                            disabled={settingPromoPremiumRental || (rentalPlan === "premium" && rentalPaymentStatus === "not_required")}
+                            disabled={isRentalBusy || (rentalPlan === "premium" && rentalPaymentStatus === "not_required")}
                           >
                             {settingPromoPremiumRental ? "Updating..." : "Free Promo Premium"}
                           </button>
@@ -9957,7 +10344,7 @@ function App() {
                               className="directory-link danger-link"
                               type="button"
                               onClick={() => clearCompRentalPlacement(r)}
-                              disabled={endingPromoRental}
+                              disabled={isRentalBusy}
                             >
                               {endingPromoRental ? "Updating..." : "End Promo"}
                             </button>
@@ -9966,7 +10353,7 @@ function App() {
                             className="directory-link danger-link"
                             type="button"
                             onClick={() => handleDeleteRental(r.id)}
-                            disabled={deletingRental}
+                            disabled={isRentalBusy}
                           >
                             {deletingRental ? "Deleting..." : "Delete"}
                           </button>
@@ -10065,8 +10452,9 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => deleteGalleryPhoto(photo.id)}
+                            disabled={adminGalleryActionKey.startsWith(`${photo.id}:`)}
                           >
-                            Delete
+                            {adminGalleryActionKey === `${photo.id}:delete` ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       </article>
@@ -10092,15 +10480,21 @@ function App() {
                         <h3>{photo.title}</h3>
                         <p className="admin-metric">Likes: <strong>{likeCountFor("photo", photo.id)}</strong></p>
                         <div className="directory-actions">
-                          <button className="directory-link" type="button" onClick={() => hideStaticGalleryPhoto(photo)}>
-                            Hide
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => hideStaticGalleryPhoto(photo)}
+                            disabled={adminGalleryActionKey.startsWith(`${staticGalleryKey(photo)}:`)}
+                          >
+                            {adminGalleryActionKey === `${staticGalleryKey(photo)}:hide` ? "Hiding..." : "Hide"}
                           </button>
                           <button
                             className="directory-link danger-link"
                             type="button"
-                            onClick={() => deleteStaticItem(staticGalleryKey(photo), photo.title)}
+                            onClick={() => deleteStaticGalleryPhoto(photo)}
+                            disabled={adminGalleryActionKey.startsWith(`${staticGalleryKey(photo)}:`)}
                           >
-                            Delete
+                            {adminGalleryActionKey === `${staticGalleryKey(photo)}:delete` ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       </article>
@@ -10112,15 +10506,21 @@ function App() {
                         <h3>{photo.title}</h3>
                         <p className="admin-metric">Likes: <strong>{likeCountFor("photo", photo.id)}</strong></p>
                         <div className="directory-actions">
-                          <button className="directory-link" type="button" onClick={() => restoreStaticGalleryPhoto(photo)}>
-                            Restore
+                          <button
+                            className="directory-link"
+                            type="button"
+                            onClick={() => restoreStaticGalleryPhoto(photo)}
+                            disabled={adminGalleryActionKey.startsWith(`${staticGalleryKey(photo)}:`)}
+                          >
+                            {adminGalleryActionKey === `${staticGalleryKey(photo)}:restore` ? "Restoring..." : "Restore"}
                           </button>
                           <button
                             className="directory-link danger-link"
                             type="button"
-                            onClick={() => deleteStaticItem(staticGalleryKey(photo), photo.title)}
+                            onClick={() => deleteStaticGalleryPhoto(photo)}
+                            disabled={adminGalleryActionKey.startsWith(`${staticGalleryKey(photo)}:`)}
                           >
-                            Delete
+                            {adminGalleryActionKey === `${staticGalleryKey(photo)}:delete` ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       </article>
@@ -10160,15 +10560,17 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => unpublishBusiness(business.id)}
+                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
                           >
-                            Unpublish
+                            {adminBusinessActionKey === `${business.id}:hide` ? "Hiding..." : "Unpublish"}
                           </button>
                           <button
                             className="directory-link danger-link"
                             type="button"
-                            onClick={() => deleteBusiness(business.id)}
+                            onClick={() => { setDeletingAdminBusiness({ ...business }); setAdminStatus(""); }}
+                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
                           >
-                            Delete
+                            {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       </article>
@@ -10208,15 +10610,17 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => restoreBusiness(business)}
+                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
                           >
-                            Restore
+                            {adminBusinessActionKey === `${business.id}:restore` ? "Restoring..." : "Restore"}
                           </button>
                           <button
                             className="directory-link danger-link"
                             type="button"
-                            onClick={() => deleteBusiness(business.id)}
+                            onClick={() => { setDeletingAdminBusiness({ ...business }); setAdminStatus(""); }}
+                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
                           >
-                            Delete
+                            {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
                           </button>
                         </div>
                       </article>
