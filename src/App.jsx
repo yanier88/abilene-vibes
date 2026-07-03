@@ -5388,54 +5388,60 @@ function App() {
 
     return (
       <>
-        {options.showEdit !== false && (
-          <button className="directory-link" type="button" onClick={() => editBusiness(business)} disabled={isBusinessBusy}>
-            {isBusinessAction("edit") ? "Updating..." : "Edit"}
-          </button>
+        {(options.showEdit !== false || options.showCategoryPhoto) && (
+          <div className="admin-business-action-group">
+            <span className="admin-business-action-label">Edit</span>
+            <div className="admin-business-action-buttons">
+              {options.showEdit !== false && (
+                <button className="directory-link" type="button" onClick={() => editBusiness(business)} disabled={isBusinessBusy}>
+                  {isBusinessAction("edit") ? "Updating..." : "Edit"}
+                </button>
+              )}
+              {options.showCategoryPhoto && (
+                <label className="directory-link file-action">
+                  {isBusinessAction("photo") ? "Uploading..." : "Change Photo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isBusinessBusy}
+                    onChange={(inputEvent) => {
+                      changeBusinessPhoto(business.id, inputEvent.target.files?.[0]);
+                      inputEvent.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
         )}
-        {options.showCategoryPhoto && (
-          <label className="directory-link file-action">
-            {isBusinessAction("photo") ? "Uploading..." : "Change Photo"}
-            <input
-              type="file"
-              accept="image/*"
-              disabled={isBusinessBusy}
-              onChange={(inputEvent) => {
-                changeBusinessPhoto(business.id, inputEvent.target.files?.[0]);
-                inputEvent.target.value = "";
-              }}
-            />
-          </label>
-        )}
-        <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Free")} disabled={isBusinessBusy}>
-          {isBusinessAction("plan-free") ? "Updating..." : "Plan Free"}
-        </button>
-        <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Featured")} disabled={isBusinessBusy}>
-          {isBusinessAction("paid-featured") ? "Updating..." : "Paid Featured"}
-        </button>
-        <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Premium")} disabled={isBusinessBusy}>
-          {isBusinessAction("paid-premium") ? "Updating..." : "Paid Premium"}
-        </button>
-        <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Featured")} disabled={isBusinessBusy}>
-          {isBusinessAction("comp-featured") ? "Updating..." : "Free Promo Featured"}
-        </button>
-        <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Premium")} disabled={isBusinessBusy}>
-          {isBusinessAction("comp-premium") ? "Updating..." : "Free Promo Premium"}
-        </button>
-        {business.placement_source === "comp" && (
-          <button className="directory-link danger-link" type="button" onClick={() => clearCompBusinessPlacement(business)} disabled={isBusinessBusy}>
-            {isBusinessAction("end-promo") ? "Updating..." : "End Promo"}
-          </button>
-        )}
-        {business.placement_source !== "comp" &&
-          business.plan !== "Free" &&
-          business.payment_status !== "not_required" &&
-          business.stripe_subscription_id &&
-          ["paid", "cancel_pending"].includes(business.payment_status) && (
-          <button className="directory-link danger-link" type="button" onClick={() => cancelBusinessSubscription(business)} disabled={isBusinessBusy}>
-            {isBusinessAction("cancel-subscription") ? "Cancelling..." : "Cancel Subscription"}
-          </button>
-        )}
+        <div className="admin-business-action-group">
+          <span className="admin-business-action-label">Promotion</span>
+          <div className="admin-business-action-buttons">
+            <button className="directory-link" type="button" onClick={() => setPaidBusinessPlacement(business, "Free")} disabled={isBusinessBusy}>
+              {isBusinessAction("plan-free") ? "Updating..." : "Plan Free"}
+            </button>
+            <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Featured")} disabled={isBusinessBusy}>
+              {isBusinessAction("comp-featured") ? "Updating..." : "Free Promo Featured"}
+            </button>
+            <button className="directory-link" type="button" onClick={() => compBusinessPlacement(business, "Premium")} disabled={isBusinessBusy}>
+              {isBusinessAction("comp-premium") ? "Updating..." : "Free Promo Premium"}
+            </button>
+            {business.placement_source === "comp" && (
+              <button className="directory-link danger-link" type="button" onClick={() => clearCompBusinessPlacement(business)} disabled={isBusinessBusy}>
+                {isBusinessAction("end-promo") ? "Updating..." : "End Promo"}
+              </button>
+            )}
+            {business.placement_source !== "comp" &&
+              business.plan !== "Free" &&
+              business.payment_status !== "not_required" &&
+              business.stripe_subscription_id &&
+              ["paid", "cancel_pending"].includes(business.payment_status) && (
+              <button className="directory-link danger-link" type="button" onClick={() => cancelBusinessSubscription(business)} disabled={isBusinessBusy}>
+                {isBusinessAction("cancel-subscription") ? "Cancelling..." : "Cancel Subscription"}
+              </button>
+            )}
+          </div>
+        </div>
       </>
     );
   };
@@ -9959,30 +9965,35 @@ function App() {
                         {business.description && <p>{business.description}</p>}
                         <div className="directory-actions">
                           {renderBusinessPlanButtons(business, { showCategoryPhoto: true })}
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => moderateBusiness(business, "approved")}
-                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
-                          >
-                            {adminBusinessActionKey === `${business.id}:approve` ? "Approving..." : "Approve"}
-                          </button>
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => moderateBusiness(business, "rejected")}
-                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
-                          >
-                            {adminBusinessActionKey === `${business.id}:reject` ? "Rejecting..." : "Reject"}
-                          </button>
-                          <button
-                            className="directory-link danger-link"
-                            type="button"
-                            onClick={() => { setDeletingAdminBusiness({ ...business }); setAdminStatus(""); }}
-                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
-                          >
-                            {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
-                          </button>
+                          <div className="admin-business-action-group">
+                            <span className="admin-business-action-label">Publishing</span>
+                            <div className="admin-business-action-buttons">
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => moderateBusiness(business, "approved")}
+                                disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
+                              >
+                                {adminBusinessActionKey === `${business.id}:approve` ? "Approving..." : "Approve"}
+                              </button>
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => moderateBusiness(business, "rejected")}
+                                disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
+                              >
+                                {adminBusinessActionKey === `${business.id}:reject` ? "Rejecting..." : "Reject"}
+                              </button>
+                              <button
+                                className="directory-link danger-link"
+                                type="button"
+                                onClick={() => { setDeletingAdminBusiness({ ...business }); setAdminStatus(""); }}
+                                disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
+                              >
+                                {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </article>
                     ))}
@@ -10122,22 +10133,27 @@ function App() {
                           )}
                           <div className="directory-actions">
                             {renderBusinessPlanButtons(business)}
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => moderateBusiness(business, "approved")}
-                            disabled={business.status === "approved" || adminBusinessActionKey.startsWith(`${business.id}:`)}
-                          >
-                            {adminBusinessActionKey === `${business.id}:approve` ? "Approving..." : "Approve"}
-                          </button>
-                          <button
-                            className="directory-link danger-link"
-                            type="button"
-                            onClick={() => deleteBusiness(business.id)}
-                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
-                          >
-                            {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
-                          </button>
+                            <div className="admin-business-action-group">
+                              <span className="admin-business-action-label">Publishing</span>
+                              <div className="admin-business-action-buttons">
+                                <button
+                                  className="directory-link"
+                                  type="button"
+                                  onClick={() => moderateBusiness(business, "approved")}
+                                  disabled={business.status === "approved" || adminBusinessActionKey.startsWith(`${business.id}:`)}
+                                >
+                                  {adminBusinessActionKey === `${business.id}:approve` ? "Approving..." : "Approve"}
+                                </button>
+                                <button
+                                  className="directory-link danger-link"
+                                  type="button"
+                                  onClick={() => deleteBusiness(business.id)}
+                                  disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
+                                >
+                                  {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </article>
                       );
@@ -10959,22 +10975,27 @@ function App() {
                         {business.description && <p>{business.description}</p>}
                         <div className="directory-actions">
                           {renderBusinessPlanButtons(business, { showCategoryPhoto: true })}
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => unpublishBusiness(business.id)}
-                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
-                          >
-                            {adminBusinessActionKey === `${business.id}:hide` ? "Hiding..." : "Unpublish"}
-                          </button>
-                          <button
-                            className="directory-link danger-link"
-                            type="button"
-                            onClick={() => { setDeletingAdminBusiness({ ...business }); setAdminStatus(""); }}
-                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
-                          >
-                            {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
-                          </button>
+                          <div className="admin-business-action-group">
+                            <span className="admin-business-action-label">Publishing</span>
+                            <div className="admin-business-action-buttons">
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => unpublishBusiness(business.id)}
+                                disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
+                              >
+                                {adminBusinessActionKey === `${business.id}:hide` ? "Hiding..." : "Unpublish"}
+                              </button>
+                              <button
+                                className="directory-link danger-link"
+                                type="button"
+                                onClick={() => { setDeletingAdminBusiness({ ...business }); setAdminStatus(""); }}
+                                disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
+                              >
+                                {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </article>
                     ))}
@@ -11009,22 +11030,27 @@ function App() {
                         {business.description && <p>{business.description}</p>}
                         <div className="directory-actions">
                           {renderBusinessPlanButtons(business, { showCategoryPhoto: true })}
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => restoreBusiness(business)}
-                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
-                          >
-                            {adminBusinessActionKey === `${business.id}:restore` ? "Restoring..." : "Restore"}
-                          </button>
-                          <button
-                            className="directory-link danger-link"
-                            type="button"
-                            onClick={() => { setDeletingAdminBusiness({ ...business }); setAdminStatus(""); }}
-                            disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
-                          >
-                            {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
-                          </button>
+                          <div className="admin-business-action-group">
+                            <span className="admin-business-action-label">Publishing</span>
+                            <div className="admin-business-action-buttons">
+                              <button
+                                className="directory-link"
+                                type="button"
+                                onClick={() => restoreBusiness(business)}
+                                disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
+                              >
+                                {adminBusinessActionKey === `${business.id}:restore` ? "Restoring..." : "Restore"}
+                              </button>
+                              <button
+                                className="directory-link danger-link"
+                                type="button"
+                                onClick={() => { setDeletingAdminBusiness({ ...business }); setAdminStatus(""); }}
+                                disabled={adminBusinessActionKey.startsWith(`${business.id}:`)}
+                              >
+                                {adminBusinessActionKey === `${business.id}:delete` ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </article>
                     ))}
