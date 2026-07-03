@@ -3867,13 +3867,11 @@
 
 .admin-business-action-group {
   display: grid;
-  gap: 8px;
+  grid-column: 1 / -1;
+  gap: 7px;
   align-self: stretch;
+  width: 100%;
   min-width: 0;
-  padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
 }
 
 .admin-business-action-label {
@@ -3888,11 +3886,14 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+  width: 100%;
 }
 
 .admin-business-action-buttons .directory-link {
   width: 100%;
+  height: 44px;
   min-width: 0;
+  margin: 0;
 }
 
 .admin-rental-actions {
