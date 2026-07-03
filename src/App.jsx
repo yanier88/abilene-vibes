@@ -830,9 +830,14 @@ const businessPlacementExpiresAt = (business) => business.placementExpiresAt ?? 
 const hasActiveBusinessPromotion = (business) => {
   const plan = business.plan ?? "";
   const paymentStatus = business.paymentStatus ?? business.payment_status ?? "";
+  const placementSource = business.placementSource ?? business.placement_source ?? "";
   const expiresAt = businessPlacementExpiresAt(business);
 
-  if (!["Featured", "Premium"].includes(plan) || !activePaidPaymentStatuses.has(paymentStatus)) {
+  if (!["Featured", "Premium"].includes(plan)) {
+    return false;
+  }
+
+  if (placementSource !== "comp" && !activePaidPaymentStatuses.has(paymentStatus)) {
     return false;
   }
 
