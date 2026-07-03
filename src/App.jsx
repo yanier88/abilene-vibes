@@ -825,6 +825,55 @@ const planRank = {
 
 const activePaidPaymentStatuses = new Set(["paid", "cancel_pending"]);
 
+const businessPlacementExpiresAt = (business) => business.placementExpiresAt ?? business.placement_expires_at ?? "";
+
+const hasActiveBusinessPromotion = (business) => {
+  const plan = business.plan ?? "";
+  const paymentStatus = business.paymentStatus ?? business.payment_status ?? "";
+  const expiresAt = businessPlacementExpiresAt(business);
+
+  if (!["Featured", "Premium"].includes(plan) || !activePaidPaymentStatuses.has(paymentStatus)) {
+    return false;
+  }
+
+  return !expiresAt || new Date(expiresAt) > new Date();
+};
+
+const businessDisplayPlan = (business) => {
+  if (!business.plan) {
+    return "";
+  }
+
+  return business.plan === "Free" || hasActiveBusinessPromotion(business) ? business.plan : "Free";
+};
+
+const businessPromotionStatus = (business) => {
+  const paymentStatus = business.payment_status ?? business.paymentStatus ?? "";
+  const expiresAt = businessPlacementExpiresAt(business);
+
+  if (hasActiveBusinessPromotion(business)) {
+    return paymentStatus === "cancel_pending" ? "Canceling - active until expiration" : "Active paid promotion";
+  }
+
+  if (business.plan === "Free") {
+    return "Normal directory listing";
+  }
+
+  if (paymentStatus === "canceled") {
+    return "Canceled - directory only";
+  }
+
+  if (paymentStatus === "expired" || (expiresAt && new Date(expiresAt) <= new Date())) {
+    return "Expired - directory only";
+  }
+
+  if (business.placement_source === "comp") {
+    return expiresAt && new Date(expiresAt) <= new Date() ? "Free promo expired" : "Free promo";
+  }
+
+  return "Not active";
+};
+
 const businessServiceSections = {
   groceries: {
     page: "groceries",
@@ -4654,15 +4703,7 @@ function App() {
   const allEvents = [...approvedEvents, ...visibleStaticEvents];
   const allBusinesses = [...businesses, ...visibleInitialBusinesses];
   const paidBusinesses = [...allBusinesses]
-    .filter((business) => business.plan && business.plan !== "Free")
-    .filter((business) => {
-      if (business.placementSource === "comp") {
-        return true;
-      }
-
-      return activePaidPaymentStatuses.has(business.paymentStatus);
-    })
-    .filter((business) => !business.placementExpiresAt || new Date(business.placementExpiresAt) > new Date())
+    .filter(hasActiveBusinessPromotion)
     .sort((a, b) => (planRank[a.plan] ?? 99) - (planRank[b.plan] ?? 99));
   const premiumBusinesses = paidBusinesses.filter((business) => business.plan === "Premium");
   const lobbyFeaturedBusinesses = paidBusinesses.filter((business) => business.plan === "Featured");
@@ -4769,7 +4810,7 @@ function App() {
     await openLobbyPromotionItem(spotlightItem, "highlight");
   };
   const directoryBusinesses = [...allBusinesses].sort(
-    (a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99),
+    (a, b) => (planRank[businessDisplayPlan(a) || "Free"] ?? 99) - (planRank[businessDisplayPlan(b) || "Free"] ?? 99),
   );
   const businessServiceBusinessesByPage = Object.fromEntries(
     Object.entries(businessServiceSections).map(([sectionPage, section]) => [
@@ -4780,7 +4821,7 @@ function App() {
             (category) => category.toLowerCase() === String(business.category ?? "").trim().toLowerCase(),
           ),
         )
-        .sort((a, b) => (planRank[a.plan ?? "Free"] ?? 99) - (planRank[b.plan ?? "Free"] ?? 99)),
+        .sort((a, b) => (planRank[businessDisplayPlan(a) || "Free"] ?? 99) - (planRank[businessDisplayPlan(b) || "Free"] ?? 99)),
     ]),
   );
   const galleryPhotos = [...approvedGalleryPhotos, ...visibleStaticGalleryPhotos];
@@ -8449,8 +8490,10 @@ function App() {
                   />
                 </button>
                 <span className="event-type">{business.category}</span>
-                {business.plan && (
-                  <span className={`plan-badge plan-badge-${business.plan.toLowerCase()}`}>{business.plan}</span>
+                {businessDisplayPlan(business) && (
+                  <span className={`plan-badge plan-badge-${businessDisplayPlan(business).toLowerCase()}`}>
+                    {businessDisplayPlan(business)}
+                  </span>
                 )}
                 <h2>{business.name}</h2>
                 {business.description && <p>{business.description}</p>}
@@ -8817,8 +8860,10 @@ function App() {
                     />
                   </button>
                   <span className="event-type">{business.category}</span>
-                  {business.plan && (
-                    <span className={`plan-badge plan-badge-${business.plan.toLowerCase()}`}>{business.plan}</span>
+                  {businessDisplayPlan(business) && (
+                    <span className={`plan-badge plan-badge-${businessDisplayPlan(business).toLowerCase()}`}>
+                      {businessDisplayPlan(business)}
+                    </span>
                   )}
                   <h2>{business.name}</h2>
                   {business.description && <p>{business.description}</p>}
@@ -9739,6 +9784,10 @@ function App() {
                   <div className="admin-grid">
                     {paymentBusinesses.map((business) => {
                       const paymentRecord = paymentRecordsByBusiness[business.id];
+                      const expirationDate = business.placement_expires_at
+                        ? new Date(business.placement_expires_at).toLocaleDateString()
+                        : "Not set";
+                      const promotionStatus = businessPromotionStatus(business);
 
                       return (
                         <article className="admin-card" key={`payment-${business.id}`}>
@@ -9746,7 +9795,10 @@ function App() {
                             {business.payment_status}
                           </span>
                           <h3>{business.business_name}</h3>
-                          <p>{business.plan} plan</p>
+                          <p>Plan: {business.plan}</p>
+                          <p>Payment Status: {business.payment_status}</p>
+                          <p>Promotion Status: {promotionStatus}</p>
+                          <p>Expiration Date: {expirationDate}</p>
                           <p>Status: {business.status}</p>
                           {business.contact_email && <p>Email: {business.contact_email}</p>}
                           <p>{new Date(business.created_at).toLocaleDateString()}</p>
@@ -9755,7 +9807,7 @@ function App() {
                               <p>Gross Amount: {formatPaymentAmount(paymentRecord.gross_amount, paymentRecord.currency)}</p>
                               <p>Stripe Fee: {formatPaymentAmount(paymentRecord.stripe_fee, paymentRecord.currency)}</p>
                               <p>Net Amount: {formatPaymentAmount(paymentRecord.net_amount, paymentRecord.currency)}</p>
-                              {paymentRecord.paid_at && <p>Paid: {new Date(paymentRecord.paid_at).toLocaleDateString()}</p>}
+                              <p>Payment Date: {paymentRecord.paid_at ? new Date(paymentRecord.paid_at).toLocaleDateString() : "Not available"}</p>
                             </>
                           ) : (
                             <p>Payment amounts: not recorded yet</p>

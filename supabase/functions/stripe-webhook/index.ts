@@ -56,6 +56,12 @@ const stripeObjectId = (value: unknown) => {
 
 const stripeNumber = (value: unknown, fallback = 0) => (typeof value === "number" ? value : fallback);
 
+const oneMonthAfter = (isoDate: string) => {
+  const date = new Date(isoDate);
+  date.setMonth(date.getMonth() + 1);
+  return date.toISOString();
+};
+
 const updateBusinessPayment = async (submissionId: string, updates: Record<string, unknown>) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -295,6 +301,31 @@ const fetchInvoice = async (invoiceId: string) =>
     new URLSearchParams({ "expand[]": "payments.data.payment" }),
   );
 
+const fetchSubscription = async (subscriptionId: string) =>
+  stripeGet(`subscriptions/${encodeURIComponent(subscriptionId)}`);
+
+const stripeTimestampToIso = (timestamp: unknown) =>
+  typeof timestamp === "number" && Number.isFinite(timestamp)
+    ? new Date(timestamp * 1000).toISOString()
+    : "";
+
+const subscriptionPeriodEnd = async (subscription: unknown) => {
+  if (!subscription) {
+    return "";
+  }
+
+  if (typeof subscription === "string") {
+    const fullSubscription = await fetchSubscription(subscription);
+    return stripeTimestampToIso(fullSubscription?.current_period_end);
+  }
+
+  if (typeof subscription === "object") {
+    return stripeTimestampToIso((subscription as { current_period_end?: unknown }).current_period_end);
+  }
+
+  return "";
+};
+
 const fetchChargeFromInvoice = async (invoice: Record<string, unknown>) => {
   const paymentIntentId = invoicePaymentIntentId(invoice);
 
@@ -441,6 +472,8 @@ Deno.serve(async (request) => {
       paidAt,
     });
 
+    const placementExpiresAt = (await subscriptionPeriodEnd(session.subscription)) || oneMonthAfter(paidAt);
+
     await updateBusinessPayment(submissionId, {
       payment_status: "paid",
       stripe_session_id: session.id,
@@ -448,6 +481,7 @@ Deno.serve(async (request) => {
       stripe_customer_id: session.customer ?? null,
       stripe_subscription_id: session.subscription ?? null,
       paid_at: paidAt,
+      placement_expires_at: placementExpiresAt,
     });
   }
 
@@ -546,6 +580,13 @@ Deno.serve(async (request) => {
       paidAt,
       status: fullInvoice.status ?? "paid",
     });
+
+    const placementExpiresAt = (await subscriptionPeriodEnd(subscriptionId)) || oneMonthAfter(paidAt);
+    await updateBusinessPayment(submissionId, {
+      payment_status: "paid",
+      paid_at: paidAt,
+      placement_expires_at: placementExpiresAt,
+    });
   }
 
   if (event.type === "customer.subscription.deleted") {
@@ -588,8 +629,6 @@ Deno.serve(async (request) => {
         },
         body: JSON.stringify({
           payment_status: "canceled",
-          status: "hidden",
-          placement_expires_at: null,
         }),
       });
     }

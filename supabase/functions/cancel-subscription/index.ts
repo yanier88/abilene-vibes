@@ -45,7 +45,7 @@ const fetchSubmission = async (supabaseUrl: string, serviceRoleKey: string, subm
   const response = await fetch(
     `${supabaseUrl}/rest/v1/business_submissions?id=eq.${encodeURIComponent(
       submissionId,
-    )}&select=id,business_name,stripe_subscription_id,payment_status,status`,
+    )}&select=id,business_name,stripe_subscription_id,payment_status,status,placement_expires_at`,
     {
       headers: {
         apikey: serviceRoleKey,
@@ -134,10 +134,13 @@ Deno.serve(async (request) => {
       Boolean(cancelAtPeriodEnd),
     );
 
+    const placementExpiresAt =
+      subscription.cancel_at || subscription.current_period_end
+        ? new Date(Number(subscription.cancel_at ?? subscription.current_period_end) * 1000).toISOString()
+        : submission.placement_expires_at ?? null;
     const updateBody = {
       payment_status: subscription.cancel_at_period_end ? "cancel_pending" : "canceled",
-      placement_expires_at: subscription.cancel_at ? new Date(subscription.cancel_at * 1000).toISOString() : null,
-      ...(subscription.cancel_at_period_end ? {} : { status: "hidden" }),
+      placement_expires_at: placementExpiresAt,
     };
 
     await fetch(`${supabaseUrl}/rest/v1/business_submissions?id=eq.${submissionId}`, {
