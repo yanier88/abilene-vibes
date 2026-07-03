@@ -1,4 +1,4 @@
-const CACHE_NAME = "abilene-vibes-admin-v24";
+const CACHE_NAME = "abilene-vibes-admin-v25";
 const BASE_URL = new URL(self.registration.scope).pathname;
 const APP_SHELL = [
   BASE_URL,
