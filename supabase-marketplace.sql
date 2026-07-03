@@ -18,7 +18,17 @@ create table if not exists public.marketplace_listings (
   description text not null,
   image_data text,
   status text not null default 'active',
-  owner_user_id text not null
+  owner_user_id text not null,
+  moderation_status text not null default 'approved',
+  moderation_reason text,
+  moderation_score numeric,
+  moderation_flags jsonb not null default '{}'::jsonb,
+  moderation_input_types jsonb,
+  moderation_model text,
+  moderated_at timestamptz,
+  reviewed_by_admin boolean not null default false,
+  reviewed_at timestamptz,
+  reviewed_by text
 );
 
 alter table public.marketplace_listings
@@ -40,17 +50,64 @@ alter table public.marketplace_listings
 add column if not exists status text not null default 'active';
 
 alter table public.marketplace_listings
+add column if not exists moderation_status text not null default 'approved';
+
+alter table public.marketplace_listings
+add column if not exists moderation_reason text;
+
+alter table public.marketplace_listings
+add column if not exists moderation_score numeric;
+
+alter table public.marketplace_listings
+add column if not exists moderation_flags jsonb not null default '{}'::jsonb;
+
+alter table public.marketplace_listings
+add column if not exists moderation_input_types jsonb;
+
+alter table public.marketplace_listings
+add column if not exists moderation_model text;
+
+alter table public.marketplace_listings
+add column if not exists moderated_at timestamptz;
+
+alter table public.marketplace_listings
+add column if not exists reviewed_by_admin boolean not null default false;
+
+alter table public.marketplace_listings
+add column if not exists reviewed_at timestamptz;
+
+alter table public.marketplace_listings
+add column if not exists reviewed_by text;
+
+alter table public.marketplace_listings
 drop constraint if exists marketplace_listings_status_check;
 
 alter table public.marketplace_listings
 add constraint marketplace_listings_status_check
 check (status in ('active', 'sold', 'expired', 'hidden', 'deleted'));
 
+alter table public.marketplace_listings
+drop constraint if exists marketplace_listings_moderation_status_check;
+
+alter table public.marketplace_listings
+add constraint marketplace_listings_moderation_status_check
+check (moderation_status in ('approved', 'needs_review', 'rejected'));
+
+update public.marketplace_listings
+set moderation_status = 'approved'
+where moderation_status is null;
+
 create index if not exists marketplace_listings_status_created_idx
 on public.marketplace_listings (status, created_at desc);
 
 create index if not exists marketplace_listings_owner_idx
 on public.marketplace_listings (owner_user_id);
+
+create index if not exists marketplace_listings_moderation_status_created_idx
+on public.marketplace_listings (moderation_status, created_at desc);
+
+create index if not exists marketplace_listings_public_idx
+on public.marketplace_listings (status, moderation_status, created_at desc);
 
 create table if not exists public.admin_users (
   email text primary key,
@@ -92,6 +149,7 @@ for select
 to anon
 using (
   status = 'active'
+  and moderation_status = 'approved'
   and deleted_at is null
   and (expires_at is null or expires_at > now())
 );
@@ -101,9 +159,10 @@ drop policy if exists "Allow public marketplace listing posts" on public.marketp
 create policy "Allow public marketplace submissions"
 on public.marketplace_listings
 for insert
-to anon
+to anon, authenticated
 with check (
   status = 'active'
+  and moderation_status in ('approved', 'needs_review', 'rejected')
   and length(trim(title)) > 0
   and length(trim(price)) > 0
   and length(trim(category)) > 0
@@ -165,6 +224,7 @@ returns table (
   description text,
   image_data text,
   status text,
+  moderation_status text,
   owner_user_id text
 )
 language sql
@@ -185,20 +245,13 @@ as $$
     ml.description,
     ml.image_data,
     ml.status,
-    case
-      when owner_id <> '' and ml.owner_user_id = owner_id then ml.owner_user_id
-      else null
-    end as owner_user_id
+    ml.moderation_status,
+    ml.owner_user_id
   from public.marketplace_listings ml
-  where (
-      ml.status = 'active'
-      and ml.deleted_at is null
-      and (ml.expires_at is null or ml.expires_at > now())
-    )
-    or (
-      owner_id <> ''
-      and ml.owner_user_id = owner_id
-    )
+  where ml.status = 'active'
+    and ml.moderation_status = 'approved'
+    and ml.deleted_at is null
+    and (ml.expires_at is null or ml.expires_at > now())
   order by ml.created_at desc;
 $$;
 

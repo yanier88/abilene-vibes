@@ -512,19 +512,233 @@ const parseListingImages = (raw) => {
   return [raw]; // legacy single-photo string
 };
 
+const marketplaceRuleModel = "local-rules-v1";
+const marketplaceModerationPatterns = {
+  review: [
+    {
+      flag: "gift_cards",
+      reason: "Listing mentions gift card payment.",
+      score: 0.78,
+      patterns: [/\bgift\s*cards?\b/, /\btarjetas?\s+de\s+regalo\b/, /\bpayment\s+by\s+gift\s+cards?\s+only\b/, /\bgiftcards?only\b/],
+    },
+    {
+      flag: "crypto_payment",
+      reason: "Listing mentions crypto-only or crypto-style payment.",
+      score: 0.76,
+      patterns: [/\bcrypto\b/, /\bbitcoin\b/, /\bbtc\b/, /\bethereum\b/, /\beth\b/, /\busdt\b/, /\btether\b/, /\bcriptomonedas?\b/, /\bsolo\s+crypto\b/, /\bbitcoinonly\b/],
+    },
+    {
+      flag: "risky_payment",
+      reason: "Listing mentions a risky payment method.",
+      score: 0.72,
+      patterns: [
+        /\bwire\s*transfer\b/, /\btransferencia\s+bancaria\b/, /\bwestern\s+union\b/, /\bmoney\s*gram\b/, /\bmoneygram\b/,
+        /\bzelle\s*only\b/, /\bsolo\s+zelle\b/, /\bcash\s*app\s*only\b/, /\bcashapp\s*only\b/, /\bsolo\s+cashapp\b/,
+        /\bvenmo\s*only\b/, /\bsolo\s+venmo\b/, /\bpay\s+before\s+pickup\b/, /\bpaga\s+antes\s+de\s+recoger\b/,
+      ],
+    },
+    {
+      flag: "deposit_request",
+      reason: "Listing asks for a deposit before purchase.",
+      score: 0.66,
+      patterns: [/\bdeposit\s*only\b/, /\bdeposit\s+required\b/, /\bpay\s+deposit\b/, /\bholding\s+fee\b/, /\bnon\s*refundable\s+deposit\b/, /\bsolo\s+deposito\b/, /\bdeposito\s+obligatorio\b/],
+    },
+    {
+      flag: "external_contact",
+      reason: "Listing contains suspicious external contact patterns.",
+      score: 0.64,
+      patterns: [
+        /https?:\/\/\S+/, /\bwww\.[^\s]+\.[a-z]{2,}\b/, /\b[a-z0-9.-]+\.(?:com|net|org|info|biz|xyz|top|shop|click|link)\b/,
+        /\bwa\.me\//, /\bt\.me\//, /\btelegram\b/, /\bwhats\s*app\s*only\b/, /\bwhatsapp\s*only\b/,
+        /\bcontact\s+me\s+on\s+telegram\b/, /\bmessage\s+me\s+on\s+telegram\b/, /\bsolo\s+telegram\b/, /\bsolo\s+whatsapp\b/,
+      ],
+    },
+    {
+      flag: "spam_patterns",
+      reason: "Listing contains spam-like text patterns.",
+      score: 0.6,
+      patterns: [/\bclick\s+here\b/, /\bact\s+now\b/, /\blimited\s+time\s+only\b/, /\bmake\s+money\s+fast\b/, /\bwork\s+from\s+home\s+guaranteed\b/, /\b100%\s+guaranteed\b/, /\bno\s+risk\b/, /\bdinero\s+rapido\b/, /\bgana\s+dinero\b/],
+    },
+    {
+      flag: "offensive_language",
+      reason: "Listing contains offensive or threatening language.",
+      score: 0.7,
+      patterns: [/\bfuck(?:ing)?\b/, /\bshit\b/, /\bbitch\b/, /\basshole\b/, /\bidiot\b/, /\bstupid\b/, /\bputa\b/, /\bputo\b/, /\bpendej[oa]s?\b/, /\bcabron(?:es)?\b/, /\bmaricon(?:es)?\b/, /\bkill\s+you\b/, /\bi\s+will\s+hurt\b/, /\bte\s+voy\s+a\s+matar\b/, /\bamenaza\b/],
+    },
+  ],
+  reject: [
+    {
+      flag: "sexual_services",
+      reason: "Listing appears to include sexual services or explicit adult content.",
+      score: 0.95,
+      patterns: [
+        /\bprostitut(?:e|ion|a|as|o|os)\b/, /\bescort(?:s)?\b/, /\bsexual\s+services?\b/, /\bservicios?\s+sexuales?\b/,
+        /\bporn(?:o|ography)?\b/, /\bpornografia\b/, /\bsex\s*videos?\b/, /\bvideo\s+sexual\b/, /\bnudes?\b/, /\bdesnud[oa]s?\b/,
+        /\bsexo\s+explicito\b/, /\bexplicit\s+sex\b/, /\bwebcam\s+sexual\b/, /\bonly\s*fans\b/, /\bonlyfans\b/,
+        /\bcontent\s+for\s+adults\b/, /\badult\s+content\b/, /\bxxx\b/, /\banal\b/, /\boral\b/, /\bfetish\b/, /\bfetiche\b/,
+        /\bsugar\s+dadd(?:y|ies)\b/, /\bsugar\s+bab(?:y|ies)\b/, /\berotic(?:a|o)?\b/, /\bmasaje\s+sexual\b/,
+      ],
+    },
+    {
+      flag: "illegal_drugs",
+      reason: "Listing appears to offer illegal drugs.",
+      score: 0.96,
+      patterns: [
+        /\bcocaine(?:\s+for\s+sale)?\b/, /\bcocaina\b/, /\bmeth\b/, /\bmetanfetamina\b/, /\bheroin\b/, /\bheroina\b/,
+        /\bfentanyl\b/, /\bfentanilo\b/, /\bcrack\b/, /\becstasy\b/, /\bextasis\b/, /\blsd\b/, /\bmdma\b/,
+        /\boxycodone\b/, /\boxi(?:codona)?\b/, /\bxanax\b/, /\billegal\s+drugs?\b/, /\bdrogas?\s+ilegales?\b/,
+        /\bweed\s+for\s+sale\b/, /\bmarijuana\s+for\s+sale\b/, /\bmarihuana\s+en\s+venta\b/, /\bvendo\s+(?:weed|marihuana|marijuana)\b/,
+        /\bdrug\s+dealer\b/, /\bdealer\s+de\s+drogas\b/,
+      ],
+    },
+    {
+      flag: "weapons",
+      reason: "Listing appears to offer weapons or ammunition.",
+      score: 0.94,
+      patterns: [
+        /\bgun\s+for\s+sale\b/, /\bfirearm\s+for\s+sale\b/, /\bhand\s*gun\b/, /\bhandgun\b/, /\bpistol\s+for\s+sale\b/,
+        /\brifle\s+for\s+sale\b/, /\bassault\s+rifle\b/, /\bar\s*-?\s*15\b/, /\bak\s*-?\s*47\b/, /\bammunition\b/, /\bammo\b/,
+        /\bsilencer\b/, /\bsuppressor\b/, /\bghost\s+gun\b/, /\bvendo\s+(?:pistola|rifle|arma)\b/, /\barmas?\s+de\s+fuego\b/,
+      ],
+    },
+    {
+      flag: "illegal_documents",
+      reason: "Listing appears to offer illegal documents or identity material.",
+      score: 0.94,
+      patterns: [
+        /\bfake\s+id\b/, /\bid\s+falsa\b/, /\bfake\s+passport\b/, /\bpasaporte\s+falso\b/,
+        /\bfake\s+driver'?s?\s+licenses?\b/, /\blicencia\s+falsa\b/, /\bssn\b/, /\bsocial\s+security\s+number\b/,
+        /\bnumero\s+de\s+seguro\s+social\b/, /\bcounterfeit\b/, /\bfalsificad[oa]s?\b/, /\bforged\b/, /\bstolen\s+identity\b/,
+        /\bidentidad\s+robada\b/,
+      ],
+    },
+    {
+      flag: "stolen_goods",
+      reason: "Listing appears to offer stolen goods.",
+      score: 0.9,
+      patterns: [/\bstolen\b/, /\bstolen\s+iphone\b/, /\bstolen\s+tv\b/, /\bhot\s+merchandise\b/, /\bmercancia\s+robada\b/, /\bproducto\s+robado\b/, /\brobad[oa]s?\b/],
+    },
+  ],
+};
+
+const normalizeMarketplaceModerationText = (value) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[@]/g, "a")
+    .replace(/[0]/g, "o")
+    .replace(/[1!|]/g, "i")
+    .replace(/[3]/g, "e")
+    .replace(/[4]/g, "a")
+    .replace(/[5$]/g, "s")
+    .replace(/[-_./\\]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const evaluateMarketplaceModeration = (payload, imageCount = 0) => {
+  const rawText = [
+    payload.title,
+    payload.price,
+    payload.category,
+    payload.location,
+    payload.contact,
+    payload.description,
+  ].filter(Boolean).join(" ");
+  const text = normalizeMarketplaceModerationText(rawText);
+  const compactText = text.replace(/\s+/g, "");
+  const hits = [];
+
+  const addPatternHits = (rules, severity) => {
+    rules.forEach((rule) => {
+      if (rule.patterns.some((pattern) => pattern.test(text) || pattern.test(compactText))) {
+        hits.push({ flag: rule.flag, reason: rule.reason, score: rule.score, severity });
+      }
+    });
+  };
+
+  addPatternHits(marketplaceModerationPatterns.reject, "reject");
+  addPatternHits(marketplaceModerationPatterns.review, "review");
+
+  const images = parseListingImages(payload.image_data);
+  if (images.length !== imageCount || String(payload.image_data ?? "").length > 7_500_000) {
+    hits.push({ flag: "image_review", reason: "Listing photos need manual review because image metadata looked unusual.", score: 0.52, severity: "review" });
+  }
+
+  const urlCount = (rawText.match(/https?:\/\/|www\.|(?:^|\s)[a-z0-9.-]+\.(?:com|net|org|info|biz|xyz|top|shop|click|link)(?:\s|$)/gi) ?? []).length;
+  if (urlCount >= 2) {
+    hits.push({ flag: "multiple_urls", reason: "Listing contains multiple links and needs manual review.", score: 0.68, severity: "review" });
+  }
+  if (/[!?]{4,}/.test(rawText) || /([a-z0-9])\1{9,}/i.test(rawText)) {
+    hits.push({ flag: "spam_formatting", reason: "Listing uses spam-like repeated characters or punctuation.", score: 0.58, severity: "review" });
+  }
+  const repeatedWords = text.match(/\b(\w{4,})\b(?:\s+\1\b){3,}/);
+  if (repeatedWords) {
+    hits.push({ flag: "repeated_text", reason: "Listing contains repeated text that looks like spam.", score: 0.62, severity: "review" });
+  }
+
+  const rejectHit = hits.find((hit) => hit.severity === "reject");
+  const reviewHit = hits.find((hit) => hit.severity === "review");
+  const moderationStatus = rejectHit ? "rejected" : reviewHit ? "needs_review" : "approved";
+  const moderationReason =
+    rejectHit?.reason ||
+    reviewHit?.reason ||
+    "Marketplace listing passed local moderation rules.";
+  const moderationScore = hits.reduce((max, hit) => Math.max(max, hit.score), 0);
+
+  return {
+    moderation_status: moderationStatus,
+    moderation_reason: moderationReason,
+    moderation_score: Number(moderationScore.toFixed(4)),
+    moderation_flags: { local_rules: hits },
+    moderation_input_types: { text: true, image: imageCount > 0 },
+    moderation_model: marketplaceRuleModel,
+    moderated_at: new Date().toISOString(),
+  };
+};
+
+const getMarketplaceModerationStatus = (listing) =>
+  String(listing?.moderation_status ?? listing?.moderationStatus ?? "approved").trim().toLowerCase();
+
 const mapListingFromDb = (row) => {
   const imgs = parseListingImages(row.image_data);
   return {
     id: row.id,
+    created_at: row.created_at,
+    expires_at: row.expires_at,
+    sold_at: row.sold_at,
+    deleted_at: row.deleted_at,
     title: row.title,
     price: row.price,
     category: row.category,
     location: row.location,
     contact: row.contact,
     description: row.description,
+    image_data: row.image_data,
     image: imgs[0] || null,   // first photo — backward compat for all existing code
     images: imgs,             // all photos
     status: row.status,
+    moderation_status: row.moderation_status ?? row.moderationStatus ?? "approved",
+    moderation_reason: row.moderation_reason ?? row.moderationReason ?? "",
+    moderation_score: row.moderation_score ?? row.moderationScore ?? null,
+    moderation_flags: row.moderation_flags ?? row.moderationFlags ?? {},
+    moderation_input_types: row.moderation_input_types ?? row.moderationInputTypes ?? null,
+    moderation_model: row.moderation_model ?? row.moderationModel ?? "",
+    moderated_at: row.moderated_at ?? row.moderatedAt ?? null,
+    reviewed_by_admin: row.reviewed_by_admin ?? row.reviewedByAdmin ?? false,
+    reviewed_at: row.reviewed_at ?? row.reviewedAt ?? null,
+    reviewed_by: row.reviewed_by ?? row.reviewedBy ?? "",
+    moderationStatus: row.moderation_status ?? row.moderationStatus ?? "approved",
+    moderationReason: row.moderation_reason ?? row.moderationReason ?? "",
+    moderationScore: row.moderation_score ?? row.moderationScore ?? null,
+    moderationFlags: row.moderation_flags ?? row.moderationFlags ?? {},
+    moderationInputTypes: row.moderation_input_types ?? row.moderationInputTypes ?? null,
+    moderationModel: row.moderation_model ?? row.moderationModel ?? "",
+    moderatedAt: row.moderated_at ?? row.moderatedAt ?? null,
+    reviewedByAdmin: row.reviewed_by_admin ?? row.reviewedByAdmin ?? false,
+    reviewedAt: row.reviewed_at ?? row.reviewedAt ?? null,
+    reviewedBy: row.reviewed_by ?? row.reviewedBy ?? "",
+    owner_user_id: row.owner_user_id,
     ownerUserId: row.owner_user_id,
     expiresAt: row.expires_at,
     soldAt: row.sold_at,
@@ -1818,7 +2032,7 @@ function App() {
   const [editingListing, setEditingListing] = useState(null);
   const [deletingListing, setDeletingListing] = useState(null);
   const [editDeleteStatus, setEditDeleteStatus] = useState("");
-  const [marketplaceAdminStatusFilter, setMarketplaceAdminStatusFilter] = useState("all");
+  const [marketplaceAdminStatusFilter, setMarketplaceAdminStatusFilter] = useState("needs_review");
   const [marketplaceActionKey, setMarketplaceActionKey] = useState("");
   const [sellItemPhotos, setSellItemPhotos] = useState([]);       // [{file, preview}] for sell form
   const [listingGalleryIndex, setListingGalleryIndex] = useState(0); // current photo index in detail view
@@ -1903,6 +2117,10 @@ function App() {
   const inListingDetailRef = useRef(false);
 
   useEffect(() => {
+    if (page === "sell-item" && previousPageRef.current !== "sell-item") {
+      setSellItemStatus("");
+    }
+
     if (previousPageRef.current === "news" && page === "lobby") {
       pageRef.current = "more";
       previousPageRef.current = "more";
@@ -2139,24 +2357,28 @@ function App() {
     if (!supabase) return;
     supabase.rpc("expire_marketplace_listings").then(() => {
       supabase
-        .rpc("list_marketplace_listings", { owner_id: effectiveOwnerId })
+        .rpc("list_marketplace_listings", { owner_id: "" })
         .then(({ data, error }) => {
           if (!error && data) {
             setMarketplaceListings(data.map(mapListingFromDb));
             return;
           }
 
+          const nowIso = new Date().toISOString();
           supabase
             .from("marketplace_listings")
-            .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status")
+            .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id,moderation_status")
             .eq("status", "active")
+            .eq("moderation_status", "approved")
+            .is("deleted_at", null)
+            .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
             .order("created_at", { ascending: false })
-            .then(({ data: publicData, error: publicError }) => {
-              if (!publicError && publicData) setMarketplaceListings(publicData.map(mapListingFromDb));
+            .then(({ data: fallbackData, error: fallbackError }) => {
+              if (!fallbackError && fallbackData) setMarketplaceListings(fallbackData.map(mapListingFromDb));
             });
         });
     });
-  }, [effectiveOwnerId]);
+  }, []);
 
   // Keep adminSessionRef in sync so Realtime callbacks always see the latest value
   useEffect(() => { adminSessionRef.current = adminSession; }, [adminSession]);
@@ -2989,7 +3211,7 @@ function App() {
       supabase.rpc("admin_list_job_listings"),
       supabase
         .from("marketplace_listings")
-        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id")
+        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id,moderation_status,moderation_reason,moderation_score,moderation_flags,moderation_input_types,moderation_model,moderated_at,reviewed_by_admin,reviewed_at,reviewed_by")
         .order("created_at", { ascending: false }),
       supabase.rpc("admin_list_rental_listings"),
       supabase
@@ -3031,7 +3253,7 @@ function App() {
     setDeletedStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type === "deleted").map((item) => item.item_key));
     setPendingReviews(reviewResult.data ?? []);
     setAdminJobListings(jobListingsResult.data ?? []);
-    setAdminMarketplaceListings(adminMarketplaceResult.data ?? []);
+    setAdminMarketplaceListings((adminMarketplaceResult.data ?? []).map(mapListingFromDb));
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
     setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
@@ -4313,7 +4535,10 @@ function App() {
     // starter listings removed — only real Supabase listings shown
   ];
   const activeMarketplaceListings = allMarketplaceListings.filter(
-    (l) => (l.status ?? "active") === "active" && (!l.expiresAt || new Date(l.expiresAt) > new Date()),
+    (l) =>
+      (l.status ?? "active") === "active" &&
+      getMarketplaceModerationStatus(l) === "approved" &&
+      (!l.expiresAt || new Date(l.expiresAt) > new Date()),
   );
   const filteredMarketplaceListings = activeMarketplaceListings.filter((l) => {
     const matchesFilter = marketplaceFilter === "All" || l.category === marketplaceFilter || l.tag === marketplaceFilter;
@@ -4326,22 +4551,26 @@ function App() {
     acc.All = (acc.All ?? 0) + 1;
     return acc;
   }, { All: 0 });
-  const adminMarketplaceRestorableStatuses = ["active", "hidden", "sold"];
   const adminMarketplaceCounts = adminMarketplaceListings.reduce(
     (acc, listing) => {
       const status = listing.status ?? "active";
-      if (adminMarketplaceRestorableStatuses.includes(status)) {
-        acc.all += 1;
-        acc[status] = (acc[status] ?? 0) + 1;
-      }
+      const moderationStatus = getMarketplaceModerationStatus(listing);
+      acc.all += 1;
+      acc[status] = (acc[status] ?? 0) + 1;
+      acc[moderationStatus] = (acc[moderationStatus] ?? 0) + 1;
       return acc;
     },
-    { all: 0, active: 0, hidden: 0, sold: 0 },
+    { all: 0, needs_review: 0, approved: 0, rejected: 0, active: 0, hidden: 0, sold: 0 },
   );
   const adminMarketplaceVisibleListings = adminMarketplaceListings.filter((listing) => {
     const status = listing.status ?? "active";
-    if (!adminMarketplaceRestorableStatuses.includes(status)) return false;
-    return marketplaceAdminStatusFilter === "all" || status === marketplaceAdminStatusFilter;
+    const moderationStatus = getMarketplaceModerationStatus(listing);
+    if (status === "deleted") return false;
+    if (marketplaceAdminStatusFilter === "all") return true;
+    if (["needs_review", "approved", "rejected"].includes(marketplaceAdminStatusFilter)) {
+      return moderationStatus === marketplaceAdminStatusFilter;
+    }
+    return status === marketplaceAdminStatusFilter;
   });
   const isListingOwner = (l) => !!(l.ownerUserId && l.ownerUserId === effectiveOwnerId);
   const myMarketplaceListings = marketplaceListings.filter((l) => isListingOwner(l));
@@ -4452,6 +4681,41 @@ function App() {
     setMarketplaceActionKey("");
   };
 
+  const setMarketplaceModerationStatus = async (listing, moderationStatus) => {
+    if (!supabase || !adminSession || !listing?.id) return;
+    const actionKey = `${listing.id}:moderation:${moderationStatus}`;
+    setMarketplaceActionKey(actionKey);
+    setAdminStatus("saving");
+
+    const update = {
+      moderation_status: moderationStatus,
+      reviewed_by_admin: true,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: adminSession.user?.email ?? adminSession.user?.id ?? adminEmail ?? "admin",
+    };
+
+    const { error } = await supabase
+      .from("marketplace_listings")
+      .update(update)
+      .eq("id", listing.id);
+
+    if (error) {
+      setAdminStatus("error");
+      setMarketplaceActionKey("");
+      return;
+    }
+
+    setMarketplaceListings((items) =>
+      items.map((item) => (item.id === listing.id ? { ...item, ...update, moderationStatus } : item)),
+    );
+    if (selectedListing?.id === listing.id) {
+      setSelectedListing((prev) => (prev ? { ...prev, ...update, moderationStatus } : null));
+    }
+    await loadMarketplacePublic();
+    await loadAdminData();
+    setMarketplaceActionKey("");
+  };
+
   const confirmDeleteListing = async (e) => {
     e?.preventDefault();
     e?.stopPropagation();
@@ -4554,21 +4818,48 @@ function App() {
       // sellItemPhotos holds pre-compressed base64 strings (set during onChange).
       // Save as JSON array; parseListingImages handles old single-string rows on load.
       const imageData = sellItemPhotos.length === 0 ? "" : JSON.stringify(sellItemPhotos);
+      const payload = {
+        title: data.get("title").trim(),
+        price: data.get("price").trim(),
+        category: data.get("category"),
+        location: data.get("location").trim(),
+        contact: data.get("contact").trim(),
+        description: data.get("description").trim(),
+        image_data: imageData,
+        owner_user_id: effectiveOwnerId,
+        expires_at: expiresAt,
+      };
+      const moderationResult = evaluateMarketplaceModeration(payload, sellItemPhotos.length);
       const { error } = await supabase
         .from("marketplace_listings")
         .insert({
-          title: data.get("title").trim(),
-          price: data.get("price").trim(),
-          category: data.get("category"),
-          location: data.get("location").trim(),
-          contact: data.get("contact").trim(),
-          description: data.get("description").trim(),
-          image_data: imageData,
+          ...payload,
           status: "active",
-          owner_user_id: effectiveOwnerId,
-          expires_at: expiresAt,
+          moderation_status: moderationResult.moderation_status,
+          moderation_reason: moderationResult.moderation_reason,
+          moderation_score: moderationResult.moderation_score,
+          moderation_flags: moderationResult.moderation_flags,
+          moderation_input_types: moderationResult.moderation_input_types,
+          moderation_model: moderationResult.moderation_model,
+          moderated_at: moderationResult.moderated_at,
         });
       if (error) { setSellItemStatus("error"); return; }
+
+      if (moderationResult.moderation_status === "rejected") {
+        setSellItemStatus("moderation-rejected");
+        setSellItemPhotos([]);
+        form.reset();
+        return;
+      }
+
+      if (moderationResult.moderation_status === "needs_review") {
+        await loadMarketplacePublic();
+        setSellItemStatus("moderation-review");
+        setSellItemPhotos([]);
+        form.reset();
+        return;
+      }
+
       await loadMarketplacePublic();
       setMarketplaceSearch("");
       setMarketplaceFilter("All");
@@ -5986,7 +6277,10 @@ function App() {
             <button
               className="marketplace-top-sell-button"
               type="button"
-              onClick={() => navigateTo("sell-item")}
+              onClick={() => {
+                setSellItemStatus("");
+                navigateTo("sell-item");
+              }}
             >
               <span aria-hidden="true">●</span>
               Sell Item
@@ -6015,7 +6309,10 @@ function App() {
                 <button
                   className="marketplace-category-sell-button"
                   type="button"
-                  onClick={() => navigateTo("sell-item")}
+                  onClick={() => {
+                    setSellItemStatus("");
+                    navigateTo("sell-item");
+                  }}
                 >
                   <span aria-hidden="true">+</span>
                   Sell Item
@@ -6556,6 +6853,12 @@ function App() {
             </button>
             {sellItemStatus === "saved" && (
               <p className="form-success compact-status">Item posted. It is now visible in Marketplace.</p>
+            )}
+            {sellItemStatus === "moderation-review" && (
+              <p className="form-success compact-status">Your listing was submitted for review and will appear after approval.</p>
+            )}
+            {sellItemStatus === "moderation-rejected" && (
+              <p className="form-error compact-status">This listing could not be published because it appears to violate Marketplace rules.</p>
             )}
             {sellItemStatus === "missing-config" && (
               <p className="form-error compact-status">Marketplace publishing is not connected yet.</p>
@@ -10036,6 +10339,7 @@ function App() {
                 <div className="jobs-filter-bar marketplace-admin-filter-bar" aria-label="Marketplace status filters">
                   {[
                     ["all", "All"],
+                    ["needs_review", "Needs Review"],
                     ["active", "Active"],
                     ["hidden", "Hidden"],
                     ["sold", "Sold"],
@@ -10050,6 +10354,12 @@ function App() {
                     </button>
                   ))}
                 </div>
+                {marketplaceAdminStatusFilter === "needs_review" && (
+                  <div className="business-form-heading">
+                    <p className="eyebrow">Manual review</p>
+                    <h2>Needs Review</h2>
+                  </div>
+                )}
 
                 {/* Edit modal (reuses editingListing + handleEditListingSubmit) */}
                 {editingListing && adminSession && (
@@ -10154,6 +10464,22 @@ function App() {
                         {listing.location && <p>Location: {listing.location}</p>}
                         {listing.contact && <p>Contact: {listing.contact}</p>}
                         {listing.owner_user_id && <p style={{ fontSize: "0.8em", opacity: 0.6 }}>Owner: {listing.owner_user_id}</p>}
+                        <p style={{ fontSize: "0.8em", opacity: 0.75 }}>
+                          Moderation Status: <strong>{getMarketplaceModerationStatus(listing)}</strong>
+                        </p>
+                        {(listing.moderation_reason || listing.moderationReason) && (
+                          <p style={{ fontSize: "0.8em", opacity: 0.75 }}>
+                            Moderation Reason: {listing.moderation_reason ?? listing.moderationReason}
+                          </p>
+                        )}
+                        {(listing.moderation_score !== null && listing.moderation_score !== undefined) && (
+                          <p style={{ fontSize: "0.8em", opacity: 0.75 }}>Moderation Score: {listing.moderation_score}</p>
+                        )}
+                        {(listing.moderation_model || listing.moderationModel) && (
+                          <p style={{ fontSize: "0.8em", opacity: 0.75 }}>
+                            Moderation Model: {listing.moderation_model ?? listing.moderationModel}
+                          </p>
+                        )}
                         {listing.description && (
                           <p style={{ fontSize: "0.85em", opacity: 0.8 }}>
                             {listing.description.slice(0, 120)}{listing.description.length > 120 ? "…" : ""}
@@ -10165,6 +10491,26 @@ function App() {
                           {listing.sold_at ? ` · Sold: ${new Date(listing.sold_at).toLocaleDateString()}` : ""}
                         </p>
                         <div className="directory-actions marketplace-admin-actions">
+                          {getMarketplaceModerationStatus(listing) === "needs_review" && (
+                            <>
+                              <button
+                                className="directory-link marketplace-admin-action"
+                                type="button"
+                                onClick={() => setMarketplaceModerationStatus(listing, "approved")}
+                                disabled={marketplaceActionKey.startsWith(`${listing.id}:`)}
+                              >
+                                {marketplaceActionKey === `${listing.id}:moderation:approved` ? "Approving..." : "Approve"}
+                              </button>
+                              <button
+                                className="directory-link marketplace-admin-action"
+                                type="button"
+                                onClick={() => setMarketplaceModerationStatus(listing, "rejected")}
+                                disabled={marketplaceActionKey.startsWith(`${listing.id}:`)}
+                              >
+                                {marketplaceActionKey === `${listing.id}:moderation:rejected` ? "Rejecting..." : "Reject"}
+                              </button>
+                            </>
+                          )}
                           <button
                             className="directory-link marketplace-admin-action"
                             type="button"
