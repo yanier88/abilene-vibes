@@ -326,6 +326,9 @@ const subscriptionPeriodEnd = async (subscription: unknown) => {
   return "";
 };
 
+const rentalPlacementExpiresAt = async (subscription: unknown, paidAt: string) =>
+  (await subscriptionPeriodEnd(subscription)) || oneMonthAfter(paidAt);
+
 const fetchChargeFromInvoice = async (invoice: Record<string, unknown>) => {
   const paymentIntentId = invoicePaymentIntentId(invoice);
 
@@ -451,6 +454,7 @@ Deno.serve(async (request) => {
     }
 
     if (listingType === "rental") {
+      const placementExpiresAt = await rentalPlacementExpiresAt(session.subscription, paidAt);
       await updateRentalPayment(rentalId, {
         payment_status: "paid",
         stripe_session_id: session.id,
@@ -458,6 +462,8 @@ Deno.serve(async (request) => {
         stripe_customer_id: session.customer ?? null,
         stripe_subscription_id: session.subscription ?? null,
         paid_at: paidAt,
+        placement_source: "stripe",
+        placement_expires_at: placementExpiresAt,
       });
       return new Response(JSON.stringify({ received: true }), {
         headers: { "Content-Type": "application/json" },
@@ -567,6 +573,14 @@ Deno.serve(async (request) => {
     }
 
     if (listingType === "rental") {
+      const rentalId = await fetchRentalListingIdBySubscription(subscriptionId);
+      const placementExpiresAt = await rentalPlacementExpiresAt(subscriptionId, paidAt);
+      await updateRentalPayment(rentalId, {
+        payment_status: "paid",
+        paid_at: paidAt,
+        placement_source: "stripe",
+        placement_expires_at: placementExpiresAt,
+      });
       return new Response(JSON.stringify({ received: true }), {
         headers: { "Content-Type": "application/json" },
       });
@@ -611,7 +625,6 @@ Deno.serve(async (request) => {
       const rentalId = await fetchRentalListingIdBySubscription(subscriptionId);
       await updateRentalPayment(rentalId, {
         payment_status: "canceled",
-        status: "hidden",
       });
       return new Response(JSON.stringify({ received: true }), {
         headers: { "Content-Type": "application/json" },

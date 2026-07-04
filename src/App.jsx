@@ -2241,7 +2241,7 @@ function App() {
 
   const loadRentalsPublic = useCallback(() => {
     if (!supabase) return;
-    const baseSelect = "id,created_at,expires_at,title,property_type,price,deposit,price_per_night,price_per_week,available_from,available_to,max_guests,house_rules,pets_allowed,address,contact_person,bedrooms,bathrooms,description,phone,email,external_url,duration,plan,status,image_data";
+    const baseSelect = "id,created_at,expires_at,title,property_type,price,deposit,price_per_night,price_per_week,available_from,available_to,max_guests,house_rules,pets_allowed,address,contact_person,bedrooms,bathrooms,description,phone,email,external_url,duration,plan,status,payment_status,placement_source,placement_expires_at,image_data";
     const queryRentals = (selectFields) =>
       supabase
         .from("rental_listings")
@@ -3664,7 +3664,15 @@ function App() {
     );
   };
 
-  const handleSetRentalPaymentPlan = async (r, nextPlan, nextStatus, nextPaymentStatus, actionSuffix = "") => {
+  const handleSetRentalPaymentPlan = async (
+    r,
+    nextPlan,
+    nextStatus,
+    nextPaymentStatus,
+    actionSuffix = "",
+    nextPlacementSource = r?.placement_source ?? null,
+    nextPlacementExpiresAt = r?.placement_expires_at ?? null,
+  ) => {
     if (!supabase || !adminSession) return;
     const cleanPlan = nextPlan === "premium" ? "premium" : nextPlan === "featured" ? "featured" : "free";
     const cleanStatus = ["pending", "approved", "hidden", "rejected"].includes(nextStatus) ? nextStatus : "pending";
@@ -3675,6 +3683,7 @@ function App() {
       "paid",
       "failed",
       "expired",
+      "cancel_pending",
       "canceled",
     ].includes(nextPaymentStatus) ? nextPaymentStatus : "not_required";
     const actionKey = actionSuffix || `plan:${cleanPlan}:${cleanPaymentStatus}`;
@@ -3687,6 +3696,8 @@ function App() {
         new_plan: cleanPlan,
         new_status: cleanStatus,
         new_payment_status: cleanPaymentStatus,
+        new_placement_source: nextPlacementSource,
+        new_placement_expires_at: nextPlacementExpiresAt,
       });
       if (error || data !== true) { setAdminStatus("error"); return; }
       await loadAdminData();
@@ -3704,28 +3715,74 @@ function App() {
     await handleSetRentalPaymentPlan(r, r.plan ?? "free", "approved", r.payment_status ?? "not_required", "status:approved");
   };
 
-  const setPaidRentalPlacement = async (r, plan) => {
-    const cleanPlan = plan === "premium" ? "premium" : plan === "featured" ? "featured" : "free";
-    const planLabel = cleanPlan.charAt(0).toUpperCase() + cleanPlan.slice(1);
-    if (!window.confirm(`Set "${r.title}" to ${planLabel} paid plan?`)) return;
+  const setRentalFreePlan = async (r) => {
+    if (!window.confirm(`Set "${r.title}" to Free plan?`)) return;
 
     await handleSetRentalPaymentPlan(
       r,
-      cleanPlan,
-      cleanPlan === "free" ? (r.status ?? "pending") : "approved",
-      cleanPlan === "free" ? "not_required" : "paid",
-      `paid:${cleanPlan}`,
+      "free",
+      r.status ?? "pending",
+      "not_required",
+      "plan:free",
+      null,
+      null,
     );
   };
 
   const compRentalPlacement = async (r, plan) => {
     const cleanPlan = plan === "premium" ? "premium" : "featured";
-    await handleSetRentalPaymentPlan(r, cleanPlan, "approved", "not_required", `promo:${cleanPlan}`);
+    await handleSetRentalPaymentPlan(r, cleanPlan, "approved", "not_required", `promo:${cleanPlan}`, "comp", null);
   };
 
   const clearCompRentalPlacement = async (r) => {
     if (!window.confirm(`End free promo for "${r.title}"?`)) return;
-    await handleSetRentalPaymentPlan(r, "free", r.status ?? "approved", "not_required", "promo:end");
+    await handleSetRentalPaymentPlan(r, "free", r.status ?? "approved", "not_required", "promo:end", null, null);
+  };
+
+  const cancelRentalSubscription = async (r) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
+    if (!r.stripe_subscription_id) {
+      window.alert("This rental does not have a Stripe subscription ID saved yet.");
+      return;
+    }
+
+    const cancelAtPeriodEnd = window.confirm(
+      `Cancel "${r.title}" at the end of the paid billing period?\n\nChoose OK to let the customer keep the current paid month. Choose Cancel for immediate cancellation.`,
+    );
+
+    const shouldContinue = cancelAtPeriodEnd
+      ? true
+      : window.confirm(`Cancel "${r.title}" immediately? This may end paid placement right away.`);
+
+    if (!shouldContinue) {
+      return;
+    }
+
+    setAdminRentalActionKey(`${r.id}:cancel-subscription`);
+    setAdminStatus("saving");
+
+    try {
+      const { error } = await supabase.functions.invoke("cancel-subscription", {
+        body: {
+          listingType: "rental",
+          rentalId: r.id,
+          cancelAtPeriodEnd,
+        },
+      });
+
+      if (error) {
+        setAdminStatus("error");
+        window.alert(error.message ?? "Could not cancel this subscription.");
+        return;
+      }
+
+      await loadAdminData();
+    } finally {
+      setAdminRentalActionKey("");
+    }
   };
 
   const handleSaveRental = async () => {
@@ -4958,6 +5015,37 @@ function App() {
     setOwnerRentalStatus("");
   };
 
+  const rentalPlacementExpiresAt = (rental) => rental?.placement_expires_at ?? rental?.placementExpiresAt ?? "";
+
+  const hasActiveRentalPromotion = (rental) => {
+    const plan = String(rental?.plan ?? "free").toLowerCase();
+    const paymentStatus = String(rental?.payment_status ?? rental?.paymentStatus ?? "").toLowerCase();
+    const placementSource = String(rental?.placement_source ?? rental?.placementSource ?? "").toLowerCase();
+    const expiresAt = rentalPlacementExpiresAt(rental);
+
+    if (!["featured", "premium"].includes(plan)) {
+      return false;
+    }
+
+    if (placementSource === "comp") {
+      return !expiresAt || new Date(expiresAt) > new Date();
+    }
+
+    if (placementSource !== "stripe" || !activePaidPaymentStatuses.has(paymentStatus)) {
+      return false;
+    }
+
+    return !!expiresAt && new Date(expiresAt) > new Date();
+  };
+
+  const rentalPromotionRank = (rental) => {
+    if (!hasActiveRentalPromotion(rental)) {
+      return 2;
+    }
+
+    return String(rental?.plan ?? "free").toLowerCase() === "premium" ? 0 : 1;
+  };
+
   const jobPlanOrder = { premium: 0, featured: 1, free: 2 };
   const allJobListings = [
     ...postedJobs.map((j) => ({ ...j, tag: j.plan === "free" ? "New Today" : j.plan === "featured" ? "Featured" : "Premium", filters: [j.type, "New Today"] })),
@@ -5059,14 +5147,14 @@ function App() {
     ...lobbyFeaturedBusinesses.map(toBusinessLobbyItem),
     ...allJobListings.filter((job) => job.plan === "featured").map(toJobLobbyItem),
     ...rentalListings
-      .filter((rental) => String(rental.plan ?? "free").toLowerCase() === "featured")
+      .filter((rental) => hasActiveRentalPromotion(rental) && String(rental.plan ?? "free").toLowerCase() === "featured")
       .map(toRentalLobbyItem),
   ];
   const premiumLobbyItems = [
     ...premiumBusinesses.map(toBusinessLobbyItem),
     ...allJobListings.filter((job) => job.plan === "premium").map(toJobLobbyItem),
     ...rentalListings
-      .filter((rental) => String(rental.plan ?? "free").toLowerCase() === "premium")
+      .filter((rental) => hasActiveRentalPromotion(rental) && String(rental.plan ?? "free").toLowerCase() === "premium")
       .map(toRentalLobbyItem),
   ];
   const lobbyClickReports = itemReports.filter((report) => report.itemType === "Lobby");
@@ -7548,10 +7636,7 @@ function App() {
       const text = `${r.title} ${r.address} ${r.description ?? ""} ${r.property_type}`.toLowerCase();
       return matchesType && matchesFilter && text.includes(rentalsSearch.trim().toLowerCase());
     }).sort((a, b) => {
-      const planOrder = { premium: 0, featured: 1, free: 2 };
-      const leftPlan = String(a.plan ?? "free").toLowerCase();
-      const rightPlan = String(b.plan ?? "free").toLowerCase();
-      const planDiff = (planOrder[leftPlan] ?? 2) - (planOrder[rightPlan] ?? 2);
+      const planDiff = rentalPromotionRank(a) - rentalPromotionRank(b);
       if (planDiff !== 0) return planDiff;
       return new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0);
     });
@@ -7665,8 +7750,10 @@ function App() {
                 const photo = rPhotos[0] ?? null;
                 const isSTR = isShortTerm(r);
                 const rentalPlan = String(r.plan ?? "free").toLowerCase();
-                const isFeaturedRental = rentalPlan === "featured";
-                const isPremiumRental = rentalPlan === "premium";
+                const hasRentalPromotion = hasActiveRentalPromotion(r);
+                const isFeaturedRental = hasRentalPromotion && rentalPlan === "featured";
+                const isPremiumRental = hasRentalPromotion && rentalPlan === "premium";
+                const isFreeRental = !isFeaturedRental && !isPremiumRental;
                 const rentalBadgeClass = isPremiumRental
                   ? " plan-badge plan-badge-premium jobs-tag-premium"
                   : isFeaturedRental
@@ -7692,8 +7779,46 @@ function App() {
                           {rentalTypeIcon(r.property_type)} {r.property_type}
                         </span>
                         {(isFeaturedRental || isPremiumRental) && (
-                          <span className={`jobs-listing-tag${rentalBadgeClass}`}>
+                          <span
+                            className={`jobs-listing-tag${rentalBadgeClass}`}
+                            style={{
+                              width: "78px",
+                              minWidth: "78px",
+                              height: "24px",
+                              padding: "3px 10px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxSizing: "border-box",
+                              fontSize: ".62rem",
+                              letterSpacing: ".12em",
+                              borderRadius: "999px",
+                            }}
+                          >
                             {isPremiumRental ? "Premium" : "Featured"}
+                          </span>
+                        )}
+                        {isFreeRental && (
+                          <span
+                            className="jobs-listing-tag plan-badge plan-badge-free"
+                            style={{
+                              width: "78px",
+                              minWidth: "78px",
+                              height: "24px",
+                              padding: "3px 10px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxSizing: "border-box",
+                              fontSize: ".62rem",
+                              letterSpacing: ".12em",
+                              borderRadius: "999px",
+                              background: "linear-gradient(135deg, rgba(226,232,240,0.95), rgba(148,163,184,0.88))",
+                              borderColor: "rgba(148,163,184,0.75)",
+                              color: "#1f2937",
+                            }}
+                          >
+                            FREE
                           </span>
                         )}
                         <button
@@ -10626,18 +10751,22 @@ function App() {
                       const requestedRentalPlan = r.requested_plan
                         ? String(r.requested_plan).charAt(0).toUpperCase() + String(r.requested_plan).slice(1).toLowerCase()
                         : "";
-                      const isRentalCompPromo = ["featured", "premium"].includes(rentalPlan) && rentalPaymentStatus === "not_required";
+                      const rentalPlacementSource = String(r.placement_source ?? "").toLowerCase();
+                      const isRentalCompPromo = ["featured", "premium"].includes(rentalPlan) && rentalPlacementSource === "comp";
                       const approvingRental = adminRentalActionKey === `${r.id}:status:approved`;
                       const rejectingRental = adminRentalActionKey === `${r.id}:status:rejected`;
                       const hidingRental = adminRentalActionKey === `${r.id}:status:hidden`;
-                      const settingFreeRental = adminRentalActionKey === `${r.id}:paid:free`;
-                      const settingPaidFeaturedRental = adminRentalActionKey === `${r.id}:paid:featured`;
-                      const settingPaidPremiumRental = adminRentalActionKey === `${r.id}:paid:premium`;
+                      const settingFreeRental = adminRentalActionKey === `${r.id}:plan:free`;
                       const settingPromoFeaturedRental = adminRentalActionKey === `${r.id}:promo:featured`;
                       const settingPromoPremiumRental = adminRentalActionKey === `${r.id}:promo:premium`;
                       const endingPromoRental = adminRentalActionKey === `${r.id}:promo:end`;
+                      const cancelingRentalSubscription = adminRentalActionKey === `${r.id}:cancel-subscription`;
                       const deletingRental = adminRentalActionKey === `${r.id}:delete`;
                       const isRentalBusy = adminRentalActionKey.startsWith(`${r.id}:`);
+                      const canCancelRentalSubscription =
+                        r.stripe_subscription_id &&
+                        rentalPlacementSource === "stripe" &&
+                        ["paid", "checkout_started", "cancel_pending"].includes(rentalPaymentStatus);
 
                       return (
                       <article key={r.id} className="admin-card">
@@ -10721,32 +10850,16 @@ function App() {
                           <button
                             className="directory-link"
                             type="button"
-                            onClick={() => setPaidRentalPlacement(r, "free")}
-                            disabled={isRentalBusy || (rentalPlan === "free" && rentalPaymentStatus === "not_required")}
+                            onClick={() => setRentalFreePlan(r)}
+                            disabled={isRentalBusy || (rentalPlan === "free" && rentalPaymentStatus === "not_required" && !r.placement_source && !r.placement_expires_at)}
                           >
                             {settingFreeRental ? "Updating..." : "Plan Free"}
                           </button>
                           <button
                             className="directory-link"
                             type="button"
-                            onClick={() => setPaidRentalPlacement(r, "featured")}
-                            disabled={isRentalBusy || (rentalPlan === "featured" && rentalPaymentStatus === "paid")}
-                          >
-                            {settingPaidFeaturedRental ? "Updating..." : "Paid Featured"}
-                          </button>
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => setPaidRentalPlacement(r, "premium")}
-                            disabled={isRentalBusy || (rentalPlan === "premium" && rentalPaymentStatus === "paid")}
-                          >
-                            {settingPaidPremiumRental ? "Updating..." : "Paid Premium"}
-                          </button>
-                          <button
-                            className="directory-link"
-                            type="button"
                             onClick={() => compRentalPlacement(r, "featured")}
-                            disabled={isRentalBusy || (rentalPlan === "featured" && rentalPaymentStatus === "not_required")}
+                            disabled={isRentalBusy || (rentalPlan === "featured" && rentalPlacementSource === "comp")}
                           >
                             {settingPromoFeaturedRental ? "Updating..." : "Free Promo Featured"}
                           </button>
@@ -10754,7 +10867,7 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => compRentalPlacement(r, "premium")}
-                            disabled={isRentalBusy || (rentalPlan === "premium" && rentalPaymentStatus === "not_required")}
+                            disabled={isRentalBusy || (rentalPlan === "premium" && rentalPlacementSource === "comp")}
                           >
                             {settingPromoPremiumRental ? "Updating..." : "Free Promo Premium"}
                           </button>
@@ -10766,6 +10879,16 @@ function App() {
                               disabled={isRentalBusy}
                             >
                               {endingPromoRental ? "Updating..." : "End Promo"}
+                            </button>
+                          )}
+                          {canCancelRentalSubscription && (
+                            <button
+                              className="directory-link danger-link"
+                              type="button"
+                              onClick={() => cancelRentalSubscription(r)}
+                              disabled={isRentalBusy}
+                            >
+                              {cancelingRentalSubscription ? "Cancelling..." : "Cancel Subscription"}
                             </button>
                           )}
                           <button

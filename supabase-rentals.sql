@@ -33,7 +33,32 @@ add column if not exists stripe_customer_id text;
 alter table public.rental_listings
 add column if not exists paid_at timestamptz;
 
--- 1c. Add payment lookup indexes if missing.
+-- 1c. Add promotion placement columns if missing.
+alter table public.rental_listings
+add column if not exists placement_source text;
+
+alter table public.rental_listings
+add column if not exists placement_expires_at timestamptz;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'rental_listings_placement_source_check'
+      and conrelid = 'public.rental_listings'::regclass
+  ) then
+    alter table public.rental_listings
+    add constraint rental_listings_placement_source_check
+    check (
+      placement_source is null
+      or placement_source in ('stripe', 'comp')
+    );
+  end if;
+end;
+$$;
+
+-- 1d. Add payment lookup indexes if missing.
 create index if not exists idx_rental_listings_requested_plan
 on public.rental_listings (requested_plan);
 
@@ -269,6 +294,8 @@ returns table (
   stripe_session_id text,
   stripe_subscription_id text,
   paid_at timestamptz,
+  placement_source text,
+  placement_expires_at timestamptz,
   requested_plan text,
   image_data text[]
 )
@@ -312,6 +339,8 @@ begin
     rl.stripe_session_id,
     rl.stripe_subscription_id,
     rl.paid_at,
+    rl.placement_source,
+    rl.placement_expires_at,
     rl.requested_plan,
     rl.image_data
   from public.rental_listings rl
@@ -416,11 +445,20 @@ end;
 $$;
 
 -- 12b. Admin-safe payment/plan update for Rentals Stripe controls.
+drop function if exists public.admin_set_rental_payment_plan(
+  uuid,
+  text,
+  text,
+  text
+);
+
 create or replace function public.admin_set_rental_payment_plan(
   listing_id uuid,
   new_plan text,
   new_status text,
-  new_payment_status text
+  new_payment_status text,
+  new_placement_source text default null,
+  new_placement_expires_at timestamptz default null
 )
 returns boolean
 language plpgsql
@@ -440,15 +478,21 @@ begin
     raise exception 'Invalid rental status';
   end if;
 
-  if new_payment_status not in ('not_required', 'pending', 'checkout_started', 'paid', 'failed', 'expired', 'canceled') then
+  if new_payment_status not in ('not_required', 'pending', 'checkout_started', 'paid', 'failed', 'expired', 'cancel_pending', 'canceled') then
     raise exception 'Invalid rental payment status';
+  end if;
+
+  if new_placement_source is not null and new_placement_source not in ('stripe', 'comp') then
+    raise exception 'Invalid rental placement source';
   end if;
 
   update public.rental_listings
   set
     plan = new_plan,
     status = new_status,
-    payment_status = new_payment_status
+    payment_status = new_payment_status,
+    placement_source = new_placement_source,
+    placement_expires_at = new_placement_expires_at
   where id = listing_id;
 
   return found;
