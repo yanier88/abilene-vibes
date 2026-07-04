@@ -5537,15 +5537,15 @@ function App() {
   const renderBusinessReviews = (business) => {
     const reviews = approvedReviews[business.id] ?? [];
     const reviewStatus = reviewSubmissionStatus[business.id];
-    const averageRating = reviews.length
-      ? (reviews.reduce((total, review) => total + Number(review.rating), 0) / reviews.length).toFixed(1)
-      : null;
 
     return (
       <div className="review-panel">
         <div className="review-summary">
-          <strong>{averageRating ? `${averageRating} stars` : "No reviews yet"}</strong>
-          <span>{reviews.length} review{reviews.length === 1 ? "" : "s"}</span>
+          <strong>
+            {reviews.length
+              ? `${reviews.length} review${reviews.length === 1 ? "" : "s"}`
+              : "No reviews yet"}
+          </strong>
         </div>
 
         {reviews.slice(0, 2).map((review) => (
