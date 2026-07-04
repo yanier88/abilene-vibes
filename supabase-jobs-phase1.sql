@@ -92,6 +92,18 @@ add column if not exists stripe_customer_id text;
 alter table public.job_listings
 add column if not exists paid_at timestamptz;
 
+alter table public.job_listings
+add column if not exists owner_user_id text;
+
+alter table public.job_listings
+add column if not exists placement_source text not null default 'none';
+
+alter table public.job_listings
+add column if not exists placement_expires_at timestamptz;
+
+alter table public.job_listings
+add column if not exists apply_url text;
+
 create table if not exists public.admin_users (
   email text primary key,
   created_at timestamptz not null default now()
@@ -239,13 +251,16 @@ end;
 $$;
 
 drop function if exists public.admin_set_job_payment_plan(uuid, text, text, text, timestamptz);
+drop function if exists public.admin_set_job_payment_plan(uuid, text, text, text, timestamptz, text, timestamptz);
 
 create or replace function public.admin_set_job_payment_plan(
   listing_id uuid,
   new_plan text,
   new_status text,
   new_payment_status text,
-  new_expires_at timestamptz default null
+  new_expires_at timestamptz default null,
+  new_placement_source text default null,
+  new_placement_expires_at timestamptz default null
 )
 returns boolean
 language plpgsql
@@ -269,13 +284,110 @@ begin
     raise exception 'Invalid job payment status';
   end if;
 
+  if new_placement_source is not null and new_placement_source not in ('stripe', 'comp', 'free', 'none') then
+    raise exception 'Invalid job placement source';
+  end if;
+
   update public.job_listings
   set
     plan = new_plan,
     status = new_status,
     payment_status = new_payment_status,
-    expires_at = new_expires_at
+    expires_at = new_expires_at,
+    placement_source = coalesce(new_placement_source, placement_source),
+    placement_expires_at = new_placement_expires_at
   where id = listing_id;
+
+  return found;
+end;
+$$;
+
+drop function if exists public.owner_update_job_listing(
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text,
+  text
+);
+
+create or replace function public.owner_update_job_listing(
+  listing_id uuid,
+  owner_id text,
+  new_title text,
+  new_company text,
+  new_category text,
+  new_job_type text,
+  new_pay_label text,
+  new_location text,
+  new_contact_person text,
+  new_phone text,
+  new_email text,
+  new_description text,
+  new_requirements text,
+  new_app_method text,
+  new_apply_url text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.job_listings
+  set
+    title = trim(new_title),
+    company = trim(new_company),
+    category = trim(new_category),
+    job_type = trim(new_job_type),
+    pay_label = nullif(trim(coalesce(new_pay_label, '')), ''),
+    location = trim(new_location),
+    contact_person = nullif(trim(coalesce(new_contact_person, '')), ''),
+    phone = nullif(trim(coalesce(new_phone, '')), ''),
+    email = nullif(trim(coalesce(new_email, '')), ''),
+    description = trim(new_description),
+    requirements = nullif(trim(coalesce(new_requirements, '')), ''),
+    app_method = trim(coalesce(new_app_method, 'Phone')),
+    apply_url = nullif(trim(coalesce(new_apply_url, '')), '')
+  where id = listing_id
+    and owner_user_id = owner_id
+    and coalesce(status, 'pending') in ('pending', 'approved')
+    and length(trim(new_title)) > 0
+    and length(trim(new_company)) > 0
+    and length(trim(new_category)) > 0
+    and length(trim(new_job_type)) > 0
+    and length(trim(new_location)) > 0
+    and length(trim(new_description)) > 0;
+
+  return found;
+end;
+$$;
+
+drop function if exists public.owner_delete_job_listing(uuid, text);
+
+create or replace function public.owner_delete_job_listing(
+  listing_id uuid,
+  owner_id text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.job_listings
+  set status = 'hidden'
+  where id = listing_id
+    and owner_user_id = owner_id;
 
   return found;
 end;
@@ -306,5 +418,7 @@ revoke execute on function public.admin_list_job_listings() from public;
 revoke execute on function public.admin_list_job_listings() from anon;
 grant execute on function public.admin_list_job_listings() to authenticated;
 grant execute on function public.admin_update_job_listing(uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,text,timestamptz) to authenticated;
-grant execute on function public.admin_set_job_payment_plan(uuid,text,text,text,timestamptz) to authenticated;
+grant execute on function public.admin_set_job_payment_plan(uuid,text,text,text,timestamptz,text,timestamptz) to authenticated;
+grant execute on function public.owner_update_job_listing(uuid,text,text,text,text,text,text,text,text,text,text,text,text,text,text) to anon, authenticated;
+grant execute on function public.owner_delete_job_listing(uuid,text) to anon, authenticated;
 grant execute on function public.admin_delete_job_listing(uuid) to authenticated;

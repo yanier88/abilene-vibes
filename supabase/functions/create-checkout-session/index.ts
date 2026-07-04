@@ -98,6 +98,7 @@ const sanitizeJobPayload = (payload: unknown) => {
     "image_data",
     "logo_data",
     "expires_at",
+    "owner_user_id",
   ];
   const cleanPayload: Record<string, unknown> = {};
 
@@ -129,6 +130,8 @@ const insertJobListing = async (
       status: "pending",
       plan,
       payment_status: "pending",
+      placement_source: "stripe",
+      placement_expires_at: jobPayload.expires_at ?? null,
     }),
   });
 

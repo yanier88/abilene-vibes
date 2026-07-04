@@ -329,6 +329,9 @@ const subscriptionPeriodEnd = async (subscription: unknown) => {
 const rentalPlacementExpiresAt = async (subscription: unknown, paidAt: string) =>
   (await subscriptionPeriodEnd(subscription)) || oneMonthAfter(paidAt);
 
+const jobPlacementExpiresAt = async (subscription: unknown, paidAt: string) =>
+  (await subscriptionPeriodEnd(subscription)) || oneMonthAfter(paidAt);
+
 const fetchChargeFromInvoice = async (invoice: Record<string, unknown>) => {
   const paymentIntentId = invoicePaymentIntentId(invoice);
 
@@ -440,6 +443,7 @@ Deno.serve(async (request) => {
     }
 
     if (listingType === "job") {
+      const placementExpiresAt = await jobPlacementExpiresAt(session.subscription, paidAt);
       await updateJobPayment(jobId, {
         payment_status: "paid",
         stripe_session_id: session.id,
@@ -447,6 +451,8 @@ Deno.serve(async (request) => {
         stripe_customer_id: session.customer ?? null,
         stripe_subscription_id: session.subscription ?? null,
         paid_at: paidAt,
+        placement_source: "stripe",
+        placement_expires_at: placementExpiresAt,
       });
       return new Response(JSON.stringify({ received: true }), {
         headers: { "Content-Type": "application/json" },
@@ -567,6 +573,14 @@ Deno.serve(async (request) => {
         : new Date().toISOString();
 
     if (listingType === "job") {
+      const jobId = await fetchJobListingIdBySubscription(subscriptionId);
+      const placementExpiresAt = await jobPlacementExpiresAt(subscriptionId, paidAt);
+      await updateJobPayment(jobId, {
+        payment_status: "paid",
+        paid_at: paidAt,
+        placement_source: "stripe",
+        placement_expires_at: placementExpiresAt,
+      });
       return new Response(JSON.stringify({ received: true }), {
         headers: { "Content-Type": "application/json" },
       });

@@ -2052,6 +2052,9 @@ function App() {
   const [postJobError, setPostJobError] = useState(null);
   const [postJobPublishing, setPostJobPublishing] = useState(false);
   const [postedJobs, setPostedJobs] = useState([]);
+  const [editingOwnerJob, setEditingOwnerJob] = useState(null);
+  const [deletingOwnerJob, setDeletingOwnerJob] = useState(null);
+  const [ownerJobStatus, setOwnerJobStatus] = useState("");
   const [savedJobs, setSavedJobs] = useState(() => {
     try { return JSON.parse(window.localStorage.getItem("av_saved_jobs") ?? "[]"); }
     catch { return []; }
@@ -2205,13 +2208,27 @@ function App() {
     if (!supabase) return;
     supabase
       .from("job_listings")
-      .select("id,created_at,title,company,category,job_type,pay_label,location,contact_person,phone,email,description,requirements,app_method,apply_url,duration,plan,image_data,logo_data,expires_at")
+      .select("id,created_at,title,company,category,job_type,pay_label,location,contact_person,phone,email,description,requirements,app_method,apply_url,duration,plan,payment_status,image_data,logo_data,expires_at,placement_expires_at,owner_user_id")
       .eq("status", "approved")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
         if (!error && data) {
+          const now = Date.now();
+          const isExpired = (value) => {
+            if (!value) return false;
+            const time = Date.parse(value);
+            return Number.isFinite(time) && time <= now;
+          };
           setPostedJobs(
-            data.map((row) => ({
+            data.filter((row) => {
+              const plan = String(row.plan ?? "free").toLowerCase();
+              const paymentStatus = String(row.payment_status ?? "").toLowerCase();
+              const isPaidPlan = plan === "featured" || plan === "premium";
+              if (isPaidPlan && paymentStatus === "pending") return false;
+              if (isExpired(row.expires_at)) return false;
+              if (isPaidPlan && isExpired(row.placement_expires_at)) return false;
+              return true;
+            }).map((row) => ({
               id: row.id,
               title: row.title,
               company: row.company,
@@ -2233,6 +2250,8 @@ function App() {
               applyUrl: row.apply_url,
               duration: row.duration,
               plan: row.plan,
+              owner_user_id: row.owner_user_id,
+              ownerUserId: row.owner_user_id,
             })),
           );
         }
@@ -3533,7 +3552,7 @@ function App() {
     await loadAdminData();
   };
 
-  const setJobPaymentPlan = async (job, plan, status, paymentStatus, expiresAt = null) => {
+  const setJobPaymentPlan = async (job, plan, status, paymentStatus, expiresAt = null, placementSource = null, placementExpiresAt = null) => {
     if (!supabase || !adminSession) return;
     const cleanPlan = plan === "premium" ? "premium" : plan === "featured" ? "featured" : "free";
     const cleanStatus = ["pending", "approved", "hidden", "rejected"].includes(status) ? status : "pending";
@@ -3553,6 +3572,8 @@ function App() {
       new_status: cleanStatus,
       new_payment_status: cleanPaymentStatus,
       new_expires_at: expiresAt,
+      new_placement_source: placementSource,
+      new_placement_expires_at: placementExpiresAt,
     });
     if (error || data !== true) { setAdminStatus("error"); return; }
     await loadAdminData();
@@ -3582,14 +3603,14 @@ function App() {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + durationDays);
 
-    await setJobPaymentPlan(job, cleanPlan, "approved", "not_required", expiresAt.toISOString());
+    await setJobPaymentPlan(job, cleanPlan, "approved", "not_required", expiresAt.toISOString(), "comp", expiresAt.toISOString());
   };
 
   const clearCompJobPlacement = async (job) => {
     if (!supabase || !adminSession) return;
     if (!window.confirm(`End free promo for "${job.title}"?`)) return;
 
-    await setJobPaymentPlan(job, "free", job.status ?? "approved", "not_required", null);
+    await setJobPaymentPlan(job, "free", job.status ?? "approved", "not_required", null, "free", null);
   };
 
   const handleDeleteRental = async (id) => {
@@ -4931,6 +4952,101 @@ function App() {
   // ── End marketplace computed ──────────────────────────────
 
   // ── Jobs computed ─────────────────────────────────────────
+  const isJobOwner = (j) => {
+    const ownerId = j?.owner_user_id ?? j?.ownerUserId ?? "";
+    return !!(ownerId && (ownerId === effectiveOwnerId || ownerId === visitorKey));
+  };
+
+  const jobOwnerRequestId = (j) => {
+    const ownerId = j?.owner_user_id ?? j?.ownerUserId ?? "";
+    return ownerId === visitorKey ? visitorKey : effectiveOwnerId;
+  };
+
+  const mergeJobUpdate = (id, update) => {
+    setPostedJobs((items) => items.map((item) => (item.id === id ? { ...item, ...update } : item)));
+    setSelectedJob((prev) => (prev?.id === id ? { ...prev, ...update } : prev));
+  };
+
+  const handleOwnerJobEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!supabase || !editingOwnerJob || !isJobOwner(editingOwnerJob)) return;
+    const form = new FormData(e.currentTarget);
+    const update = {
+      title: form.get("title").trim(),
+      company: form.get("company").trim(),
+      category: form.get("category").trim(),
+      job_type: form.get("job_type").trim(),
+      pay_label: form.get("pay_label").trim() || null,
+      location: form.get("location").trim(),
+      contact_person: form.get("contact_person").trim() || null,
+      phone: form.get("phone").trim() || null,
+      email: form.get("email").trim() || null,
+      description: form.get("description").trim(),
+      requirements: form.get("requirements").trim() || null,
+      app_method: form.get("app_method").trim() || "Phone",
+      apply_url: form.get("apply_url").trim() || null,
+    };
+    setOwnerJobStatus("saving");
+    const { data, error } = await supabase.rpc("owner_update_job_listing", {
+      listing_id: editingOwnerJob.id,
+      owner_id: jobOwnerRequestId(editingOwnerJob),
+      new_title: update.title,
+      new_company: update.company,
+      new_category: update.category,
+      new_job_type: update.job_type,
+      new_pay_label: update.pay_label,
+      new_location: update.location,
+      new_contact_person: update.contact_person,
+      new_phone: update.phone,
+      new_email: update.email,
+      new_description: update.description,
+      new_requirements: update.requirements,
+      new_app_method: update.app_method,
+      new_apply_url: update.apply_url,
+    });
+    if (error || data !== true) {
+      setOwnerJobStatus("error");
+      return;
+    }
+    mergeJobUpdate(editingOwnerJob.id, {
+      title: update.title,
+      company: update.company,
+      category: update.category,
+      type: update.job_type,
+      pay: update.pay_label || "Pay not specified",
+      location: update.location,
+      contactPerson: update.contact_person,
+      contact: update.phone,
+      email: update.email,
+      description: update.description,
+      requirements: update.requirements,
+      appMethod: update.app_method,
+      applyUrl: update.apply_url,
+    });
+    setEditingOwnerJob(null);
+    setOwnerJobStatus("");
+  };
+
+  const confirmDeleteOwnerJob = async () => {
+    if (!supabase || !deletingOwnerJob || !isJobOwner(deletingOwnerJob)) return;
+    setOwnerJobStatus("saving");
+    const { data, error } = await supabase.rpc("owner_delete_job_listing", {
+      listing_id: deletingOwnerJob.id,
+      owner_id: jobOwnerRequestId(deletingOwnerJob),
+    });
+    if (error || data !== true) {
+      setOwnerJobStatus("error");
+      return;
+    }
+    setPostedJobs((items) => items.filter((item) => item.id !== deletingOwnerJob.id));
+    if (selectedJob?.id === deletingOwnerJob.id) {
+      setSelectedJob(null);
+      navigateTo("jobs");
+    }
+    setDeletingOwnerJob(null);
+    setOwnerJobStatus("");
+  };
+
   const isRentalOwner = (r) => !!(r?.owner_user_id && r.owner_user_id === effectiveOwnerId);
 
   const mergeRentalUpdate = (id, update) => {
@@ -7098,6 +7214,124 @@ function App() {
               </button>
             ); })()}
           </div>
+          {isJobOwner(j) && (
+            <div className="rental-owner-actions">
+              <button
+                className="directory-link"
+                type="button"
+                onClick={() => { setEditingOwnerJob({ ...j }); setOwnerJobStatus(""); }}
+              >
+                Edit Job
+              </button>
+              <button
+                className="directory-link danger-link"
+                type="button"
+                onClick={() => { setDeletingOwnerJob({ ...j }); setOwnerJobStatus(""); }}
+              >
+                Delete Job
+              </button>
+            </div>
+          )}
+          {editingOwnerJob && (
+            <div className="admin-modal-backdrop" role="presentation">
+              <section className="admin-modal rental-owner-modal" role="dialog" aria-modal="true" aria-labelledby="owner-job-edit-title">
+                <div className="admin-modal-heading">
+                  <p className="eyebrow">Jobs &amp; Hiring</p>
+                  <h2 id="owner-job-edit-title">Edit Job</h2>
+                </div>
+                <form className="gallery-form" onSubmit={handleOwnerJobEditSubmit}>
+                  <div className="form-grid">
+                    <label className="form-field">
+                      <span>Title</span>
+                      <input name="title" type="text" defaultValue={editingOwnerJob.title ?? ""} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Company</span>
+                      <input name="company" type="text" defaultValue={editingOwnerJob.company ?? ""} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Category</span>
+                      <input name="category" type="text" defaultValue={editingOwnerJob.category ?? ""} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Job Type</span>
+                      <select name="job_type" defaultValue={editingOwnerJob.type ?? "Full Time"} required>
+                        {["Full Time", "Part Time", "Temporary", "Contract"].map((type) => <option key={type} value={type}>{type}</option>)}
+                      </select>
+                    </label>
+                    <label className="form-field">
+                      <span>Pay</span>
+                      <input name="pay_label" type="text" defaultValue={editingOwnerJob.pay === "Pay not specified" ? "" : (editingOwnerJob.pay ?? "")} />
+                    </label>
+                    <label className="form-field">
+                      <span>Location</span>
+                      <input name="location" type="text" defaultValue={editingOwnerJob.location ?? ""} required />
+                    </label>
+                    <label className="form-field">
+                      <span>Contact Person</span>
+                      <input name="contact_person" type="text" defaultValue={editingOwnerJob.contactPerson ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Phone</span>
+                      <input name="phone" type="tel" defaultValue={editingOwnerJob.contact ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Email</span>
+                      <input name="email" type="email" defaultValue={editingOwnerJob.email ?? ""} />
+                    </label>
+                    <label className="form-field">
+                      <span>Apply Via</span>
+                      <select name="app_method" defaultValue={editingOwnerJob.appMethod ?? "Phone"}>
+                        {["Phone", "Email", "Website", "In Person"].map((method) => <option key={method} value={method}>{method}</option>)}
+                      </select>
+                    </label>
+                    <label className="form-field form-field-full">
+                      <span>Application Website URL</span>
+                      <input name="apply_url" type="url" defaultValue={editingOwnerJob.applyUrl ?? ""} />
+                    </label>
+                  </div>
+                  <label className="form-field">
+                    <span>Description</span>
+                    <textarea name="description" rows="4" defaultValue={editingOwnerJob.description ?? ""} required />
+                  </label>
+                  <label className="form-field">
+                    <span>Requirements</span>
+                    <textarea name="requirements" rows="3" defaultValue={editingOwnerJob.requirements ?? ""} />
+                  </label>
+                  <div className="admin-modal-actions">
+                    <button className="primary-button admin-modal-primary" type="submit" disabled={ownerJobStatus === "saving"}>
+                      {ownerJobStatus === "saving" ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button className="directory-link" type="button" onClick={() => { setEditingOwnerJob(null); setOwnerJobStatus(""); }}>
+                      Go Back
+                    </button>
+                  </div>
+                  {ownerJobStatus === "error" && <p className="form-error">Could not save this job.</p>}
+                </form>
+              </section>
+            </div>
+          )}
+          {deletingOwnerJob && (
+            <div className="admin-modal-backdrop" role="presentation">
+              <section className="admin-modal rental-owner-modal" role="dialog" aria-modal="true" aria-labelledby="owner-job-delete-title">
+                <div className="admin-modal-heading">
+                  <p className="eyebrow">Jobs &amp; Hiring</p>
+                  <h2 id="owner-job-delete-title">Delete Job?</h2>
+                </div>
+                <p>This will hide the job from Jobs &amp; Hiring.</p>
+                <p>{deletingOwnerJob.title}</p>
+                <div className="admin-modal-actions">
+                  <button className="directory-link danger-link" type="button" onClick={confirmDeleteOwnerJob} disabled={ownerJobStatus === "saving"}>
+                    {ownerJobStatus === "saving" ? "Deleting..." : "Delete Job"}
+                  </button>
+                  <button className="directory-link" type="button" onClick={() => { setDeletingOwnerJob(null); setOwnerJobStatus(""); }}>
+                    Go Back
+                  </button>
+                </div>
+                {ownerJobStatus === "error" && <p className="form-error">Could not delete this job.</p>}
+              </section>
+            </div>
+          )}
         </div>
       </main>,
     );
@@ -7167,6 +7401,8 @@ function App() {
               plan: "free",
               status: "pending",
               payment_status: "not_required",
+              owner_user_id: effectiveOwnerId,
+              placement_source: "free",
               image_data: postJobImagePreview,
               logo_data: postJobLogoPreview,
               expires_at: expiresAt,
@@ -7222,6 +7458,7 @@ function App() {
             image_data: postJobImagePreview,
             logo_data: postJobLogoPreview,
             expires_at: expiresAt,
+            owner_user_id: effectiveOwnerId,
           };
           const checkoutPayload = {
             listingType: "job",
@@ -7288,6 +7525,7 @@ function App() {
             image_data: postJobImagePreview,
             logo_data: postJobLogoPreview,
             expires_at: expiresAt,
+            owner_user_id: effectiveOwnerId,
           };
           const checkoutPayload = {
             listingType: "job",
@@ -10412,22 +10650,6 @@ function App() {
                             disabled={jobPlan === "free" && jobPaymentStatus === "not_required"}
                           >
                             Plan Free
-                          </button>
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => setPaidJobPlacement(job, "featured")}
-                            disabled={jobPlan === "featured" && jobPaymentStatus === "paid"}
-                          >
-                            Paid Featured
-                          </button>
-                          <button
-                            className="directory-link"
-                            type="button"
-                            onClick={() => setPaidJobPlacement(job, "premium")}
-                            disabled={jobPlan === "premium" && jobPaymentStatus === "paid"}
-                          >
-                            Paid Premium
                           </button>
                           <button
                             className="directory-link"
