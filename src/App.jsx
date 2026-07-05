@@ -568,6 +568,24 @@ const marketplaceModerationPatterns = {
   ],
   reject: [
     {
+      flag: "restricted_marketplace_item",
+      reason: "This item or service is not allowed on Abilene Vibes Marketplace.",
+      score: 0.96,
+      patterns: [
+        /\balcohol(?:ic)?\b/, /\balcohol\s+and\s+drugs?\b/, /\bbeer(?:s)?\b/, /\bwine(?:s)?\b/, /\bliquor\b/,
+        /\bvodka\b/, /\bwhisk(?:e)?y\b/, /\brum\b/, /\btequila\b/, /\bgin\b/, /\bchampagne\b/,
+        /\bbrandy\b/, /\bcognac\b/, /\bmarijuana\b/, /\bcannabis\b/, /\bweed\b/, /\bthc\b/,
+        /\bcocaine\b/, /\bheroin\b/, /\bmeth\b/, /\bmethamphetamine\b/, /\bfentanyl\b/, /\blsd\b/,
+        /\becstasy\b/, /\bmdma\b/, /\bdrugs?\b/, /\bsex\b/, /\bsexual\b/, /\bporn\b/, /\bpornography\b/,
+        /\bescort\b/, /\bescort\s+service\b/, /\bprostitut(?:e|ion)\b/, /\bonly\s*fans\b/, /\bonlyfans\b/,
+        /\badult\b/, /\bgun\b/, /\bfirearm\b/, /\brifle\b/, /\bshotgun\b/, /\bpistol\b/, /\brevolver\b/,
+        /\bassault\s+rifle\b/, /\bar\s*-?\s*15\b/, /\bak\s*-?\s*47\b/, /\bammunition\b/, /\bammo\b/,
+        /\bbullet\b/, /\bsilencer\b/, /\bfake\s+id\b/, /\bfake\s+driver\s+license\b/,
+        /\bfake\s+passport\b/, /\bfake\s+documents\b/, /\bcounterfeit\s+money\b/,
+        /\bcounterfeit\s+bills\b/, /\bstolen\s+credit\s+card\b/,
+      ],
+    },
+    {
       flag: "sexual_services",
       reason: "Listing appears to include sexual services or explicit adult content.",
       score: 0.95,
@@ -608,7 +626,7 @@ const marketplaceModerationPatterns = {
       patterns: [
         /\bfake\s+id\b/, /\bid\s+falsa\b/, /\bfake\s+passport\b/, /\bpasaporte\s+falso\b/,
         /\bfake\s+driver'?s?\s+licenses?\b/, /\blicencia\s+falsa\b/, /\bssn\b/, /\bsocial\s+security\s+number\b/,
-        /\bnumero\s+de\s+seguro\s+social\b/, /\bcounterfeit\b/, /\bfalsificad[oa]s?\b/, /\bforged\b/, /\bstolen\s+identity\b/,
+        /\bnumero\s+de\s+seguro\s+social\b/, /\bstolen\s+identity\b/,
         /\bidentidad\s+robada\b/,
       ],
     },
@@ -4908,6 +4926,10 @@ function App() {
         expires_at: expiresAt,
       };
       const moderationResult = evaluateMarketplaceModeration(payload, sellItemPhotos.length);
+      if (moderationResult.moderation_flags?.local_rules?.some((hit) => hit.flag === "restricted_marketplace_item")) {
+        setSellItemStatus("restricted-rejected");
+        return;
+      }
       const { error } = await supabase
         .from("marketplace_listings")
         .insert({
@@ -7069,6 +7091,9 @@ function App() {
             )}
             {sellItemStatus === "moderation-rejected" && (
               <p className="form-error compact-status">This listing could not be published because it appears to violate Marketplace rules.</p>
+            )}
+            {sellItemStatus === "restricted-rejected" && (
+              <p className="form-error compact-status">This item or service is not allowed on Abilene Vibes Marketplace.</p>
             )}
             {sellItemStatus === "missing-config" && (
               <p className="form-error compact-status">Marketplace publishing is not connected yet.</p>
