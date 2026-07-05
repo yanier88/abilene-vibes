@@ -2565,6 +2565,9 @@ function App() {
     const reloadAdmin = () => {
       if (adminSessionRef.current) loadAdminData(adminSessionRef.current);
     };
+    const reloadAdminBusinesses = () => {
+      if (adminSessionRef.current) loadAdminBusinesses(adminSessionRef.current);
+    };
     const reloadAdminGallery = () => {
       if (adminSessionRef.current) loadAdminGallery(adminSessionRef.current);
     };
@@ -2584,7 +2587,7 @@ function App() {
     const channels = [
       mkChannel("rt-job_listings",         "job_listings",         () => { loadJobsPublic();       reloadAdmin(); }),
       mkChannel("rt-rental_listings",      "rental_listings",      () => { loadRentalsPublic();    reloadAdmin(); }),
-      mkChannel("rt-business_submissions",  "business_submissions",  () => { loadBusinessesPublic(); reloadAdmin(); }),
+      mkChannel("rt-business_submissions",  "business_submissions",  () => { loadBusinessesPublic(); reloadAdminBusinesses(); }),
       mkChannel("rt-gallery_submissions",   "gallery_submissions",   () => { loadGalleryPublic();    reloadAdminGallery(); }),
       mkChannel("rt-event_submissions",     "event_submissions",     () => { loadEventsPublic();     reloadAdmin(); }),
       mkChannel("rt-business_reviews",      "business_reviews",      () => { loadReviewsPublic();    reloadAdmin(); }),
@@ -3478,6 +3481,43 @@ function App() {
     setAdminStatus("ready");
   }
 
+  async function loadAdminBusinesses(sessionOverride = adminSession, showRefreshSuccess = false) {
+    if (!supabase || !sessionOverride) {
+      return;
+    }
+
+    const businessFields =
+      "id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,stripe_subscription_id,status,owner_user_id";
+    const [pendingBusinessResult, publishedBusinessResult, hiddenBusinessResult] = await Promise.all([
+      supabase
+        .from("business_submissions")
+        .select(businessFields)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("business_submissions")
+        .select(businessFields)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("business_submissions")
+        .select(businessFields)
+        .eq("status", "hidden")
+        .order("created_at", { ascending: false }),
+    ]);
+
+    if (pendingBusinessResult.error || publishedBusinessResult.error || hiddenBusinessResult.error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setPendingBusinesses(pendingBusinessResult.data ?? []);
+    setPublishedBusinesses(publishedBusinessResult.data ?? []);
+    setHiddenBusinesses(hiddenBusinessResult.data ?? []);
+    setBusinesses((publishedBusinessResult.data ?? []).map(businessSubmissionToBusiness));
+    setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
+  }
+
   async function loadAdminGallery(sessionOverride = adminSession) {
     if (!supabase || !sessionOverride) {
       return;
@@ -3580,10 +3620,22 @@ function App() {
   };
 
   const moderateBusiness = async (business, status) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
     const action = status === "approved" ? "approve" : "reject";
     setAdminBusinessActionKey(`${business.id}:${action}`);
+    setAdminStatus("saving");
     try {
-      await moderateItem("business_submissions", business.id, status);
+      const { error } = await supabase.from("business_submissions").update({ status }).eq("id", business.id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      await loadAdminBusinesses();
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4000,7 +4052,7 @@ function App() {
       }
 
       setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
-      await loadAdminData();
+      await loadAdminBusinesses();
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4025,7 +4077,7 @@ function App() {
 
     setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
     setDeletingAdminBusiness(null);
-    await loadAdminData();
+    await loadAdminBusinesses();
     setAdminBusinessActionKey("");
   };
 
@@ -4085,7 +4137,7 @@ function App() {
         return;
       }
 
-      await loadAdminData();
+      await loadAdminBusinesses();
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4113,7 +4165,7 @@ function App() {
         return;
       }
 
-      await loadAdminData();
+      await loadAdminBusinesses();
     } catch {
       setAdminStatus("error");
     } finally {
@@ -4159,7 +4211,7 @@ function App() {
         return;
       }
 
-      await loadAdminData();
+      await loadAdminBusinesses();
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4198,7 +4250,7 @@ function App() {
         return;
       }
 
-      await loadAdminData();
+      await loadAdminBusinesses();
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4278,7 +4330,7 @@ function App() {
         return;
       }
 
-      await loadAdminData();
+      await loadAdminBusinesses();
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4329,7 +4381,7 @@ function App() {
       }
 
       setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
-      await loadAdminData();
+      await loadAdminBusinesses();
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4352,7 +4404,7 @@ function App() {
       }
 
       setBusinesses((currentBusinesses) => [businessSubmissionToBusiness(business), ...currentBusinesses]);
-      await loadAdminData();
+      await loadAdminBusinesses();
     } finally {
       setAdminBusinessActionKey("");
     }
