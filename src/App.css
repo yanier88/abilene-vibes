@@ -3630,6 +3630,8 @@
 .job-detail-page .job-detail-email-btn,
 .job-detail-page .job-detail-map-btn{color:#fff;background:linear-gradient(135deg,#d000ff,#7a35ff 55%,#00d4ff);border:0;box-shadow:0 0 24px #b934ff80,0 12px 26px #00000057;text-decoration:none}
 .job-detail-page .job-detail-actions > a{display:inline-flex;width:min(100%,220px);max-width:100%;min-width:0;box-sizing:border-box;white-space:normal;text-align:center;justify-content:center;margin-left:auto;margin-right:auto;overflow-wrap:anywhere}
+.rental-detail-page .rental-detail-main-actions{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%;max-width:100%;box-sizing:border-box;margin-top:22px;overflow-x:hidden}
+.rental-detail-page .rental-detail-main-actions .job-detail-apply-btn{display:inline-flex;align-items:center;justify-content:center;width:min(100%,220px);max-width:100%;min-width:0;min-height:42px;box-sizing:border-box;margin-left:auto;margin-right:auto;padding:0 18px;text-align:center;white-space:normal;overflow-wrap:anywhere;font-size:.9rem}
 
 @media(max-width:520px){
   .job-detail-meta{grid-template-columns:1fr}

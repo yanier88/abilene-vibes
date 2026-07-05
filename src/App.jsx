@@ -8218,7 +8218,7 @@ function App() {
               </div>
             )}
             {r.contact_person && <p className="job-detail-meta">Contact: {r.contact_person}</p>}
-            <div className="job-detail-apply-row">
+            <div className="job-detail-apply-row rental-detail-main-actions">
               {r.phone && (
                 <a className="jobs-post-button job-detail-apply-btn" href={`tel:${r.phone.replace(/\D/g, "")}`}>
                   📞 Call
