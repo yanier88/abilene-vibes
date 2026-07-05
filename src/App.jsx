@@ -2248,6 +2248,8 @@ function App() {
               return true;
             }).map((row) => ({
               id: row.id,
+              created_at: row.created_at,
+              expires_at: row.expires_at,
               title: row.title,
               company: row.company,
               pay: row.pay_label || "Pay not specified",
@@ -7123,6 +7125,8 @@ function App() {
     const j = selectedJob;
     const phoneHref = j.contact ? `tel:${j.contact.replace(/\D/g, "")}` : null;
     const emailHref = j.email ? `mailto:${j.email}` : null;
+    const postedDate = j.created_at ? new Date(j.created_at).toLocaleDateString() : "";
+    const expiresDate = j.expires_at ? new Date(j.expires_at).toLocaleDateString() : "";
     return withSplash(
       <main className="app jobs-page job-detail-page">
         <div className="jobs-neon-bg" aria-hidden="true" />
@@ -7161,7 +7165,12 @@ function App() {
                 </div>
               )}
               <div className="job-detail-meta-item">
-                <dt>📅</dt><dd>{j.posted}</dd>
+                <dt>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                    <path d="M16 3v4M8 3v4M3 10h18" />
+                  </svg>
+                </dt><dd>{postedDate ? `Posted ${postedDate}` : j.posted}{expiresDate ? ` · Expires ${expiresDate}` : ""}</dd>
               </div>
             </dl>
           </section>
