@@ -281,9 +281,13 @@ create table if not exists public.gallery_submissions (
   contributor_name text not null,
   title text not null,
   image_data text not null,
+  owner_user_id text,
   content_rights_confirmed boolean not null default false,
   status text not null default 'pending'
 );
+
+alter table public.gallery_submissions
+add column if not exists owner_user_id text;
 
 alter table public.gallery_submissions enable row level security;
 
@@ -316,6 +320,33 @@ for all
 to authenticated
 using (public.is_service_admin())
 with check (public.is_service_admin());
+
+drop function if exists public.owner_delete_gallery_photo(uuid, text);
+
+create or replace function public.owner_delete_gallery_photo(
+  photo_id uuid,
+  owner_id text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  deleted_count integer;
+begin
+  delete from public.gallery_submissions
+  where id = photo_id
+    and owner_user_id = owner_id
+    and owner_id is not null
+    and length(owner_id) > 0;
+
+  get diagnostics deleted_count = row_count;
+  return deleted_count > 0;
+end;
+$$;
+
+grant execute on function public.owner_delete_gallery_photo(uuid, text) to anon, authenticated;
 
 create table if not exists public.hidden_static_items (
   item_key text primary key,

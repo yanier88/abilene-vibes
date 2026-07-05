@@ -1850,6 +1850,15 @@
   flex: 0 0 auto;
 }
 
+.gallery-card-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .gallery-submit {
   display: grid;
   gap: 18px;
@@ -3530,6 +3539,7 @@
 }.gallery-card-body{color:#fff;text-align:left;justify-content:space-between;align-items:center;gap:14px;padding:clamp(14px,3.5vw,20px);font-size:clamp(1.05rem,3.8vw,1.35rem);font-weight:900;line-height:1.15;display:flex
 }.gallery-card-body span{min-width:0;overflow-wrap:anywhere
 }.gallery-card .like-button{flex:0 0 auto
+}.gallery-card-actions{align-items:center;display:flex;flex:0 0 auto;flex-wrap:wrap;gap:8px;justify-content:flex-end
 }.gallery-submit{background:linear-gradient(135deg,#ffffff1c,#ffffff09),radial-gradient(circle at 85% 5%,#ff00cc2e,#0000 48%),#ffffff0a;border:1px solid #00d4ff57;border-radius:18px;gap:18px;padding:clamp(18px,3.5vw,28px);display:grid;box-shadow:0 0 24px #00d4ff24,inset 0 0 0 1px #ffffff0d
 }.gallery-form{gap:16px;display:grid
 }.promote-card{min-height:128px;color:inherit;font:inherit;cursor:pointer;background:linear-gradient(135deg,#ffffff1f,#ffffff09),radial-gradient(circle at 20% 10%,#00d4ff38,#0000 58%),#ffffff0a;border:1px solid #ff00cc94;border-radius:18px;place-items:center;gap:10px;padding:clamp(16px,3vw,26px);transition:transform .18s,border-color .18s,box-shadow .18s,background .18s;display:grid;box-shadow:0 0 24px #ff00cc42,inset 0 0 0 1px #ffffff0d

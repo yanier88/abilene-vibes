@@ -2011,6 +2011,7 @@ function App() {
   const [approvedGalleryPhotos, setApprovedGalleryPhotos] = useState([]);
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
   const [gallerySubmissionError, setGallerySubmissionError] = useState("");
+  const [galleryOwnerDeleteStatus, setGalleryOwnerDeleteStatus] = useState("");
   const [adminSession, setAdminSession] = useState(null);
   const adminSessionRef = useRef(null); // keeps current value without triggering Realtime re-sub
   const [adminEmail, setAdminEmail] = useState("");
@@ -2335,7 +2336,7 @@ function App() {
     if (!supabase) return;
     supabase
       .from("gallery_submissions")
-      .select("id,title,image_data")
+      .select("id,title,image_data,owner_user_id")
       .eq("status", "approved")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -2345,6 +2346,7 @@ function App() {
               id: photo.id,
               title: photo.title,
               image: photo.image_data,
+              owner_user_id: photo.owner_user_id ?? "",
             })),
           );
         }
@@ -2563,6 +2565,9 @@ function App() {
     const reloadAdmin = () => {
       if (adminSessionRef.current) loadAdminData(adminSessionRef.current);
     };
+    const reloadAdminGallery = () => {
+      if (adminSessionRef.current) loadAdminGallery(adminSessionRef.current);
+    };
 
     const mkChannel = (name, table, handler) =>
       supabase
@@ -2580,7 +2585,7 @@ function App() {
       mkChannel("rt-job_listings",         "job_listings",         () => { loadJobsPublic();       reloadAdmin(); }),
       mkChannel("rt-rental_listings",      "rental_listings",      () => { loadRentalsPublic();    reloadAdmin(); }),
       mkChannel("rt-business_submissions",  "business_submissions",  () => { loadBusinessesPublic(); reloadAdmin(); }),
-      mkChannel("rt-gallery_submissions",   "gallery_submissions",   () => { loadGalleryPublic();    reloadAdmin(); }),
+      mkChannel("rt-gallery_submissions",   "gallery_submissions",   () => { loadGalleryPublic();    reloadAdminGallery(); }),
       mkChannel("rt-event_submissions",     "event_submissions",     () => { loadEventsPublic();     reloadAdmin(); }),
       mkChannel("rt-business_reviews",      "business_reviews",      () => { loadReviewsPublic();    reloadAdmin(); }),
       mkChannel("rt-marketplace_listings",  "marketplace_listings",  () => { loadMarketplacePublic(); }),
@@ -2928,13 +2933,23 @@ function App() {
 
     try {
       const imageData = await optimizeGalleryImage(file);
-      const { error } = await supabase.from("gallery_submissions").insert({
+      const galleryPayload = {
         contributor_name: formData.get("contributorName").trim(),
         title: formData.get("title").trim(),
         image_data: imageData,
+        owner_user_id: effectiveOwnerId,
         content_rights_confirmed: formData.get("contentRights") === "on",
         status: "pending",
-      });
+      };
+      const isOwnerSchemaCacheError = (error) =>
+        error?.code === "PGRST204" &&
+        `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase().includes("owner_user_id");
+      let { error } = await supabase.from("gallery_submissions").insert(galleryPayload);
+
+      if (isOwnerSchemaCacheError(error)) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        ({ error } = await supabase.from("gallery_submissions").insert(galleryPayload));
+      }
 
       if (error) {
         setGallerySubmissionStatus("error");
@@ -2943,11 +2958,38 @@ function App() {
       }
 
       form.reset();
+      setGallerySubmissionError("");
       setGallerySubmissionStatus("saved");
     } catch (error) {
       setGallerySubmissionStatus("error");
       setGallerySubmissionError(error instanceof Error ? error.message : "The image could not be processed.");
     }
+  };
+
+  const isGalleryPhotoOwner = (photo) => !!(photo?.owner_user_id && photo.owner_user_id === effectiveOwnerId);
+
+  const handleOwnerGalleryDelete = async (photo) => {
+    if (!supabase || !isGalleryPhotoOwner(photo)) {
+      return;
+    }
+
+    if (!window.confirm("Delete this photo from Abilene Vibes Gallery?")) {
+      return;
+    }
+
+    setGalleryOwnerDeleteStatus(`${photo.id}:deleting`);
+    const { data, error } = await supabase.rpc("owner_delete_gallery_photo", {
+      photo_id: photo.id,
+      owner_id: effectiveOwnerId,
+    });
+
+    if (error || data !== true) {
+      setGalleryOwnerDeleteStatus(`${photo.id}:error`);
+      return;
+    }
+
+    setApprovedGalleryPhotos((photos) => photos.filter((item) => item.id !== photo.id));
+    setGalleryOwnerDeleteStatus("");
   };
 
   const handleLike = async (itemType, itemKey) => {
@@ -3208,12 +3250,12 @@ function App() {
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
-        .select("id,created_at,contributor_name,title,image_data,status")
+        .select("id,created_at,contributor_name,title,image_data,status,owner_user_id")
         .eq("status", "pending")
         .order("created_at", { ascending: false }),
       supabase
         .from("gallery_submissions")
-        .select("id,created_at,contributor_name,title,image_data,status")
+        .select("id,created_at,contributor_name,title,image_data,status,owner_user_id")
         .eq("status", "approved")
         .order("created_at", { ascending: false }),
       supabase
@@ -3436,6 +3478,43 @@ function App() {
     setAdminStatus("ready");
   }
 
+  async function loadAdminGallery(sessionOverride = adminSession) {
+    if (!supabase || !sessionOverride) {
+      return;
+    }
+
+    const galleryFields = "id,created_at,contributor_name,title,image_data,status,owner_user_id";
+    const [pendingGalleryResult, publishedGalleryResult] = await Promise.all([
+      supabase
+        .from("gallery_submissions")
+        .select(galleryFields)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("gallery_submissions")
+        .select(galleryFields)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false }),
+    ]);
+
+    if (pendingGalleryResult.error || publishedGalleryResult.error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setPendingGalleryPhotos(pendingGalleryResult.data ?? []);
+    setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
+    setApprovedGalleryPhotos(
+      (publishedGalleryResult.data ?? []).map((photo) => ({
+        id: photo.id,
+        title: photo.title,
+        image: photo.image_data,
+        owner_user_id: photo.owner_user_id ?? "",
+      })),
+    );
+    setAdminStatus("ready");
+  }
+
   const handleAdminLogin = async (event) => {
     event.preventDefault();
 
@@ -3511,10 +3590,22 @@ function App() {
   };
 
   const moderateGalleryPhoto = async (photo, status) => {
+    if (!supabase || !adminSession) {
+      return;
+    }
+
     const action = status === "approved" ? "approve" : "reject";
     setAdminGalleryActionKey(`${photo.id}:${action}`);
+    setAdminStatus("saving");
     try {
-      await moderateItem("gallery_submissions", photo.id, status);
+      const { error } = await supabase.from("gallery_submissions").update({ status }).eq("id", photo.id);
+
+      if (error) {
+        setAdminStatus("error");
+        return;
+      }
+
+      await loadAdminGallery();
     } finally {
       setAdminGalleryActionKey("");
     }
@@ -3558,7 +3649,7 @@ function App() {
       }
 
       setApprovedGalleryPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
-      await loadAdminData();
+      await loadAdminGallery();
     } finally {
       setAdminGalleryActionKey("");
     }
@@ -6287,7 +6378,7 @@ function App() {
                 {gallerySubmissionStatus === "saving" ? "Sending..." : "Submit Photo"}
               </button>
 
-              {gallerySubmissionStatus && (
+              {gallerySubmissionStatus && gallerySubmissionStatus !== "saving" && (
                 <p className={gallerySubmissionStatus === "saved" ? "form-success" : "form-error"}>
                   {gallerySubmissionStatus === "saved"
                     ? "Thanks. Your photo was sent for approval."
@@ -6323,8 +6414,23 @@ function App() {
                   </button>
                   <figcaption className="gallery-card-body">
                     <span>{shot.title}</span>
-                    {renderLikeButton("photo", photoKey)}
+                    <div className="gallery-card-actions">
+                      {renderLikeButton("photo", photoKey)}
+                      {isGalleryPhotoOwner(shot) && (
+                        <button
+                          className="directory-link danger-link"
+                          type="button"
+                          onClick={() => handleOwnerGalleryDelete(shot)}
+                          disabled={galleryOwnerDeleteStatus === `${shot.id}:deleting`}
+                        >
+                          {galleryOwnerDeleteStatus === `${shot.id}:deleting` ? "Deleting..." : "Delete Photo"}
+                        </button>
+                      )}
+                    </div>
                   </figcaption>
+                  {galleryOwnerDeleteStatus === `${shot.id}:error` && (
+                    <p className="form-error">Could not delete this photo.</p>
+                  )}
                 </figure>
               );
             })}
