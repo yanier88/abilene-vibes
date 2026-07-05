@@ -577,6 +577,9 @@ create table if not exists public.event_submissions (
   description text,
   map_url text,
   website_url text,
+  ticket_url text,
+  end_date date,
+  end_time text,
   image_url text,
   image_data text,
   status text not null default 'approved'
@@ -585,7 +588,10 @@ create table if not exists public.event_submissions (
 alter table public.event_submissions
   add column if not exists description text,
   add column if not exists map_url text,
-  add column if not exists website_url text;
+  add column if not exists website_url text,
+  add column if not exists ticket_url text,
+  add column if not exists end_date date,
+  add column if not exists end_time text;
 
 alter table public.event_submissions enable row level security;
 

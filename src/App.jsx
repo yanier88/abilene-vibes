@@ -208,6 +208,13 @@ const formatEventDisplayDate = (date, time) => {
   return formattedTime ? `${formattedDate} - ${formattedTime}` : formattedDate;
 };
 
+const formatEventScheduleLine = (date, time) => {
+  const formattedDate = formatEventDate(date);
+  const formattedTime = formatEventTime(time);
+
+  return formattedTime ? `${formattedDate} - ${formattedTime}` : formattedDate;
+};
+
 const localDateInputValue = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
@@ -218,7 +225,9 @@ const eventSubmissionToEvent = (event) => ({
   description: event.description || "",
   eventAddress: event.map_url || "",
   websiteUrl: event.website_url || "",
-  dateLabel: formatEventDate(event.event_date),
+  ticketUrl: event.ticket_url || "",
+  startsLabel: formatEventScheduleLine(event.event_date, event.event_time),
+  endsLabel: formatEventScheduleLine(event.end_date || event.event_date, event.end_time || event.event_time),
   timeLabel: formatEventTime(event.event_time),
   date: formatEventDisplayDate(event.event_date, event.event_time),
   type: event.event_type,
@@ -2344,11 +2353,12 @@ function App() {
 
   const loadEventsPublic = useCallback(() => {
     if (!supabase) return;
+    const today = localDateInputValue();
     supabase
       .from("event_submissions")
-      .select("id,title,place,description,map_url,website_url,event_date,event_time,event_type,image_url,image_data,status")
+      .select("id,title,place,description,map_url,website_url,ticket_url,event_date,end_date,event_time,end_time,event_type,image_url,image_data,status")
       .eq("status", "approved")
-      .gte("event_date", localDateInputValue())
+      .or(`end_date.gte.${today},and(end_date.is.null,event_date.gte.${today})`)
       .order("event_date", { ascending: true })
       .then(({ data, error }) => {
         if (!error && data) {
@@ -3125,8 +3135,11 @@ function App() {
       description: formData.get("description").trim(),
       map_url: formData.get("eventAddress").trim(),
       website_url: formData.get("websiteUrl").trim(),
+      ticket_url: formData.get("ticketUrl").trim(),
       event_date: formData.get("eventDate"),
+      end_date: formData.get("endDate") || null,
       event_time: formatEventTime(formData.get("eventTime")),
+      end_time: formatEventTime(formData.get("endTime")),
       event_type: "Event",
       image_data: imageData,
       status: "approved",
@@ -3139,7 +3152,7 @@ function App() {
 
     form.reset();
     setEventSubmissionStatus("saved");
-    await loadAdminData(adminSession);
+    await loadAdminEvents(adminSession);
   };
 
   const trackBusinessInteraction = async (business, actionType) => {
@@ -3239,12 +3252,12 @@ function App() {
         .select("created_at,business_id,business_name,action_type"),
       supabase
         .from("event_submissions")
-        .select("id,created_at,title,place,description,map_url,website_url,event_date,event_time,event_type,image_url,image_data,status")
+        .select("id,created_at,title,place,description,map_url,website_url,ticket_url,event_date,end_date,event_time,end_time,event_type,image_url,image_data,status")
         .eq("status", "approved")
         .order("event_date", { ascending: true }),
       supabase
         .from("event_submissions")
-        .select("id,created_at,title,place,description,map_url,website_url,event_date,event_time,event_type,image_url,image_data,status")
+        .select("id,created_at,title,place,description,map_url,website_url,ticket_url,event_date,end_date,event_time,end_time,event_type,image_url,image_data,status")
         .eq("status", "hidden")
         .order("event_date", { ascending: true }),
       supabase.rpc("admin_list_job_listings"),
@@ -3390,6 +3403,37 @@ function App() {
     }
 
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
+  }
+
+  async function loadAdminEvents(sessionOverride = adminSession) {
+    if (!supabase || !sessionOverride) {
+      return;
+    }
+
+    const eventFields =
+      "id,created_at,title,place,description,map_url,website_url,ticket_url,event_date,end_date,event_time,end_time,event_type,image_url,image_data,status";
+    const [publishedEventResult, hiddenEventResult] = await Promise.all([
+      supabase
+        .from("event_submissions")
+        .select(eventFields)
+        .eq("status", "approved")
+        .order("event_date", { ascending: true }),
+      supabase
+        .from("event_submissions")
+        .select(eventFields)
+        .eq("status", "hidden")
+        .order("event_date", { ascending: true }),
+    ]);
+
+    if (publishedEventResult.error || hiddenEventResult.error) {
+      setAdminStatus("error");
+      return;
+    }
+
+    setPublishedEvents(publishedEventResult.data ?? []);
+    setHiddenEvents(hiddenEventResult.data ?? []);
+    setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
+    setAdminStatus("ready");
   }
 
   const handleAdminLogin = async (event) => {
@@ -4168,7 +4212,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await loadAdminEvents();
   };
 
   const unpublishBusiness = async (id) => {
@@ -4276,7 +4320,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await loadAdminEvents();
   };
 
   const restoreEvent = async (id) => {
@@ -4292,7 +4336,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await loadAdminEvents();
   };
 
   const editEvent = async (event) => {
@@ -4315,11 +4359,20 @@ function App() {
     const websiteUrl = window.prompt("Event website URL", event.website_url ?? "");
     if (websiteUrl === null) return;
 
-    const eventDate = window.prompt("Event date (YYYY-MM-DD)", event.event_date);
+    const ticketUrl = window.prompt("Event ticket URL", event.ticket_url ?? "");
+    if (ticketUrl === null) return;
+
+    const eventDate = window.prompt("Start date (YYYY-MM-DD)", event.event_date);
     if (eventDate === null) return;
 
-    const eventTime = window.prompt("Event time", event.event_time);
+    const endDate = window.prompt("End date (YYYY-MM-DD, optional)", event.end_date ?? "");
+    if (endDate === null) return;
+
+    const eventTime = window.prompt("Start time", event.event_time);
     if (eventTime === null) return;
+
+    const endTime = window.prompt("End time", event.end_time ?? event.event_time ?? "");
+    if (endTime === null) return;
 
     setAdminStatus("saving");
     const { error } = await supabase
@@ -4330,8 +4383,11 @@ function App() {
         description: description.trim(),
         map_url: eventAddress.trim(),
         website_url: websiteUrl.trim(),
+        ticket_url: ticketUrl.trim(),
         event_date: eventDate.trim(),
+        end_date: endDate.trim() || null,
         event_time: formatEventTime(eventTime),
+        end_time: formatEventTime(endTime),
       })
       .eq("id", event.id);
 
@@ -4340,7 +4396,7 @@ function App() {
       return;
     }
 
-    await loadAdminData();
+    await loadAdminEvents();
   };
 
   const changeEventPhoto = async (eventId, file) => {
@@ -4370,7 +4426,7 @@ function App() {
         return;
       }
 
-      await loadAdminData();
+      await loadAdminEvents();
     } catch {
       setAdminStatus("error");
     }
@@ -6085,8 +6141,8 @@ function App() {
 
                 <div className="event-copy">
                   <h2>{event.title}</h2>
-                  <p className="event-detail">{event.dateLabel}</p>
-                  {event.timeLabel && <p className="event-detail">{event.timeLabel}</p>}
+                  <p className="event-detail">Starts: {event.startsLabel}</p>
+                  <p className="event-detail">Ends: {event.endsLabel}</p>
                   <p className="event-detail">{event.place}</p>
                   {event.description && <p className="event-description">{event.description}</p>}
                   <div className="place-actions">
@@ -6101,6 +6157,11 @@ function App() {
                     {event.websiteUrl && (
                       <a className="place-link" href={event.websiteUrl} target="_blank" rel="noreferrer">
                         Website
+                      </a>
+                    )}
+                    {event.ticketUrl && (
+                      <a className="place-link" href={event.ticketUrl} target="_blank" rel="noreferrer">
+                        Tickets
                       </a>
                     )}
                   </div>
@@ -10117,13 +10178,25 @@ function App() {
                       <span>Website URL</span>
                       <input name="websiteUrl" type="url" placeholder="Optional event website link" />
                     </label>
+                    <label className="form-field form-field-full">
+                      <span>Ticket URL</span>
+                      <input name="ticketUrl" type="url" placeholder="Optional ticket link" />
+                    </label>
                     <label className="form-field">
-                      <span>Date</span>
+                      <span>Start Date</span>
                       <input name="eventDate" type="date" required />
                     </label>
                     <label className="form-field">
-                      <span>Time</span>
+                      <span>End Date</span>
+                      <input name="endDate" type="date" />
+                    </label>
+                    <label className="form-field">
+                      <span>Start Time</span>
                       <input name="eventTime" type="text" placeholder="8:00 PM" required />
+                    </label>
+                    <label className="form-field">
+                      <span>End Time</span>
+                      <input name="endTime" type="text" placeholder="2:00 AM" />
                     </label>
                     <label className="form-field">
                       <span>Photo</span>
@@ -10168,7 +10241,8 @@ function App() {
                         <span className="event-type">{event.event_type}</span>
                         <h3>{event.title}</h3>
                         <p>{event.place}</p>
-                        <p>{formatEventDisplayDate(event.event_date, event.event_time)}</p>
+                        <p>Starts: {formatEventScheduleLine(event.event_date, event.event_time)}</p>
+                        <p>Ends: {formatEventScheduleLine(event.end_date || event.event_date, event.end_time || event.event_time)}</p>
                         <div className="directory-actions admin-rental-actions">
                           <button className="directory-link" type="button" onClick={() => editEvent(event)}>
                             Edit
@@ -10212,7 +10286,8 @@ function App() {
                         <span className="event-type">Hidden</span>
                         <h3>{event.title}</h3>
                         <p>{event.place}</p>
-                        <p>{formatEventDisplayDate(event.event_date, event.event_time)}</p>
+                        <p>Starts: {formatEventScheduleLine(event.event_date, event.event_time)}</p>
+                        <p>Ends: {formatEventScheduleLine(event.end_date || event.event_date, event.end_time || event.event_time)}</p>
                         <div className="directory-actions">
                           <button className="directory-link" type="button" onClick={() => editEvent(event)}>
                             Edit
