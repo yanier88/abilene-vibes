@@ -12,8 +12,26 @@ const paidPlanNames = new Set(["Featured", "Premium"]);
 const lobbyAboutRotationMs = 2000;
 const featuredPromotionRotationMs = 3000;
 const premiumPromotionRotationMs = 5000;
+const abileneWeatherLabel = "Abilene, TX";
+const abileneWeatherStation = "KABI";
+const abileneWeatherRefreshMs = 10 * 60 * 1000;
+const abileneWeatherMaxAgeMs = 2 * 60 * 60 * 1000;
+const abileneWeatherObservationUrl =
+  `https://api.weather.gov/stations/${abileneWeatherStation}/observations/latest?require_qc=false`;
 
 const contactEmail = "abilenevibes@gmail.com";
+
+const getAbileneIsDay = () => {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Chicago",
+      hour: "numeric",
+      hourCycle: "h23",
+    }).format(new Date()),
+  );
+
+  return hour >= 7 && hour < 20;
+};
 
 const formatPaymentAmount = (amount, currency = "usd") => {
   const value = Number(amount ?? 0) / 100;
@@ -218,6 +236,49 @@ const formatEventScheduleLine = (date, time) => {
 const localDateInputValue = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
+const abileneMinuteValue = (date = new Date()) => {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Chicago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date).map((part) => [part.type, part.value]),
+  );
+
+  return Number(`${parts.year}${parts.month}${parts.day}${parts.hour}${parts.minute}`);
+};
+
+const publicEventEndValue = (event) => {
+  const endDate = event.end_date || event.endDate || event.event_date || event.eventDate;
+  const endTime = event.end_time || event.endTime || event.event_time || event.eventTime;
+  const dateParts = String(endDate ?? "").match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const timeParts = formatEventTime(endTime).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/);
+
+  if (!dateParts || !timeParts) {
+    return null;
+  }
+
+  const hour = (Number(timeParts[1]) % 12) + (timeParts[3] === "PM" ? 12 : 0);
+
+  return Number(
+    `${dateParts[1]}${dateParts[2].padStart(2, "0")}${dateParts[3].padStart(2, "0")}${String(hour).padStart(2, "0")}${timeParts[2]}`,
+  );
+};
+
+const isPublicEventActive = (event) => {
+  const eventEndValue = publicEventEndValue(event);
+
+  if (eventEndValue === null) {
+    return true;
+  }
+
+  return eventEndValue > abileneMinuteValue();
+};
+
 const eventSubmissionToEvent = (event) => ({
   id: event.id,
   title: event.title,
@@ -230,6 +291,10 @@ const eventSubmissionToEvent = (event) => ({
   endsLabel: formatEventScheduleLine(event.end_date || event.event_date, event.end_time || event.event_time),
   timeLabel: formatEventTime(event.event_time),
   date: formatEventDisplayDate(event.event_date, event.event_time),
+  eventDate: event.event_date,
+  eventTime: event.event_time,
+  endDate: event.end_date,
+  endTime: event.end_time,
   type: event.event_type,
   image: event.image_data || event.image_url || "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=80",
 });
@@ -821,51 +886,122 @@ const legalSections = {
     eyebrow: "Legal",
     title: "Terms of Use",
     intro:
-      "These terms explain how businesses and visitors may use Abilene Vibes. By submitting a listing or purchasing a placement, you agree to these terms. They should be reviewed by a lawyer before large-scale commercial launch.",
+      "Effective Date: July 2026\n\nWelcome to Abilene Vibes, operated by Abilene Labs.\n\nThese Terms of Use apply to all users, visitors, businesses, advertisers, contributors, listing submitters, and anyone who accesses or uses Abilene Vibes.\n\nBy using Abilene Vibes, submitting content, publishing a listing, or purchasing a Featured or Premium placement, you agree to these Terms of Use.",
     items: [
       {
-        title: "Business submissions",
+        title: "Free Use of the App",
         copy:
-          "When a business submits information, photos, logos, links, offers, or descriptions, the submitter confirms they have the rights and permission needed to share that content.",
+          "Abilene Vibes can be explored for free.\n\nYou are not required to create an account to browse local businesses, events, marketplace listings, jobs, rentals, gallery photos, and other public content.\n\nSome features, such as submitting content, managing listings, saving items, interacting with content, or purchasing paid placements, may require additional information.",
       },
       {
-        title: "Permission to display content",
+        title: "Submitted Content",
         copy:
-          "Submitted business content may be displayed in Abilene Vibes, related websites, social media posts, promotional material, and local advertising connected to the app.",
+          "When you submit content to Abilene Vibes, you are responsible for making sure it is accurate, lawful, appropriate, and that you have the right to submit it.\n\nSubmitted content may include business listings, marketplace listings, job posts, rental listings, gallery photos, reviews, logos, images, descriptions, prices, contact information, links, and other details.",
       },
       {
-        title: "Business names and trademarks",
+        title: "Permission to Use Submitted Content",
         copy:
-          "Business names, trademarks, logos, and brand assets belong to their respective owners. Abilene Vibes is an independent local guide unless a business is clearly marked as a sponsor or partner.",
+          "By submitting content, you give Abilene Vibes permission to display, store, edit for formatting, publish, promote, and share that content in connection with the app.\n\nThis may include use inside Abilene Vibes, related websites, social media, promotional materials, local advertising, and other Abilene Vibes channels.",
       },
       {
-        title: "Listings and paid placements",
+        title: "Photos, Logos, and Images",
         copy:
-          "Free, Featured, and Premium placements may be reviewed, edited, approved, rejected, paused, or removed to keep listings accurate, lawful, and appropriate for the app. Payment does not guarantee instant publication; paid placements can require admin approval before going live.",
+          "You may only submit photos, logos, images, or media that you own or have permission to use.\n\nYou are responsible for any rights, permissions, copyrights, trademarks, privacy rights, or publicity rights related to the media you submit.",
       },
       {
-        title: "Paid subscriptions",
+        title: "Business Listings",
         copy:
-          "Featured and Premium plans are monthly subscriptions billed through Stripe. By purchasing a paid placement, the customer authorizes Abilene Vibes and Stripe to charge the selected plan amount today and automatically every month until the subscription is canceled.",
+          "Business submitters are responsible for providing accurate business names, categories, descriptions, addresses, phone numbers, websites, social links, photos, logos, and contact information.\n\nAbilene Vibes may approve, reject, edit, hide, pause, or remove business listings to keep the app accurate, lawful, and appropriate.\n\nBusiness names, trademarks, logos, and brand assets belong to their respective owners. Abilene Vibes is an independent local guide unless a business is clearly marked as a sponsor, advertiser, or partner.",
       },
       {
-        title: "Cancellation",
+        title: "Featured and Premium Placements",
         copy:
-          "Cancellation stops future renewals. If a subscription is scheduled to cancel at the end of the billing period, the paid placement may remain active until the current paid month expires. Immediate cancellation may remove the paid placement sooner.",
+          "Featured and Premium placements are paid promotional placements that improve visibility inside Abilene Vibes.\n\nFeatured currently costs $19 per month.\n\nPremium currently costs $59 per month.\n\nPayment does not guarantee immediate publication. Paid listings may still require Admin review before appearing publicly.\n\nPaid placement does not guarantee sales, visits, calls, rankings, customer interest, applications, rentals, purchases, or any specific result.",
+      },
+      {
+        title: "Subscriptions and Payments",
+        copy:
+          "Featured and Premium placements are monthly subscriptions processed through Stripe.\n\nBy purchasing a paid placement, you authorize Abilene Vibes and Stripe to charge the selected amount today and automatically each month until the subscription is canceled.\n\nStripe may process payments under its own terms and policies. Abilene Vibes does not store full credit card numbers.",
+      },
+      {
+        title: "Cancellations",
+        copy:
+          "You may request cancellation of a paid subscription by contacting Abilene Vibes or through available Admin support.\n\nCancellation stops future renewals.\n\nIf a subscription is canceled at the end of the billing period, the paid placement may remain active until the current paid period expires. Immediate cancellation may remove the paid placement sooner.",
       },
       {
         title: "Refunds",
         copy:
-          "Payments for the current billing period are not automatically refunded after purchase. Refund requests may be reviewed case by case by contacting Abilene Vibes, and Stripe or payment provider policies may also apply.",
+          "Payments for the current billing period are not automatically refunded after purchase.\n\nRefund requests may be considered on a case-by-case basis by contacting Abilene Vibes. Stripe or other payment provider policies may also apply.",
+      },
+      {
+        title: "Marketplace Listings",
+        copy:
+          "Marketplace submitters are responsible for the accuracy, legality, price, condition, ownership, contact information, and availability of items they post.\n\nAbilene Vibes only provides the platform for marketplace listings and communication between users.\n\nAbilene Vibes is not a party to transactions between buyers and sellers.\n\nUsers are responsible for communicating safely, following applicable laws, verifying items, and making their own decisions before buying, selling, meeting, or exchanging payment.",
+      },
+      {
+        title: "Jobs",
+        copy:
+          "Job posters are responsible for accurate job titles, company information, pay details, requirements, contact information, application methods, and legal compliance.\n\nAbilene Vibes only provides the platform where employers and applicants may connect.\n\nAbilene Vibes does not guarantee employment, applicants, hiring results, job availability, pay accuracy, workplace conditions, employer behavior, or applicant behavior.",
+      },
+      {
+        title: "Rentals",
+        copy:
+          "Rental posters are responsible for accurate property details, pricing, availability, permissions, contact information, photos, descriptions, and compliance with applicable laws.\n\nAbilene Vibes is not a party to rental agreements.\n\nAbilene Vibes does not guarantee rental availability, property condition, lease terms, sale terms, pricing, safety, landlord behavior, tenant behavior, or transaction outcomes.",
+      },
+      {
+        title: "Gallery Photos",
+        copy:
+          "Gallery contributors may submit photos for review. Only submit photos that you own or have permission to share.\n\nAbilene Vibes may approve, reject, edit, hide, or remove gallery submissions.",
+      },
+      {
+        title: "Reviews, Likes, and Favorites",
+        copy:
+          "Users may be able to like, save, favorite, rate, or review content.\n\nReviews and public feedback should be honest, relevant, and respectful.\n\nAbilene Vibes may moderate, hide, or remove reviews or interactions that appear abusive, fake, misleading, unlawful, spammy, or inappropriate.",
+      },
+      {
+        title: "Events",
+        copy:
+          "Events shown in Abilene Vibes may be entered, selected, or published by Admin.\n\nEvent information may change. Users should verify dates, times, locations, prices, ticket details, age restrictions, safety information, and other details with the event organizer or official source.\n\nAbilene Vibes does not guarantee that event information is complete, current, or error-free.",
+      },
+      {
+        title: "Prohibited Content",
+        copy:
+          "You may not submit content that is:\n\n- Illegal, fraudulent, misleading, or deceptive.\n- Hateful, threatening, harassing, abusive, or discriminatory.\n- Sexually explicit or inappropriate for a general local audience.\n- Violent, dangerous, or encouraging harm.\n- Spam, scams, malware, or attempts to manipulate the app.\n- Infringing on copyrights, trademarks, privacy rights, publicity rights, or other rights.\n- False, impersonating another person or business, or submitted without permission.\n- Promoting illegal goods, stolen items, prohibited services, or unsafe activity.",
+      },
+      {
+        title: "Moderation Rights",
+        copy:
+          "Abilene Vibes may review, approve, reject, edit, hide, pause, restore, or remove any submitted content at any time.\n\nThis includes businesses, marketplace listings, jobs, rentals, gallery photos, reviews, events, comments, images, links, and promotional placements.\n\nAbilene Vibes may also remove content to comply with law, protect users, prevent abuse, respond to owner requests, correct errors, or maintain app quality.",
+      },
+      {
+        title: "External Links and Services",
+        copy:
+          "Abilene Vibes may link to business websites, social media pages, Google Maps or other map services, job application links, rental links, ticket links, and other external services.\n\nExternal services are not controlled by Abilene Vibes. Users access them at their own discretion, and those services may have their own terms, privacy policies, fees, and risks.",
+      },
+      {
+        title: "No Professional Advice",
+        copy:
+          "Abilene Vibes is a local discovery and information app. Content in the app is provided for general informational purposes only.\n\nUsers should independently verify important details before making purchases, applying for jobs, renting property, attending events, contacting businesses, or relying on any listing.",
+      },
+      {
+        title: "Limitation of Responsibility",
+        copy:
+          "Abilene Vibes is not responsible for the actions, products, services, listings, claims, prices, availability, communications, payments, meetings, safety, or behavior of third-party businesses, sellers, buyers, employers, landlords, tenants, event organizers, contributors, or users.\n\nAbilene Vibes does not guarantee that all content is accurate, current, complete, available, or suitable for any particular purpose.",
+      },
+      {
+        title: "Updates, Corrections, and Removal Requests",
+        copy:
+          "To request a correction, update, removal, or review of content, contact:\n\nabilenevibes@gmail.com\n\nPlease include enough information to identify the listing, post, review, photo, event, business, job, rental, or marketplace item.",
+      },
+      {
+        title: "Changes to These Terms",
+        copy:
+          "Abilene Vibes may update these Terms of Use as the app grows, features change, service providers change, or legal requirements change.\n\nContinued use of Abilene Vibes after updated Terms of Use are posted means you accept the updated terms.",
       },
       {
         title: "Contact",
-        copy: `For listing updates, photo permissions, removals, or billing questions, contact ${contactEmail}.`,
-      },
-      {
-        title: "No guarantee",
         copy:
-          "Paid placement improves visibility inside Abilene Vibes, but it does not guarantee sales, visits, calls, rankings, or customer results.",
+          "For questions, listing updates, removals, billing questions, permission concerns, or reports of inappropriate content, contact:\n\nabilenevibes@gmail.com\n\nThese Terms of Use are governed by the applicable laws of the United States and the State of Texas.\n\nThis document should be reviewed by a licensed attorney before a large-scale commercial launch.",
       },
     ],
   },
@@ -873,31 +1009,82 @@ const legalSections = {
     eyebrow: "Privacy",
     title: "Privacy Policy",
     intro:
-      "This policy explains the basic information Abilene Vibes may collect when someone submits a business or uses app features.",
+      "Effective Date: July 2026\n\nAbilene Vibes, operated by Abilene Labs, is a local guide for discovering businesses, events, rentals, jobs, marketplace listings, photos, and community content in Abilene.\n\nYou can browse Abilene Vibes for free. You are not required to create an account to explore the app.",
     items: [
       {
-        title: "Information collected",
+        title: "Information We Collect",
         copy:
-          "Business submissions may include business name, contact name, phone number, address, website, social handle, category, plan selection, and description.",
+          "Abilene Vibes mainly collects information when someone chooses to submit content, publish a listing, contact us, interact with content, or purchase a Featured or Premium placement.\n\nDepending on the feature used, submitted information may include:\n\n- Business name, category, description, address, phone number, email, website, social link, contact name, photos, logos, and plan selection.\n- Marketplace item title, price, category, location, contact information, description, and photos.\n- Job listing title, company, category, job type, pay information, location, contact person, phone, email, application method, description, requirements, images, and logos.\n- Rental listing title, property type, address, price, deposit, availability, bedrooms, bathrooms, description, contact information, external links, and photos.\n- Gallery photos, photo titles, contributor names, and related submitted details.\n- Reviews, ratings, likes, saved/favorite items, and basic interaction activity when those features are used.\n- Payment-related identifiers from Stripe, such as customer IDs, subscription IDs, checkout session IDs, payment status, plan type, and billing status.\n\nAbilene Vibes does not store full credit card numbers in the app database.",
       },
       {
-        title: "How information is used",
+        title: "How We Use Information",
         copy:
-          "Information is used to create listings, contact businesses about their submission, manage paid placement requests, improve local content, and keep the app useful.",
+          "We use submitted information to:\n\n- Display approved businesses, marketplace listings, jobs, rentals, gallery photos, reviews, and local content.\n- Review, moderate, approve, reject, edit, hide, or remove submitted content.\n- Contact submitters about their listings, updates, corrections, payments, or removal requests.\n- Manage Free, Featured, and Premium placements.\n- Process and track paid promotions.\n- Improve the app, prevent abuse, and understand how people interact with local content.\n- Provide business activity information, such as calls, directions, visits, likes, reviews, or other engagement, when available.",
       },
       {
-        title: "Public listing information",
+        title: "Public Information",
         copy:
-          "Business-facing information such as business name, category, phone, website, social link, address, and description may be shown publicly in the app.",
+          "Some information submitted to Abilene Vibes may become public after approval.\n\nPublic information may include:\n\n- Business names, categories, descriptions, addresses, phone numbers, websites, social links, photos, and logos.\n- Marketplace listing details, photos, prices, and contact information.\n- Job listing details, company names, pay information, locations, contact details, and application information.\n- Rental listing details, prices, addresses or areas, photos, contact details, and external links.\n- Gallery photos, titles, and contributor names.\n- Reviews, ratings, and other public interaction content.\n\nPlease do not submit private or sensitive information that you do not want shown publicly.",
       },
       {
-        title: "Payments",
+        title: "Photos, Logos, and Images",
         copy:
-          "Payments are processed by Stripe or another payment provider. Abilene Vibes does not store full card numbers in the app database. The app may store billing status, plan type, customer identifiers, subscription identifiers, checkout session identifiers, and business contact details needed to manage paid listings and cancellations.",
+          "When you submit photos, logos, images, or other media, you confirm that you have the rights and permission needed to share them.\n\nSubmitted media may be displayed inside Abilene Vibes and may also be used in related Abilene Vibes websites, social media, promotional material, or local advertising connected to the app.",
+      },
+      {
+        title: "Payments and Stripe",
+        copy:
+          "Featured and Premium placements are processed through Stripe.\n\nStripe may collect and process payment information according to its own privacy policy and terms. Abilene Vibes may store payment status, plan type, Stripe customer identifiers, subscription identifiers, checkout session identifiers, and related billing status needed to manage paid placements and cancellations.\n\nAbilene Vibes does not store full card numbers.",
+      },
+      {
+        title: "Supabase",
+        copy:
+          "Abilene Vibes uses Supabase for app data, database features, storage, authentication where needed, and related backend services.\n\nInformation submitted through the app may be stored in Supabase, including listings, photos, reviews, likes, saved items, payment status, and other app content.",
+      },
+      {
+        title: "Maps, Directions, and External Links",
+        copy:
+          "Some parts of Abilene Vibes may open Google Maps, map search, directions, business websites, social media pages, job application links, rental links, ticket links, and other external services.\n\nExternal services are not controlled by Abilene Vibes. Their own privacy policies and terms may apply.",
+      },
+      {
+        title: "Events",
+        copy:
+          "Events shown in Abilene Vibes may be selected, entered, or published by Admin. Event details may change. Users should verify times, locations, ticket information, age restrictions, and other details with the event organizer or official source.",
+      },
+      {
+        title: "Likes, Favorites, Reviews, and Interactions",
+        copy:
+          "Abilene Vibes may save likes, favorites, saved items, reviews, ratings, calls, direction clicks, website visits, and other basic interaction activity when those features are used.\n\nThis information may be used to improve the app, show engagement, support moderation, or provide activity reports to listing owners or Admin.",
+      },
+      {
+        title: "No Sale of Personal Information",
+        copy:
+          "Abilene Vibes does not sell personal information.\n\nWe may use trusted service providers, such as Stripe and Supabase, to operate the app, process payments, store content, and provide app functionality.",
+      },
+      {
+        title: "Corrections, Updates, and Removal Requests",
+        copy:
+          "You may request correction, update, or removal of content you submitted by contacting:\n\nabilenevibes@gmail.com\n\nPlease include enough detail for us to identify the listing, photo, review, job, rental, marketplace item, or other content.\n\nWe may need to verify that the request comes from the submitter, owner, authorized representative, or another person with a valid reason to request the change.",
+      },
+      {
+        title: "Children and Sensitive Information",
+        copy:
+          "Abilene Vibes is intended as a local information and discovery app. Users should not submit sensitive personal information, private documents, financial details, medical information, government IDs, or information about children unless they have the legal right and clear reason to do so.",
+      },
+      {
+        title: "Content Moderation",
+        copy:
+          "Abilene Vibes may review, approve, edit, reject, hide, or remove submitted content to keep the app useful, accurate, lawful, and appropriate for the community.",
+      },
+      {
+        title: "Changes to this Privacy Policy",
+        copy:
+          "Abilene Vibes may update this Privacy Policy as the app grows, features change, service providers change, or legal requirements change.\n\nWhen a material change is made, the Effective Date will be updated to reflect the new version. Continued use of Abilene Vibes after an updated Privacy Policy is posted means the updated policy applies to your use of the app.",
       },
       {
         title: "Contact",
-        copy: `Businesses may request listing updates, corrections, or removal by emailing ${contactEmail}.`,
+        copy:
+          "For privacy questions, corrections, removals, or data-related requests, contact:\n\nabilenevibes@gmail.com\n\nThis Privacy Policy is governed by the applicable laws of the United States and the State of Texas.\n\nThis document should be reviewed by a licensed attorney before a large-scale commercial launch.",
       },
     ],
   },
@@ -1978,7 +2165,13 @@ function ImageViewer({ photo, onClose }) {
 function App() {
   const [page, setPage] = useState(pageFromLocation);
   const [isStarting, setIsStarting] = useState(true);
-  const [weather, setWeather] = useState({ temp: 72, isDay: false, label: "Abilene, TX" });
+  const [weather, setWeather] = useState({
+    temp: null,
+    isDay: getAbileneIsDay(),
+    label: abileneWeatherLabel,
+    status: "loading",
+    observedAt: null,
+  });
   const [selectedCategory, setSelectedCategory] = useState(promoteCategories[0].label);
   const [selectedPlan, setSelectedPlan] = useState(promotePlans[0].name);
   const [showGroceryForm, setShowGroceryForm] = useState(false);
@@ -1987,6 +2180,7 @@ function App() {
   const [businessSubmitted, setBusinessSubmitted] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState("");
   const [businesses, setBusinesses] = useState([]);
+  const [selectedBusinessId, setSelectedBusinessId] = useState("");
   const [editingOwnerBusiness, setEditingOwnerBusiness] = useState(null);
   const [deletingOwnerBusiness, setDeletingOwnerBusiness] = useState(null);
   const [ownerBusinessStatus, setOwnerBusinessStatus] = useState("");
@@ -2008,6 +2202,7 @@ function App() {
   const [reviewSubmissionStatus, setReviewSubmissionStatus] = useState({});
   const [approvedEvents, setApprovedEvents] = useState([]);
   const [eventSubmissionStatus, setEventSubmissionStatus] = useState("");
+  const eventSubmissionInFlightRef = useRef(false);
   const [approvedGalleryPhotos, setApprovedGalleryPhotos] = useState([]);
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
   const [gallerySubmissionError, setGallerySubmissionError] = useState("");
@@ -2028,6 +2223,7 @@ function App() {
   const [hiddenBusinesses, setHiddenBusinesses] = useState([]);
   const [pendingReviews, setPendingReviews] = useState([]);
   const [adminJobListings, setAdminJobListings] = useState([]);
+  const [adminJobActionKey, setAdminJobActionKey] = useState("");
   const [adminMarketplaceListings, setAdminMarketplaceListings] = useState([]);
   const [adminRentalListings, setAdminRentalListings] = useState([]);
   const [adminRentalStatusFilter, setAdminRentalStatusFilter] = useState("all");
@@ -2139,6 +2335,7 @@ function App() {
   const pageRef = useRef(page);
   const previousPageRef = useRef(page);
   const directoryReturnRef = useRef("lobby"); // tracks where directory was opened from
+  const legalReturnRef = useRef("lobby"); // tracks where Terms/Privacy were opened from
   // Tracks page for the Capacitor backButton handler ONLY — not updated by popstate/URL sync
   // so that browser history.back() firing popstate before backButton doesn't corrupt it.
   const backButtonPageRef = useRef(page);
@@ -2296,6 +2493,7 @@ function App() {
         .from("rental_listings")
         .select(selectFields)
         .eq("status", "approved")
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
         .order("created_at", { ascending: false });
 
     queryRentals(`${baseSelect},owner_user_id`).then(({ data, error }) => {
@@ -2364,10 +2562,37 @@ function App() {
       .order("event_date", { ascending: true })
       .then(({ data, error }) => {
         if (!error && data) {
-          setApprovedEvents(data.map(eventSubmissionToEvent));
+          setApprovedEvents(data.filter(isPublicEventActive).map(eventSubmissionToEvent));
         }
       });
   }, []);
+
+  useEffect(() => {
+    if (!approvedEvents.length) {
+      return;
+    }
+
+    let intervalId;
+    const pruneExpiredEvents = () => {
+      setApprovedEvents((currentEvents) => {
+        const activeEvents = currentEvents.filter(isPublicEventActive);
+        return activeEvents.length === currentEvents.length ? currentEvents : activeEvents;
+      });
+    };
+    const now = new Date();
+    const delayToNextMinute = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
+    const timeoutId = window.setTimeout(() => {
+      pruneExpiredEvents();
+      intervalId = window.setInterval(pruneExpiredEvents, 60000);
+    }, delayToNextMinute);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [approvedEvents]);
 
   const loadNewsPublic = useCallback(() => {
     if (!supabase) return;
@@ -2461,26 +2686,70 @@ function App() {
   }, [adminSession]);
 
   useEffect(() => {
-    const weatherUrl =
-      "https://api.open-meteo.com/v1/forecast?latitude=32.4487&longitude=-99.7331&current=temperature_2m,is_day&temperature_unit=fahrenheit&timezone=America%2FChicago";
+    let isMounted = true;
 
-    fetch(weatherUrl)
-      .then((response) => {
+    const loadAbileneWeather = async () => {
+      setWeather({
+        temp: null,
+        isDay: getAbileneIsDay(),
+        label: abileneWeatherLabel,
+        status: "loading",
+        observedAt: null,
+      });
+
+      try {
+        const response = await fetch(abileneWeatherObservationUrl, {
+          headers: { Accept: "application/geo+json" },
+        });
+
         if (!response.ok) {
           throw new Error("Weather unavailable");
         }
 
-        return response.json();
-      })
-      .then((data) => {
-        const temp = Math.round(data.current?.temperature_2m ?? 72);
-        const isDay = data.current?.is_day === 1;
+        const data = await response.json();
+        const temperatureCelsius = data.properties?.temperature?.value;
+        const observedAt = data.properties?.timestamp ?? null;
 
-        setWeather({ temp, isDay, label: "Abilene, TX" });
-      })
-      .catch(() => {
-        setWeather({ temp: 72, isDay: false, label: "Abilene, TX" });
-      });
+        if (typeof temperatureCelsius !== "number") {
+          throw new Error("Weather temperature unavailable");
+        }
+
+        if (!observedAt || Date.now() - new Date(observedAt).getTime() > abileneWeatherMaxAgeMs) {
+          throw new Error("Weather observation is stale");
+        }
+
+        const iconUrl = data.properties?.icon ?? "";
+        const isDay = iconUrl.includes("/day/")
+          ? true
+          : iconUrl.includes("/night/")
+            ? false
+            : getAbileneIsDay();
+        const temp = Math.round((temperatureCelsius * 9) / 5 + 32);
+
+        if (isMounted) {
+          setWeather({ temp, isDay, label: abileneWeatherLabel, status: "ready", observedAt });
+        }
+      } catch (err) {
+        console.warn("[Weather] Could not load live Abilene temperature:", err);
+        if (isMounted) {
+          setWeather({
+            temp: null,
+            isDay: getAbileneIsDay(),
+            label: abileneWeatherLabel,
+            status: "error",
+            observedAt: null,
+          });
+        }
+      }
+    };
+
+    loadAbileneWeather();
+    const weatherRefresh = window.setInterval(loadAbileneWeather, abileneWeatherRefreshMs);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(weatherRefresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -2565,11 +2834,17 @@ function App() {
     const reloadAdmin = () => {
       if (adminSessionRef.current) loadAdminData(adminSessionRef.current);
     };
+    const reloadAdminJobs = () => {
+      if (adminSessionRef.current) loadAdminJobs(adminSessionRef.current);
+    };
     const reloadAdminBusinesses = () => {
       if (adminSessionRef.current) loadAdminBusinesses(adminSessionRef.current);
     };
     const reloadAdminGallery = () => {
       if (adminSessionRef.current) loadAdminGallery(adminSessionRef.current);
+    };
+    const reloadAdminRentals = () => {
+      if (adminSessionRef.current) loadAdminRentals(adminSessionRef.current);
     };
 
     const mkChannel = (name, table, handler) =>
@@ -2585,8 +2860,8 @@ function App() {
         });
 
     const channels = [
-      mkChannel("rt-job_listings",         "job_listings",         () => { loadJobsPublic();       reloadAdmin(); }),
-      mkChannel("rt-rental_listings",      "rental_listings",      () => { loadRentalsPublic();    reloadAdmin(); }),
+      mkChannel("rt-job_listings",         "job_listings",         () => { loadJobsPublic();       reloadAdminJobs(); }),
+      mkChannel("rt-rental_listings",      "rental_listings",      () => { loadRentalsPublic();    reloadAdminRentals(); }),
       mkChannel("rt-business_submissions",  "business_submissions",  () => { loadBusinessesPublic(); reloadAdminBusinesses(); }),
       mkChannel("rt-gallery_submissions",   "gallery_submissions",   () => { loadGalleryPublic();    reloadAdminGallery(); }),
       mkChannel("rt-event_submissions",     "event_submissions",     () => { loadEventsPublic();     reloadAdmin(); }),
@@ -2763,6 +3038,13 @@ function App() {
         return;
       }
 
+      if (currentPage === "terms" || currentPage === "privacy") {
+        const ret = legalReturnRef.current || "lobby";
+        legalReturnRef.current = "lobby";
+        navigateTo(ret, { replace: true });
+        return;
+      }
+
       // Default — back to lobby.
       navigateTo("lobby", { replace: true });
     }).then((listener) => {
@@ -2776,6 +3058,12 @@ function App() {
 
   const backToLobby = () => {
     navigateTo("lobby", { replace: true });
+  };
+
+  const backFromLegal = () => {
+    const ret = legalReturnRef.current || "lobby";
+    legalReturnRef.current = "lobby";
+    navigateTo(ret, { replace: true });
   };
 
   const handleRequiredInvalid = (event) => {
@@ -3163,8 +3451,14 @@ function App() {
   const handleEventSubmit = async (event) => {
     event.preventDefault();
 
+    if (eventSubmissionInFlightRef.current) {
+      return;
+    }
+    eventSubmissionInFlightRef.current = true;
+
     if (!supabase || !adminSession) {
       setEventSubmissionStatus("missing-config");
+      eventSubmissionInFlightRef.current = false;
       return;
     }
 
@@ -3192,12 +3486,15 @@ function App() {
 
     if (error) {
       setEventSubmissionStatus("error");
+      eventSubmissionInFlightRef.current = false;
       return;
     }
 
     form.reset();
     setEventSubmissionStatus("saved");
     await loadAdminEvents(adminSession);
+    loadEventsPublic();
+    eventSubmissionInFlightRef.current = false;
   };
 
   const trackBusinessInteraction = async (business, actionType) => {
@@ -3353,7 +3650,6 @@ function App() {
     setAdminMarketplaceListings((adminMarketplaceResult.data ?? []).map(mapListingFromDb));
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
-    setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
     setLikeCounts(
       (likeResult.data ?? []).reduce((counts, like) => {
         const key = `${like.item_type}:${like.item_key}`;
@@ -3450,6 +3746,40 @@ function App() {
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
   }
 
+  async function loadAdminJobs(sessionOverride = adminSession) {
+    if (!supabase || !sessionOverride) {
+      return;
+    }
+
+    const jobListingsResult = await supabase.rpc("admin_list_job_listings");
+
+    if (jobListingsResult.error) {
+      setAdminStatus("job-refresh-error");
+      return false;
+    }
+
+    setAdminJobListings(jobListingsResult.data ?? []);
+    setAdminStatus("ready");
+    return true;
+  }
+
+  async function loadAdminRentals(sessionOverride = adminSession) {
+    if (!supabase || !sessionOverride) {
+      return;
+    }
+
+    const adminRentalResult = await supabase.rpc("admin_list_rental_listings");
+
+    if (adminRentalResult.error) {
+      setAdminStatus("error");
+      return false;
+    }
+
+    setAdminRentalListings(adminRentalResult.data ?? []);
+    setAdminStatus("ready");
+    return true;
+  }
+
   async function loadAdminEvents(sessionOverride = adminSession) {
     if (!supabase || !sessionOverride) {
       return;
@@ -3477,7 +3807,6 @@ function App() {
 
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
-    setApprovedEvents((publishedEventResult.data ?? []).map(eventSubmissionToEvent));
     setAdminStatus("ready");
   }
 
@@ -3710,10 +4039,15 @@ function App() {
   const handleDeleteJob = async (id) => {
     if (!supabase || !adminSession) return;
     if (!window.confirm("Permanently delete this job listing?")) return;
+    setAdminJobActionKey(`${id}:delete`);
     setAdminStatus("saving");
-    const { data, error } = await supabase.rpc("admin_delete_job_listing", { listing_id: id });
-    if (error || data !== true) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    try {
+      const { data, error } = await supabase.rpc("admin_delete_job_listing", { listing_id: id });
+      if (error || data !== true) { setAdminStatus("error"); return; }
+      await loadAdminData();
+    } finally {
+      setAdminJobActionKey("");
+    }
   };
 
   const handleSaveJob = async () => {
@@ -3731,35 +4065,39 @@ function App() {
     }
 
     setAdminStatus("saving");
-    const { data, error } = await supabase.rpc("admin_update_job_listing", {
-      listing_id: editingJob.id,
-      new_title: editingJob.title,
-      new_company: editingJob.company,
-      new_category: editingJob.category,
-      new_job_type: editingJob.job_type,
-      new_pay_label: editingJob.pay_label,
-      new_location: editingJob.location,
-      new_phone: editingJob.phone,
-      new_email: editingJob.email,
-      new_description: editingJob.description,
-      new_requirements: editingJob.requirements,
-      new_app_method: editingJob.app_method,
-      new_apply_url: editingJob.apply_url || null,
-      new_duration: editingJob.duration,
-      new_plan: editingJob.plan,
-      new_status: editingJob.status,
-      new_image_data: editingJob.image_data ?? null,
-      new_logo_data: editingJob.logo_data ?? null,
-      new_expires_at: editingJob.expires_at ?? null,
-    });
-    if (error || data !== true) { setAdminStatus("error"); return; }
-    setAdminStatus("");
-    setEditingJob(null);
-    setEditJobPage(false);
-    await loadAdminData();
+    try {
+      const { data, error } = await supabase.rpc("admin_update_job_listing", {
+        listing_id: editingJob.id,
+        new_title: editingJob.title,
+        new_company: editingJob.company,
+        new_category: editingJob.category,
+        new_job_type: editingJob.job_type,
+        new_pay_label: editingJob.pay_label,
+        new_location: editingJob.location,
+        new_phone: editingJob.phone,
+        new_email: editingJob.email,
+        new_description: editingJob.description,
+        new_requirements: editingJob.requirements,
+        new_app_method: editingJob.app_method,
+        new_apply_url: editingJob.apply_url || null,
+        new_duration: editingJob.duration,
+        new_plan: editingJob.plan,
+        new_status: editingJob.status,
+        new_image_data: editingJob.image_data ?? null,
+        new_logo_data: editingJob.logo_data ?? null,
+        new_expires_at: editingJob.expires_at ?? null,
+      });
+      if (error || data !== true) { setAdminStatus("job-save-error"); return; }
+      const refreshed = await loadAdminJobs();
+      if (refreshed === false) return;
+      setEditingJob(null);
+      setEditJobPage(false);
+    } catch {
+      setAdminStatus("job-save-error");
+    }
   };
 
-  const setJobPaymentPlan = async (job, plan, status, paymentStatus, expiresAt = null, placementSource = null, placementExpiresAt = null) => {
+  const setJobPaymentPlan = async (job, plan, status, paymentStatus, expiresAt = null, placementSource = null, placementExpiresAt = null, actionSuffix = "") => {
     if (!supabase || !adminSession) return;
     const cleanPlan = plan === "premium" ? "premium" : plan === "featured" ? "featured" : "free";
     const cleanStatus = ["pending", "approved", "hidden", "rejected"].includes(status) ? status : "pending";
@@ -3772,18 +4110,24 @@ function App() {
       "expired",
       "canceled",
     ].includes(paymentStatus) ? paymentStatus : "not_required";
+    const actionKey = actionSuffix || `status:${cleanStatus}`;
+    setAdminJobActionKey(`${job.id}:${actionKey}`);
     setAdminStatus("saving");
-    const { data, error } = await supabase.rpc("admin_set_job_payment_plan", {
-      listing_id: job.id,
-      new_plan: cleanPlan,
-      new_status: cleanStatus,
-      new_payment_status: cleanPaymentStatus,
-      new_expires_at: expiresAt,
-      new_placement_source: placementSource,
-      new_placement_expires_at: placementExpiresAt,
-    });
-    if (error || data !== true) { setAdminStatus("error"); return; }
-    await loadAdminData();
+    try {
+      const { data, error } = await supabase.rpc("admin_set_job_payment_plan", {
+        listing_id: job.id,
+        new_plan: cleanPlan,
+        new_status: cleanStatus,
+        new_payment_status: cleanPaymentStatus,
+        new_expires_at: expiresAt,
+        new_placement_source: placementSource,
+        new_placement_expires_at: placementExpiresAt,
+      });
+      if (error || data !== true) { setAdminStatus("error"); return; }
+      await loadAdminData();
+    } finally {
+      setAdminJobActionKey("");
+    }
   };
 
   const setPaidJobPlacement = async (job, plan) => {
@@ -3830,7 +4174,7 @@ function App() {
         listing_id: id,
       });
       if (error || data !== true) { setAdminStatus("error"); return; }
-      await loadAdminData();
+      await loadAdminRentals();
     } finally {
       setAdminRentalActionKey("");
     }
@@ -3886,8 +4230,10 @@ function App() {
   const canApproveRental = (r) => {
     const plan = String(r?.plan ?? "free").toLowerCase();
     const paymentStatus = String(r?.payment_status ?? "").toLowerCase();
+    const placementSource = String(r?.placement_source ?? "").toLowerCase();
     return (
       (plan === "free" && paymentStatus === "not_required") ||
+      ((plan === "featured" || plan === "premium") && placementSource === "comp" && paymentStatus === "not_required") ||
       ((plan === "featured" || plan === "premium") && paymentStatus === "paid")
     );
   };
@@ -3928,7 +4274,7 @@ function App() {
         new_placement_expires_at: nextPlacementExpiresAt,
       });
       if (error || data !== true) { setAdminStatus("error"); return; }
-      await loadAdminData();
+      await loadAdminRentals();
     } finally {
       setAdminRentalActionKey("");
     }
@@ -4007,7 +4353,7 @@ function App() {
         return;
       }
 
-      await loadAdminData();
+      await loadAdminRentals();
     } finally {
       setAdminRentalActionKey("");
     }
@@ -4021,12 +4367,16 @@ function App() {
     }
 
     setAdminStatus("saving");
-    const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(editingRental));
-    if (error || data !== true) { setAdminStatus("error"); return; }
-    setAdminStatus("");
-    setEditingRental(null);
-    setEditRentalPage(false);
-    await loadAdminData();
+    try {
+      const { data, error } = await supabase.rpc("admin_update_rental_listing", adminRentalRpcPayload(editingRental));
+      if (error || data !== true) { setAdminStatus("error"); return; }
+      const refreshed = await loadAdminRentals();
+      if (refreshed === false) return;
+      setEditingRental(null);
+      setEditRentalPage(false);
+    } catch {
+      setAdminStatus("error");
+    }
   };
 
   const deleteBusiness = async (id) => {
@@ -4356,6 +4706,7 @@ function App() {
     }
 
     await loadAdminEvents();
+    loadEventsPublic();
   };
 
   const unpublishBusiness = async (id) => {
@@ -4464,6 +4815,7 @@ function App() {
     }
 
     await loadAdminEvents();
+    loadEventsPublic();
   };
 
   const restoreEvent = async (id) => {
@@ -4480,6 +4832,7 @@ function App() {
     }
 
     await loadAdminEvents();
+    loadEventsPublic();
   };
 
   const editEvent = async (event) => {
@@ -4540,6 +4893,7 @@ function App() {
     }
 
     await loadAdminEvents();
+    loadEventsPublic();
   };
 
   const changeEventPhoto = async (eventId, file) => {
@@ -4570,6 +4924,7 @@ function App() {
       }
 
       await loadAdminEvents();
+      loadEventsPublic();
     } catch {
       setAdminStatus("error");
     }
@@ -5526,25 +5881,37 @@ function App() {
       return;
     }
 
-    await trackPublicItemClick("service", `lobby-${placement}-${item.id}`, `Lobby: ${placement} ${item.name}`);
-    { const dest1 = categorySectionMap[item.business.category] ?? "directory"; if (dest1 === "directory") directoryReturnRef.current = "lobby"; navigateTo(dest1); }
+    if (item.type === "business" || item.business) {
+      await trackPublicItemClick("service", `lobby-${placement}-${item.id}`, `Lobby: ${placement} ${item.name}`);
+      setSelectedBusinessId(item.business?.id ?? item.id ?? "");
+      const dest1 = categorySectionMap[item.business?.category] ?? "directory";
+      if (dest1 === "directory") directoryReturnRef.current = "lobby";
+      navigateTo(dest1);
+    }
   };
   const openUpcomingHighlight = async () => {
     await openLobbyPromotionItem(spotlightItem, "highlight");
   };
-  const directoryBusinesses = [...allBusinesses].sort(
-    (a, b) => (planRank[businessDisplayPlan(a) || "Free"] ?? 99) - (planRank[businessDisplayPlan(b) || "Free"] ?? 99),
-  );
+  const prioritizeSelectedBusiness = (items) =>
+    [...items].sort((a, b) => {
+      if (selectedBusinessId) {
+        if (a.id === selectedBusinessId) return -1;
+        if (b.id === selectedBusinessId) return 1;
+      }
+
+      return (planRank[businessDisplayPlan(a) || "Free"] ?? 99) - (planRank[businessDisplayPlan(b) || "Free"] ?? 99);
+    });
+  const directoryBusinesses = prioritizeSelectedBusiness(allBusinesses);
   const businessServiceBusinessesByPage = Object.fromEntries(
     Object.entries(businessServiceSections).map(([sectionPage, section]) => [
       sectionPage,
-      businesses
-        .filter((business) =>
+      prioritizeSelectedBusiness(
+        businesses.filter((business) =>
           section.categories.some(
             (category) => category.toLowerCase() === String(business.category ?? "").trim().toLowerCase(),
           ),
-        )
-        .sort((a, b) => (planRank[businessDisplayPlan(a) || "Free"] ?? 99) - (planRank[businessDisplayPlan(b) || "Free"] ?? 99)),
+        ),
+      ),
     ]),
   );
   const galleryPhotos = [...approvedGalleryPhotos, ...visibleStaticGalleryPhotos];
@@ -5963,8 +6330,14 @@ function App() {
               </svg>
             </span>
             <span className="weather-copy">
-              <strong>{weather.temp}°</strong>
-              <span>{weather.label}</span>
+              <strong>{weather.temp === null ? "--" : weather.temp}°</strong>
+              <span>
+                {weather.status === "loading"
+                  ? "Loading..."
+                  : weather.status === "error" && weather.temp === null
+                    ? "Weather unavailable"
+                    : weather.label}
+              </span>
             </span>
           </button>
 
@@ -6026,7 +6399,7 @@ function App() {
             type="button"
             onClick={() => navigateWithLobbyClick("more", "More", "more")}
           >
-            More
+            More <span className="lobby-more-arrows" aria-hidden="true">≫</span>
           </button>
 
           <button className="lobby-highlight" type="button" onClick={openUpcomingHighlight} aria-label="Upcoming highlight">
@@ -6693,10 +7066,22 @@ function App() {
             </button>
 
             <div className="legal-links" aria-label="Legal links">
-              <button type="button" onClick={() => navigateTo("terms")}>
+              <button
+                type="button"
+                onClick={() => {
+                  legalReturnRef.current = "promote";
+                  navigateTo("terms");
+                }}
+              >
                 Terms
               </button>
-              <button type="button" onClick={() => navigateTo("privacy")}>
+              <button
+                type="button"
+                onClick={() => {
+                  legalReturnRef.current = "promote";
+                  navigateTo("privacy");
+                }}
+              >
                 Privacy
               </button>
             </div>
@@ -10057,6 +10442,9 @@ function App() {
             {adminStatus === "error" && (
               <p className="form-error">Could not save. Try again.</p>
             )}
+            {adminStatus === "rental-payment-incomplete" && (
+              <p className="form-error">Payment is not completed yet.</p>
+            )}
             <div className="admin-rental-edit-actions" style={{ marginTop: "8px" }}>
               <button
                 className="admin-rental-edit-button"
@@ -10064,7 +10452,7 @@ function App() {
                 onClick={handleSaveRental}
                 disabled={adminStatus === "saving"}
               >
-                {adminStatus === "saving" ? "Saving…" : "Save Changes"}
+                {adminStatus === "saving" ? "SAVING..." : "Save Changes"}
               </button>
               <button
                 className="admin-rental-edit-button"
@@ -10184,23 +10572,26 @@ function App() {
               }} />
               {editingJob.logo_data && <img src={editingJob.logo_data} alt="Company logo" style={{ maxWidth: "120px", marginTop: "8px", borderRadius: "8px" }} />}
             </label>
-            {adminStatus === "error" && (
+            {(adminStatus === "error" || adminStatus === "job-save-error") && (
               <p className="form-error">Could not save. Try again.</p>
+            )}
+            {adminStatus === "job-refresh-error" && (
+              <p className="form-error">Job saved, but the Jobs list could not refresh. Please refresh Jobs.</p>
             )}
             {adminStatus === "job-payment-incomplete" && (
               <p className="form-error">Payment is not completed yet.</p>
             )}
-            <div className="directory-actions" style={{ marginTop: "8px" }}>
+            <div className="admin-job-edit-actions">
               <button
-                className="primary-button"
+                className="admin-job-edit-button"
                 type="button"
                 onClick={handleSaveJob}
                 disabled={adminStatus === "saving"}
               >
-                {adminStatus === "saving" ? "Saving…" : "Save Changes"}
+                {adminStatus === "saving" ? "SAVING..." : "Save Changes"}
               </button>
               <button
-                className="directory-link"
+                className="admin-job-edit-button"
                 type="button"
                 onClick={() => { setEditJobPage(false); setEditingJob(null); setAdminStatus(""); }}
               >
@@ -10225,7 +10616,6 @@ function App() {
             <p className="eyebrow">Private</p>
             <h1 id="admin-title">Admin Panel</h1>
             <p className="events-intro">Review submitted photos and businesses before they appear in Abilene Vibes.</p>
-            <p style={{ color: "#ff0", fontWeight: 900, fontSize: "13px", letterSpacing: "0.1em", marginTop: "8px" }}>JOBS EDIT SCREEN FIX VERSION 1</p>
           </section>
 
           {!supabase && (
@@ -10366,7 +10756,7 @@ function App() {
                     {eventSubmissionStatus === "saving" ? "Saving..." : "Publish Event"}
                   </button>
 
-                  {eventSubmissionStatus && (
+                  {eventSubmissionStatus && eventSubmissionStatus !== "saving" && (
                     <p className={eventSubmissionStatus === "saved" ? "form-success" : "form-error"}>
                       {eventSubmissionStatus === "saved"
                         ? "Event published."
@@ -10397,6 +10787,18 @@ function App() {
                           alt=""
                         />
                         <span className="event-type">{event.event_type}</span>
+                        {!isPublicEventActive(event) && (
+                          <span
+                            className="event-type"
+                            style={{
+                              background: "rgba(255, 55, 55, 0.18)",
+                              borderColor: "rgba(255, 75, 75, 0.85)",
+                              color: "#ffd7d7",
+                            }}
+                          >
+                            EXPIRED
+                          </span>
+                        )}
                         <h3>{event.title}</h3>
                         <p>{event.place}</p>
                         <p>Starts: {formatEventScheduleLine(event.event_date, event.event_time)}</p>
@@ -10442,6 +10844,18 @@ function App() {
                     {hiddenEvents.map((event) => (
                       <article className="admin-card" key={event.id}>
                         <span className="event-type">Hidden</span>
+                        {!isPublicEventActive(event) && (
+                          <span
+                            className="event-type"
+                            style={{
+                              background: "rgba(255, 55, 55, 0.18)",
+                              borderColor: "rgba(255, 75, 75, 0.85)",
+                              color: "#ffd7d7",
+                            }}
+                          >
+                            EXPIRED
+                          </span>
+                        )}
                         <h3>{event.title}</h3>
                         <p>{event.place}</p>
                         <p>Starts: {formatEventScheduleLine(event.event_date, event.event_time)}</p>
@@ -10836,6 +11250,9 @@ function App() {
                       const jobPlan = String(job.plan ?? "free").toLowerCase();
                       const jobPaymentStatus = String(job.payment_status ?? "unknown").toLowerCase();
                       const isJobCompPromo = ["featured", "premium"].includes(jobPlan) && jobPaymentStatus === "not_required";
+                      const approvingJob = adminJobActionKey === `${job.id}:status:approved`;
+                      const deletingJob = adminJobActionKey === `${job.id}:delete`;
+                      const isJobBusy = adminJobActionKey.startsWith(`${job.id}:`);
 
                       return (
                       <article className="admin-card" key={job.id}>
@@ -10873,13 +11290,15 @@ function App() {
                                 className="directory-link"
                                 type="button"
                                 onClick={() => handleApproveJob(job)}
+                                disabled={isJobBusy}
                               >
-                                Approve
+                                {approvingJob ? "APPROVING..." : "Approve"}
                               </button>
                               <button
                                 className="directory-link"
                                 type="button"
                                 onClick={() => setJobPaymentPlan(job, job.plan ?? "free", "rejected", job.payment_status ?? "not_required", job.expires_at ?? null)}
+                                disabled={isJobBusy}
                               >
                                 Reject
                               </button>
@@ -10890,6 +11309,7 @@ function App() {
                               className="directory-link"
                               type="button"
                               onClick={() => setJobPaymentPlan(job, job.plan ?? "free", "hidden", job.payment_status ?? "not_required", job.expires_at ?? null)}
+                              disabled={isJobBusy}
                             >
                               Hide / Unpublish
                             </button>
@@ -10899,14 +11319,16 @@ function App() {
                               className="directory-link"
                               type="button"
                               onClick={() => handleApproveJob(job)}
+                              disabled={isJobBusy}
                             >
-                              Show / Restore
+                              {approvingJob ? "APPROVING..." : "Show / Restore"}
                             </button>
                           )}
                           <button
                             className="directory-link"
                             type="button"
                             onClick={() => { setEditingJob({ ...job }); setEditJobPage(true); }}
+                            disabled={isJobBusy}
                           >
                             Edit
                           </button>
@@ -10914,7 +11336,7 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => setPaidJobPlacement(job, "free")}
-                            disabled={jobPlan === "free" && jobPaymentStatus === "not_required"}
+                            disabled={isJobBusy || (jobPlan === "free" && jobPaymentStatus === "not_required")}
                           >
                             Plan Free
                           </button>
@@ -10922,7 +11344,7 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => compJobPlacement(job, "featured")}
-                            disabled={jobPlan === "featured" && jobPaymentStatus === "not_required"}
+                            disabled={isJobBusy || (jobPlan === "featured" && jobPaymentStatus === "not_required")}
                           >
                             Free Promo Featured
                           </button>
@@ -10930,7 +11352,7 @@ function App() {
                             className="directory-link"
                             type="button"
                             onClick={() => compJobPlacement(job, "premium")}
-                            disabled={jobPlan === "premium" && jobPaymentStatus === "not_required"}
+                            disabled={isJobBusy || (jobPlan === "premium" && jobPaymentStatus === "not_required")}
                           >
                             Free Promo Premium
                           </button>
@@ -10939,6 +11361,7 @@ function App() {
                               className="directory-link danger-link"
                               type="button"
                               onClick={() => clearCompJobPlacement(job)}
+                              disabled={isJobBusy}
                             >
                               End Promo
                             </button>
@@ -10947,8 +11370,9 @@ function App() {
                             className="directory-link danger-link"
                             type="button"
                             onClick={() => handleDeleteJob(job.id)}
+                            disabled={isJobBusy}
                           >
-                            Delete
+                            {deletingJob ? "DELETING..." : "Delete"}
                           </button>
                         </div>
                       </article>
@@ -11754,8 +12178,8 @@ function App() {
     return withSplash(
       <main className="app legal-page">
         <div className="legal-shell">
-          <button className="back-button" onClick={backToLobby}>
-            Back to lobby
+          <button className="back-button" onClick={backFromLegal}>
+            ← Back
           </button>
 
           <section className="legal-header" aria-labelledby={`${page}-title`}>
