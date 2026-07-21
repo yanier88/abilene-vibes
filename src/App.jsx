@@ -1738,6 +1738,31 @@ function LobbyActionIcon({ icon }) {
   return <span aria-hidden="true">{icon}</span>;
 }
 
+function RentalBedroomIcon() {
+  return (
+    <svg className="rental-amenity-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 11V6.5A2.5 2.5 0 0 1 6.5 4h4A2.5 2.5 0 0 1 13 6.5V11" />
+      <path d="M4 11h16a2 2 0 0 1 2 2v5" />
+      <path d="M2 18h20" />
+      <path d="M4 18v2" />
+      <path d="M20 18v2" />
+      <path d="M13 8h4.5A2.5 2.5 0 0 1 20 10.5V11" />
+    </svg>
+  );
+}
+
+function RentalBathroomIcon() {
+  return (
+    <svg className="rental-amenity-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 11h16v1.5a5.5 5.5 0 0 1-5.5 5.5h-5A5.5 5.5 0 0 1 5 12.5V11Z" />
+      <path d="M7 11V5.8A2.8 2.8 0 0 1 9.8 3H11" />
+      <path d="M10 6h4" />
+      <path d="M8 18l-1 2" />
+      <path d="M18 18l1 2" />
+    </svg>
+  );
+}
+
 function ServiceIcon({ icon }) {
   if (icon === "news") {
     return (
@@ -2292,6 +2317,7 @@ function App() {
   // ── Rent & Housing state ──────────────────────────────────
   const [rentalListings, setRentalListings] = useState([]);
   const [rentalsSearch, setRentalsSearch] = useState("");
+  const rentalSearchInputRef = useRef(null);
   const [rentalsTypeFilter, setRentalsTypeFilter] = useState("All");
   const [rentalsFilter, setRentalsFilter] = useState("All");
   const [selectedRental, setSelectedRental] = useState(null);
@@ -8534,15 +8560,29 @@ function App() {
             <p className="eyebrow">Abilene, TX</p>
             <h1 id="rentals-title">Rent &amp; Housing</h1>
             <p className="events-intro">Find apartments, houses, rooms, commercial spaces, homes for sale, and short-term stays.</p>
-            <div className="marketplace-search jobs-search">
+            <div className={`marketplace-search jobs-search${rentalsSearch ? " has-clear" : ""}`}>
               <span aria-hidden="true">⌕</span>
               <input
+                ref={rentalSearchInputRef}
                 type="search"
                 value={rentalsSearch}
                 onChange={(e) => setRentalsSearch(e.target.value)}
                 placeholder="Search by address, type, description..."
                 aria-label="Search rentals"
               />
+              {rentalsSearch && (
+                <button
+                  className="rentals-search-clear"
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => {
+                    setRentalsSearch("");
+                    rentalSearchInputRef.current?.focus();
+                  }}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              )}
             </div>
             <button
               className="jobs-post-button"
@@ -8792,19 +8832,21 @@ function App() {
                 : r.price || "Price on request"}
             </p>
             {!isSTR && r.deposit && <p className="job-detail-meta">Deposit: {r.deposit}</p>}
-            <p className="job-detail-meta">
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address ?? "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rental-address-link"
-              >📍 {r.address}</a>
-            </p>
             {(r.bedrooms || r.bathrooms) && (
-              <p className="job-detail-meta">
-                {r.bedrooms ? `🛏️ ${r.bedrooms}` : ""}
-                {r.bedrooms && r.bathrooms ? " · " : ""}
-                {r.bathrooms ? `🚿 ${r.bathrooms} ba` : ""}
+              <p className="job-detail-meta rental-amenities-line">
+                {r.bedrooms && (
+                  <span className="rental-amenity">
+                    <RentalBedroomIcon />
+                    <span>{r.bedrooms}</span>
+                  </span>
+                )}
+                {r.bedrooms && r.bathrooms && <span className="rental-amenity-divider">·</span>}
+                {r.bathrooms && (
+                  <span className="rental-amenity">
+                    <RentalBathroomIcon />
+                    <span>{r.bathrooms} BA</span>
+                  </span>
+                )}
               </p>
             )}
             {r.pets_allowed && <p className="job-detail-meta">🐾 Pets allowed</p>}
@@ -8840,6 +8882,16 @@ function App() {
               {r.email && (
                 <a className="jobs-post-button job-detail-apply-btn" href={`mailto:${r.email}`}>
                   ✉️ Email
+                </a>
+              )}
+              {r.address && (
+                <a
+                  className="jobs-post-button job-detail-apply-btn"
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.address ?? "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  📍 Directions
                 </a>
               )}
               {r.external_url && (
