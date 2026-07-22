@@ -769,13 +769,11 @@ const evaluateMarketplaceModeration = (payload, imageCount = 0) => {
     hits.push({ flag: "repeated_text", reason: "Listing contains repeated text that looks like spam.", score: 0.62, severity: "review" });
   }
 
-  const rejectHit = hits.find((hit) => hit.severity === "reject");
   const reviewHit = hits.find((hit) => hit.severity === "review");
-  const moderationStatus = rejectHit ? "rejected" : reviewHit ? "needs_review" : "approved";
+  const moderationStatus = "pending";
   const moderationReason =
-    rejectHit?.reason ||
     reviewHit?.reason ||
-    "Marketplace listing passed local moderation rules.";
+    "Marketplace listing is waiting for manual admin approval.";
   const moderationScore = hits.reduce((max, hit) => Math.max(max, hit.score), 0);
 
   return {
@@ -789,8 +787,10 @@ const evaluateMarketplaceModeration = (payload, imageCount = 0) => {
   };
 };
 
-const getMarketplaceModerationStatus = (listing) =>
-  String(listing?.moderation_status ?? listing?.moderationStatus ?? "approved").trim().toLowerCase();
+const getMarketplaceModerationStatus = (listing) => {
+  const status = String(listing?.moderation_status ?? listing?.moderationStatus ?? "approved").trim().toLowerCase();
+  return status === "needs_review" ? "pending" : status;
+};
 
 const mapListingFromDb = (row) => {
   const imgs = parseListingImages(row.image_data);
@@ -2281,7 +2281,7 @@ function App() {
   const [editingListing, setEditingListing] = useState(null);
   const [deletingListing, setDeletingListing] = useState(null);
   const [editDeleteStatus, setEditDeleteStatus] = useState("");
-  const [marketplaceAdminStatusFilter, setMarketplaceAdminStatusFilter] = useState("needs_review");
+  const [marketplaceAdminStatusFilter, setMarketplaceAdminStatusFilter] = useState("pending");
   const [marketplaceActionKey, setMarketplaceActionKey] = useState("");
   const [sellItemPhotos, setSellItemPhotos] = useState([]);       // [{file, preview}] for sell form
   const [listingGalleryIndex, setListingGalleryIndex] = useState(0); // current photo index in detail view
@@ -5238,18 +5238,25 @@ function App() {
       acc[moderationStatus] = (acc[moderationStatus] ?? 0) + 1;
       return acc;
     },
-    { all: 0, needs_review: 0, approved: 0, rejected: 0, active: 0, hidden: 0, sold: 0 },
+    { all: 0, pending: 0, approved: 0, rejected: 0, active: 0, hidden: 0, sold: 0 },
   );
   const adminMarketplaceVisibleListings = adminMarketplaceListings.filter((listing) => {
     const status = listing.status ?? "active";
     const moderationStatus = getMarketplaceModerationStatus(listing);
     if (status === "deleted") return false;
     if (marketplaceAdminStatusFilter === "all") return true;
-    if (["needs_review", "approved", "rejected"].includes(marketplaceAdminStatusFilter)) {
+    if (["pending", "approved", "rejected"].includes(marketplaceAdminStatusFilter)) {
       return moderationStatus === marketplaceAdminStatusFilter;
     }
     return status === marketplaceAdminStatusFilter;
   });
+  const marketplaceAdminDisplayStatus = (listing) => {
+    const status = String(listing?.status ?? "active").trim().toLowerCase();
+    const moderationStatus = getMarketplaceModerationStatus(listing);
+    if (moderationStatus === "pending") return "pending";
+    if (moderationStatus === "rejected") return "rejected";
+    return status;
+  };
   const isListingOwner = (l) => !!(l.ownerUserId && l.ownerUserId === effectiveOwnerId);
   const myMarketplaceListings = marketplaceListings.filter((l) => isListingOwner(l));
   const myFilteredListings = myMarketplaceListings.filter((l) =>
@@ -5391,6 +5398,7 @@ function App() {
     }
     await loadMarketplacePublic();
     await loadAdminData();
+    setAdminStatus(moderationStatus === "approved" ? "marketplace-approved" : "marketplace-rejected");
     setMarketplaceActionKey("");
   };
 
@@ -5481,12 +5489,23 @@ function App() {
     // Use local date string so it matches the user's timezone (not UTC)
     const now = new Date();
     const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const postedTodayCount = marketplaceListings.filter((l) => {
+    let postedTodayCount = marketplaceListings.filter((l) => {
       if (!isListingOwner(l) || !l.createdAt) return false;
       const created = new Date(l.createdAt);
       const localCreated = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}-${String(created.getDate()).padStart(2, "0")}`;
       return localCreated === localToday;
     }).length;
+    const localDayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const localDayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    const { data: ownerDailyCount, error: ownerDailyCountError } = await supabase.rpc("count_owner_marketplace_listings_between", {
+      owner_id: effectiveOwnerId,
+      starts_at: localDayStart,
+      ends_at: localDayEnd,
+    });
+    if (ownerDailyCountError) { setSellItemStatus("error"); return; }
+    if (Number.isFinite(Number(ownerDailyCount))) {
+      postedTodayCount = Number(ownerDailyCount);
+    }
     if (postedTodayCount >= 2) { setSellItemStatus("limit-daily"); return; }
     } // end !adminSession limit checks
     // ── Compute expiry ────────────────────────────────────────
@@ -5545,10 +5564,9 @@ function App() {
       await loadMarketplacePublic();
       setMarketplaceSearch("");
       setMarketplaceFilter("All");
-      setSellItemStatus("saved");
+      setSellItemStatus("moderation-review");
       setSellItemPhotos([]);
       form.reset();
-      navigateTo("marketplace");
     } catch {
       setSellItemStatus("error");
     }
@@ -7716,7 +7734,7 @@ function App() {
               {sellItemStatus === "saving" ? "Posting..." : "Post Item"}
             </button>
             {sellItemStatus === "saved" && (
-              <p className="form-success compact-status">Item posted. It is now visible in Marketplace.</p>
+              <p className="form-success compact-status">Item submitted for approval.</p>
             )}
             {sellItemStatus === "moderation-review" && (
               <p className="form-success compact-status">Your listing was submitted for review and will appear after approval.</p>
@@ -11445,7 +11463,7 @@ function App() {
                 <div className="jobs-filter-bar marketplace-admin-filter-bar" aria-label="Marketplace status filters">
                   {[
                     ["all", "All"],
-                    ["needs_review", "Needs Review"],
+                    ["pending", "Pending"],
                     ["active", "Active"],
                     ["hidden", "Hidden"],
                     ["sold", "Sold"],
@@ -11460,11 +11478,17 @@ function App() {
                     </button>
                   ))}
                 </div>
-                {marketplaceAdminStatusFilter === "needs_review" && (
+                {marketplaceAdminStatusFilter === "pending" && (
                   <div className="business-form-heading">
                     <p className="eyebrow">Manual review</p>
-                    <h2>Needs Review</h2>
+                    <h2>Pending</h2>
                   </div>
+                )}
+                {adminStatus === "marketplace-approved" && (
+                  <p className="form-success">Marketplace listing approved and now eligible for public display.</p>
+                )}
+                {adminStatus === "marketplace-rejected" && (
+                  <p className="form-success">Marketplace listing rejected and kept out of public Marketplace.</p>
                 )}
 
                 {/* Edit modal (reuses editingListing + handleEditListingSubmit) */}
@@ -11561,8 +11585,8 @@ function App() {
                             style={{ width: "100%", maxHeight: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }}
                           />
                         )}
-                        <span className={`event-type marketplace-admin-status marketplace-status-${listing.status}`}>
-                          {listing.status}
+                        <span className={`event-type marketplace-admin-status marketplace-status-${marketplaceAdminDisplayStatus(listing)}`}>
+                          {marketplaceAdminDisplayStatus(listing).toUpperCase()}
                         </span>
                         <h3>{listing.title}</h3>
                         {listing.price && <p>Price: {listing.price}</p>}
@@ -11597,7 +11621,7 @@ function App() {
                           {listing.sold_at ? ` · Sold: ${new Date(listing.sold_at).toLocaleDateString()}` : ""}
                         </p>
                         <div className="directory-actions marketplace-admin-actions">
-                          {getMarketplaceModerationStatus(listing) === "needs_review" && (
+                          {getMarketplaceModerationStatus(listing) === "pending" && (
                             <>
                               <button
                                 className="directory-link marketplace-admin-action"
@@ -11605,7 +11629,7 @@ function App() {
                                 onClick={() => setMarketplaceModerationStatus(listing, "approved")}
                                 disabled={marketplaceActionKey.startsWith(`${listing.id}:`)}
                               >
-                                {marketplaceActionKey === `${listing.id}:moderation:approved` ? "Approving..." : "Approve"}
+                                {marketplaceActionKey === `${listing.id}:moderation:approved` ? "APPROVING..." : "Approve"}
                               </button>
                               <button
                                 className="directory-link marketplace-admin-action"
@@ -11613,7 +11637,7 @@ function App() {
                                 onClick={() => setMarketplaceModerationStatus(listing, "rejected")}
                                 disabled={marketplaceActionKey.startsWith(`${listing.id}:`)}
                               >
-                                {marketplaceActionKey === `${listing.id}:moderation:rejected` ? "Rejecting..." : "Reject"}
+                                {marketplaceActionKey === `${listing.id}:moderation:rejected` ? "REJECTING..." : "Reject"}
                               </button>
                             </>
                           )}

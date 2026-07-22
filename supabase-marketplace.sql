@@ -19,7 +19,7 @@ create table if not exists public.marketplace_listings (
   image_data text,
   status text not null default 'active',
   owner_user_id text not null,
-  moderation_status text not null default 'approved',
+  moderation_status text not null default 'pending',
   moderation_reason text,
   moderation_score numeric,
   moderation_flags jsonb not null default '{}'::jsonb,
@@ -50,7 +50,10 @@ alter table public.marketplace_listings
 add column if not exists status text not null default 'active';
 
 alter table public.marketplace_listings
-add column if not exists moderation_status text not null default 'approved';
+add column if not exists moderation_status text not null default 'pending';
+
+alter table public.marketplace_listings
+alter column moderation_status set default 'pending';
 
 alter table public.marketplace_listings
 add column if not exists moderation_reason text;
@@ -91,7 +94,7 @@ drop constraint if exists marketplace_listings_moderation_status_check;
 
 alter table public.marketplace_listings
 add constraint marketplace_listings_moderation_status_check
-check (moderation_status in ('approved', 'needs_review', 'rejected'));
+check (moderation_status in ('pending', 'approved', 'needs_review', 'rejected'));
 
 update public.marketplace_listings
 set moderation_status = 'approved'
@@ -162,7 +165,7 @@ for insert
 to anon, authenticated
 with check (
   status = 'active'
-  and moderation_status in ('approved', 'needs_review', 'rejected')
+  and moderation_status = 'pending'
   and length(trim(title)) > 0
   and length(trim(price)) > 0
   and length(trim(category)) > 0
@@ -256,6 +259,29 @@ as $$
 $$;
 
 grant execute on function public.list_marketplace_listings(text) to anon, authenticated, service_role;
+
+drop function if exists public.count_owner_marketplace_listings_today(text);
+drop function if exists public.count_owner_marketplace_listings_between(text, timestamptz, timestamptz);
+
+create or replace function public.count_owner_marketplace_listings_between(
+  owner_id text,
+  starts_at timestamptz,
+  ends_at timestamptz
+)
+returns integer
+language sql
+security definer
+set search_path = public
+as $$
+  select count(*)::integer
+  from public.marketplace_listings ml
+  where ml.owner_user_id = owner_id
+    and length(trim(coalesce(owner_id, ''))) > 0
+    and ml.created_at >= starts_at
+    and ml.created_at < ends_at;
+$$;
+
+grant execute on function public.count_owner_marketplace_listings_between(text, timestamptz, timestamptz) to anon, authenticated, service_role;
 
 drop function if exists public.owner_set_marketplace_listing_status(uuid, text, text);
 
