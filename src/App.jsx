@@ -7225,8 +7225,8 @@ function App() {
               {filteredMarketplaceListings.map((l) => (
                 <article key={marketplaceListingKey(l)} className="marketplace-card">
                   <button className="marketplace-card-open" type="button" onClick={() => openListing(l)}>
-                    <div className="marketplace-photo">
-                      {l.image ? <img src={l.image} alt="" /> : <span>{l.icon}</span>}
+                    <div className="marketplace-photo marketplace-feed-photo">
+                      {l.image ? <img className="marketplace-feed-image" src={l.image} alt="" /> : <span>{l.icon}</span>}
                       <span className="event-type marketplace-card-tag">
                         {l.tag === "New Today" && "New"}
                         {l.tag === "Featured" && "Featured"}

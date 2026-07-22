@@ -3433,7 +3433,9 @@
 }.my-marketplace-grid{gap:12px;display:grid
 }.my-marketplace-card img{aspect-ratio:16/9;object-fit:cover;border-radius:12px;width:100%
 }@media (width<=430px){.marketplace-photo{aspect-ratio:16/12.2
-}}.jobs-page{background:#071018;min-height:100svh;position:relative;overflow-x:hidden
+}}.marketplace-feed-photo{aspect-ratio:auto;background:#050008;display:block
+}.marketplace-feed-photo .marketplace-feed-image{aspect-ratio:16/9;object-fit:cover;object-position:center;background:#050008;border:0;border-radius:12px;width:100%;height:auto;display:block
+}.jobs-page{background:#071018;min-height:100svh;position:relative;overflow-x:hidden
 }.jobs-neon-bg{z-index:0;pointer-events:none;background:linear-gradient(#0508162e,#0408106b),radial-gradient(circle at 16% 8%,#00d4ff33,#0000 28%),radial-gradient(circle at 86% 18%,#b934ff2e,#0000 32%),radial-gradient(circle at 24% 88%,#4aff7a24,#0000 34%),#071018;position:fixed;inset:0
 }.jobs-neon-bg:before{content:"💼  🧰  🚚  🍔  🏥  🏗️  🧹  💻  🛒  🔧  📋  👷  💼  🧰  🚚  🍔  🏥  🏗️  🧹  💻  🛒  🔧  📋  👷";color:#46e5ff3d;letter-spacing:.34em;opacity:.18;text-shadow:0 0 12px #00d4ffbf,0 0 22px #b934ff94,0 0 28px #4aff7a57;word-spacing:.8em;font-size:clamp(2rem,10vw,5rem);line-height:1.9;display:block;position:absolute;inset:-8% -18%;transform:rotate(-8deg)
 }.jobs-shell{overflow:hidden
