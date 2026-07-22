@@ -1188,12 +1188,84 @@ const verifiedNewsSources = [
 const localNewsCategories = [
   { label: "All", description: "Everything fresh" },
   { label: "Fires", description: "Fire and emergency updates" },
-  { label: "Arrests", description: "Public safety reports" },
+  { label: "Arts & Music", description: "Local concerts, art exhibits, live performances, festivals and cultural news" },
   { label: "New Spots", description: "Openings and local business buzz" },
   { label: "Sports", description: "Local scores and matchups" },
   { label: "Campus", description: "ACU, HSU, McMurry and local colleges" },
   { label: "Flying Bison", description: "Professional baseball updates" },
 ];
+
+const artsMusicNewsKeywords = [
+  "art",
+  "arts",
+  "music",
+  "concert",
+  "concerts",
+  "live music",
+  "gallery",
+  "galleries",
+  "exhibit",
+  "exhibits",
+  "exhibition",
+  "exhibitions",
+  "theater",
+  "theatre",
+  "museum",
+  "museums",
+  "performance",
+  "performances",
+  "festival",
+  "festivals",
+  "cultural event",
+  "cultural events",
+  "local artist",
+  "local artists",
+  "local band",
+  "local bands",
+];
+
+const artsMusicLocalKeywords = ["abilene", "taylor county", "big country"];
+const artsMusicExcludedKeywords = ["arrest", "arrested", "jail", "charged", "charges", "police", "apd", "sheriff", "crime", "indicted", "warrant", "public safety"];
+
+const localNewsStoryText = (story) =>
+  `${story?.title ?? ""} ${story?.summary ?? ""} ${story?.source_name ?? ""}`.toLowerCase();
+
+const localNewsKeywordPattern = (keyword) =>
+  new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+")}\\b`);
+
+const localNewsTextHasKeyword = (text, keyword) => localNewsKeywordPattern(keyword).test(text);
+
+const isArtsMusicNewsStory = (story) => {
+  const text = localNewsStoryText(story);
+  return (
+    artsMusicLocalKeywords.some((keyword) => localNewsTextHasKeyword(text, keyword)) &&
+    artsMusicNewsKeywords.some((keyword) => localNewsTextHasKeyword(text, keyword)) &&
+    !artsMusicExcludedKeywords.some((keyword) => localNewsTextHasKeyword(text, keyword))
+  );
+};
+
+const decodeLocalNewsHtmlEntities = (value) => {
+  const decodeOnce = (text) =>
+    text.replace(/&(#\d+|#x[0-9a-f]+|quot|amp|apos);/gi, (entity, token) => {
+      const normalizedToken = token.toLowerCase();
+      if (normalizedToken === "quot") return "\"";
+      if (normalizedToken === "amp") return "&";
+      if (normalizedToken === "apos") return "'";
+      if (normalizedToken.startsWith("#x")) {
+        const codePoint = Number.parseInt(normalizedToken.slice(2), 16);
+        return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : entity;
+      }
+      const codePoint = Number.parseInt(normalizedToken.slice(1), 10);
+      return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : entity;
+    });
+
+  return decodeOnce(decodeOnce(String(value ?? "")));
+};
+
+const publicLocalNewsVerificationStatus = (value) => {
+  const status = decodeLocalNewsHtmlEntities(value).trim();
+  return ["needs_review", "pending", "approved", "rejected"].includes(status.toLowerCase()) ? "" : status;
+};
 
 const adminTabs = [
   { id: "events", label: "Events" },
@@ -5962,6 +6034,8 @@ function App() {
   const filteredLocalNewsItems =
     selectedNewsCategory === "All"
       ? localNewsItems
+      : selectedNewsCategory === "Arts & Music"
+      ? localNewsItems.filter(isArtsMusicNewsStory)
       : localNewsItems.filter((story) => (story.news_category ?? "Local Buzz") === selectedNewsCategory);
   const likeCountFor = (itemType, itemKey) => likeCounts[`${itemType}:${itemKey}`] ?? 0;
   const isLiked = (itemType, itemKey) => likedItems.includes(`${itemType}:${itemKey}`);
@@ -6554,7 +6628,7 @@ function App() {
             <p className="eyebrow">Live weekly pulse</p>
             <h1 id="news-title">Local News</h1>
             <p className="events-intro">
-              Fires, arrests, openings, campus sports, and Flying Bison updates from trusted sources in the last 7 days.
+              Fires, arts and music, openings, campus sports, and Flying Bison updates from trusted sources in the last 7 days.
             </p>
           </section>
 
@@ -6563,7 +6637,9 @@ function App() {
               <span>Live feed</span>
               <div>
                 <p>
-                  {newsTickerStories.map((story) => `${story.news_category ?? "Local Buzz"}: ${story.title}`).join("   •   ")}
+                  {newsTickerStories
+                    .map((story) => `${decodeLocalNewsHtmlEntities(story.news_category ?? "Local Buzz")}: ${decodeLocalNewsHtmlEntities(story.title)}`)
+                    .join("   •   ")}
                 </p>
               </div>
             </section>
@@ -6592,8 +6668,8 @@ function App() {
                   {leadNewsStory.image_url && <img src={leadNewsStory.image_url} alt="" />}
                   <div>
                     <span className="news-live-dot">Updated this week</span>
-                    <h2>{leadNewsStory.title}</h2>
-                    <p>{leadNewsStory.summary}</p>
+                    <h2>{decodeLocalNewsHtmlEntities(leadNewsStory.title)}</h2>
+                    <p>{decodeLocalNewsHtmlEntities(leadNewsStory.summary)}</p>
                     <a
                       className="place-link"
                       href={leadNewsStory.original_url ?? leadNewsStory.source_url}
@@ -6615,14 +6691,20 @@ function App() {
                   {story.image_url && <img className="news-image" src={story.image_url} alt="" loading="lazy" />}
                   <div className="event-copy">
                     <div className="news-card-topline">
-                      <span className="event-type">{story.news_category ?? "Local Buzz"}</span>
-                      <span className="news-mood">{story.mood_label ?? "Fresh"}</span>
+                      <span className="event-type">{decodeLocalNewsHtmlEntities(story.news_category ?? "Local Buzz")}</span>
+                      <span className="news-mood">{decodeLocalNewsHtmlEntities(story.mood_label ?? "Fresh")}</span>
                     </div>
-                    <h2>{story.title}</h2>
-                    <p className="event-detail">{story.summary}</p>
-                    <p className="event-detail">
-                      {story.source_name} · {new Date(story.published_at).toLocaleDateString()} · {story.verification_status ?? "verified"}
-                    </p>
+                    <h2>{decodeLocalNewsHtmlEntities(story.title)}</h2>
+                    <p className="event-detail">{decodeLocalNewsHtmlEntities(story.summary)}</p>
+                    {(() => {
+                      const visibleVerificationStatus = publicLocalNewsVerificationStatus(story.verification_status);
+                      return (
+                        <p className="event-detail">
+                          {decodeLocalNewsHtmlEntities(story.source_name)} · {new Date(story.published_at).toLocaleDateString()}
+                          {visibleVerificationStatus ? ` · ${visibleVerificationStatus}` : ""}
+                        </p>
+                      );
+                    })()}
                     <div className="place-actions">
                       <a
                         className="place-link"

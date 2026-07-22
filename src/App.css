@@ -1349,7 +1349,7 @@
   --news-tone: #ff4d3d;
 }
 
-.news-tone-arrests {
+.news-tone-arts-music {
   --news-tone: #ffcd52;
 }
 
@@ -3566,7 +3566,7 @@
 }.news-card-topline{flex-wrap:wrap;align-items:center;gap:8px;display:flex
 }.news-mood{color:#fff;letter-spacing:.08em;text-transform:uppercase;background:#ffbc2e24;border:1px solid #ffcd5280;border-radius:999px;width:max-content;max-width:100%;padding:7px 10px;font-size:.78rem;font-weight:900;box-shadow:0 0 16px #ffbc2e2e
 }.news-tone-fires{--news-tone:#ff4d3d
-}.news-tone-arrests{--news-tone:#ffcd52
+}.news-tone-arts-music{--news-tone:#ffcd52
 }.news-tone-new-spots{--news-tone:#4aff7a
 }.news-tone-sports{--news-tone:#00d4ff
 }.news-tone-campus{--news-tone:#b246ff
