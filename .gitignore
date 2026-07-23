@@ -43,6 +43,10 @@ supabase/.temp
 build/
 android/.gradle/
 android/build/
+android/key.properties
+key.properties
+*.jks
+*.keystore
 android-admin/.gradle/
 android-admin/build/
 
