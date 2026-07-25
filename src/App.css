@@ -2453,7 +2453,11 @@
   gap: 10px;
 }
 
-.legal-links button {
+.legal-links button,
+.legal-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 38px;
   border: 1px solid rgba(0, 212, 255, 0.42);
   border-radius: 999px;
@@ -2462,6 +2466,7 @@
   font: inherit;
   font-size: 0.85rem;
   font-weight: 900;
+  text-decoration: none;
   cursor: pointer;
   background: rgba(0, 212, 255, 0.1);
 }

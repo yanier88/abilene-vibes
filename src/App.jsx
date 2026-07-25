@@ -7210,6 +7210,7 @@ function App() {
               >
                 Privacy
               </button>
+              <a href="/delete-data.html">Delete Data</a>
             </div>
           </form>
         </div>
