@@ -5974,8 +5974,7 @@ function App() {
   const isLobbyAboutSlide = normalizedLobbyCarouselIndex === 0 || !lobbyFeaturedItems.length;
   const lobbyCarouselItem = isLobbyAboutSlide ? null : lobbyFeaturedItems[normalizedLobbyCarouselIndex - 1];
   const spotlightItem =
-    premiumLobbyItems[premiumCarouselIndex % Math.max(premiumLobbyItems.length, 1)] ??
-    paidBusinesses.map(toBusinessLobbyItem)[0];
+    premiumLobbyItems[premiumCarouselIndex % Math.max(premiumLobbyItems.length, 1)] ?? null;
   const openLobbyPromotionItem = async (item, placement) => {
     if (!item) {
       await trackLobbySectionClick("upcoming-highlight", "Upcoming Highlight");
