@@ -1327,6 +1327,31 @@ const activePaidPaymentStatuses = new Set(["paid", "cancel_pending"]);
 
 const businessPlacementExpiresAt = (business) => business.placementExpiresAt ?? business.placement_expires_at ?? "";
 
+const jobPlacementExpiresAt = (job) => job?.placementExpiresAt ?? job?.placement_expires_at ?? "";
+
+const hasActiveJobPromotion = (job) => {
+  const plan = String(job?.plan ?? "free").toLowerCase();
+  const paymentStatus = String(job?.payment_status ?? job?.paymentStatus ?? "").toLowerCase();
+  const placementSource = String(job?.placement_source ?? job?.placementSource ?? "").toLowerCase();
+  const expiresAt = jobPlacementExpiresAt(job);
+  const expiresTime = Date.parse(expiresAt);
+  const hasActiveExpiration = Boolean(expiresAt) && Number.isFinite(expiresTime) && expiresTime > Date.now();
+
+  if (!["featured", "premium"].includes(plan) || !hasActiveExpiration) {
+    return false;
+  }
+
+  if (placementSource === "stripe") {
+    return paymentStatus === "paid";
+  }
+
+  if (placementSource === "comp") {
+    return paymentStatus === "not_required";
+  }
+
+  return false;
+};
+
 const hasActiveBusinessPromotion = (business) => {
   const plan = business.plan ?? "";
   const paymentStatus = business.paymentStatus ?? business.payment_status ?? "";
@@ -2531,7 +2556,7 @@ function App() {
     if (!supabase) return;
     supabase
       .from("job_listings")
-      .select("id,created_at,title,company,category,job_type,pay_label,location,contact_person,phone,email,description,requirements,app_method,apply_url,duration,plan,payment_status,image_data,logo_data,expires_at,placement_expires_at,owner_user_id")
+      .select("id,created_at,title,company,category,job_type,pay_label,location,contact_person,phone,email,description,requirements,app_method,apply_url,duration,plan,payment_status,placement_source,image_data,logo_data,expires_at,placement_expires_at,owner_user_id")
       .eq("status", "approved")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -2544,14 +2569,10 @@ function App() {
           };
           setPostedJobs(
             data.filter((row) => {
-              const plan = String(row.plan ?? "free").toLowerCase();
-              const paymentStatus = String(row.payment_status ?? "").toLowerCase();
-              const isPaidPlan = plan === "featured" || plan === "premium";
-              if (isPaidPlan && paymentStatus === "pending") return false;
               if (isExpired(row.expires_at)) return false;
-              if (isPaidPlan && isExpired(row.placement_expires_at)) return false;
               return true;
             }).map((row) => ({
+              ...row,
               id: row.id,
               created_at: row.created_at,
               expires_at: row.expires_at,
@@ -2563,7 +2584,7 @@ function App() {
               schedule: "",
               category: row.category,
               posted: formatJobPosted(row.created_at),
-              tag: row.plan === "free" ? "New Today" : row.plan === "featured" ? "Featured" : "Premium",
+              tag: hasActiveJobPromotion(row) ? (String(row.plan ?? "free").toLowerCase() === "premium" ? "Premium" : "Featured") : "New Today",
               filters: [row.job_type, "New Today"],
               image: row.image_data,
               description: row.description,
@@ -2574,7 +2595,10 @@ function App() {
               appMethod: row.app_method,
               applyUrl: row.apply_url,
               duration: row.duration,
-              plan: row.plan,
+              plan: String(row.plan ?? "free").toLowerCase(),
+              payment_status: row.payment_status,
+              placement_source: row.placement_source,
+              placement_expires_at: row.placement_expires_at,
               owner_user_id: row.owner_user_id,
               ownerUserId: row.owner_user_id,
             })),
@@ -4249,10 +4273,10 @@ function App() {
     const days = window.prompt("Promo duration in days", "30");
     if (days === null) return;
     const durationDays = Math.max(1, Number.parseInt(days, 10) || 30);
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + durationDays);
+    const promoExpiresAt = new Date();
+    promoExpiresAt.setDate(promoExpiresAt.getDate() + durationDays);
 
-    await setJobPaymentPlan(job, cleanPlan, "approved", "not_required", expiresAt.toISOString(), "comp", expiresAt.toISOString());
+    await setJobPaymentPlan(job, cleanPlan, "approved", "not_required", job.expires_at ?? null, "comp", promoExpiresAt.toISOString());
   };
 
   const clearCompJobPlacement = async (job) => {
@@ -5856,10 +5880,20 @@ function App() {
     return String(rental?.plan ?? "free").toLowerCase() === "premium" ? 0 : 1;
   };
 
-  const jobPlanOrder = { premium: 0, featured: 1, free: 2 };
+  const jobPromotionRank = (job) => {
+    if (!hasActiveJobPromotion(job)) {
+      return 2;
+    }
+
+    return String(job?.plan ?? "free").toLowerCase() === "premium" ? 0 : 1;
+  };
   const allJobListings = [
-    ...postedJobs.map((j) => ({ ...j, tag: j.plan === "free" ? "New Today" : j.plan === "featured" ? "Featured" : "Premium", filters: [j.type, "New Today"] })),
-  ].sort((a, b) => (jobPlanOrder[a.plan] ?? 2) - (jobPlanOrder[b.plan] ?? 2));
+    ...postedJobs.map((j) => ({
+      ...j,
+      tag: hasActiveJobPromotion(j) ? (String(j.plan ?? "free").toLowerCase() === "premium" ? "Premium" : "Featured") : "New Today",
+      filters: [j.type, "New Today"],
+    })),
+  ].sort((a, b) => jobPromotionRank(a) - jobPromotionRank(b));
   const filteredJobListings = (jobsShowSaved ? allJobListings.filter((j) => savedJobs.includes(j.id)) : allJobListings).filter((j) => {
     const matchesCategory = jobsCategoryFilter === "All" || j.category === jobsCategoryFilter;
     const matchesFilter = jobsFilter === "All" || j.tag === jobsFilter || (j.filters ?? []).includes(jobsFilter);
@@ -5955,14 +5989,18 @@ function App() {
   };
   const lobbyFeaturedItems = [
     ...lobbyFeaturedBusinesses.map(toBusinessLobbyItem),
-    ...allJobListings.filter((job) => job.plan === "featured").map(toJobLobbyItem),
+    ...allJobListings
+      .filter((job) => hasActiveJobPromotion(job) && String(job.plan ?? "free").toLowerCase() === "featured")
+      .map(toJobLobbyItem),
     ...rentalListings
       .filter((rental) => hasActiveRentalPromotion(rental) && String(rental.plan ?? "free").toLowerCase() === "featured")
       .map(toRentalLobbyItem),
   ];
   const premiumLobbyItems = [
     ...premiumBusinesses.map(toBusinessLobbyItem),
-    ...allJobListings.filter((job) => job.plan === "premium").map(toJobLobbyItem),
+    ...allJobListings
+      .filter((job) => hasActiveJobPromotion(job) && String(job.plan ?? "free").toLowerCase() === "premium")
+      .map(toJobLobbyItem),
     ...rentalListings
       .filter((rental) => hasActiveRentalPromotion(rental) && String(rental.plan ?? "free").toLowerCase() === "premium")
       .map(toRentalLobbyItem),
@@ -9809,7 +9847,8 @@ function App() {
               )}
               {filteredJobListings.map((j) => {
                 const isSaved = savedJobs.includes(j.id);
-                const jobTier = String(j.tag || j.plan || "").toLowerCase();
+                const hasJobPromotion = hasActiveJobPromotion(j);
+                const jobTier = hasJobPromotion ? String(j.plan || "").toLowerCase() : "free";
                 const isFeatured = jobTier === "featured";
                 const isPremium = jobTier === "premium";
                 const jobBadgeClass = isPremium

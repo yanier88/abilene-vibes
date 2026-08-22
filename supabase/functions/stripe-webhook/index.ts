@@ -628,7 +628,6 @@ Deno.serve(async (request) => {
       const jobId = await fetchJobListingIdBySubscription(subscriptionId);
       await updateJobPayment(jobId, {
         payment_status: "canceled",
-        status: "hidden",
       });
       return new Response(JSON.stringify({ received: true }), {
         headers: { "Content-Type": "application/json" },
