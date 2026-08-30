@@ -886,7 +886,7 @@ const legalSections = {
     eyebrow: "Legal",
     title: "Terms of Use",
     intro:
-      "Effective Date: July 2026\n\nWelcome to Abilene Vibes, operated by Abilene Labs.\n\nThese Terms of Use apply to all users, visitors, businesses, advertisers, contributors, listing submitters, and anyone who accesses or uses Abilene Vibes.\n\nBy using Abilene Vibes, submitting content, publishing a listing, or purchasing a Featured or Premium placement, you agree to these Terms of Use.",
+      "Effective Date: August 2026\n\nWelcome to Abilene Vibes. Abilene Vibes is operated by Abilene Labs.\n\nThese Terms of Use apply to all users, visitors, businesses, advertisers, contributors, listing submitters, and anyone who accesses or uses Abilene Vibes.\n\nBy using Abilene Vibes, submitting content, publishing a listing, or purchasing a Featured or Premium placement, you agree to these Terms of Use.",
     items: [
       {
         title: "Free Use of the App",
@@ -911,27 +911,32 @@ const legalSections = {
       {
         title: "Business Listings",
         copy:
-          "Business submitters are responsible for providing accurate business names, categories, descriptions, addresses, phone numbers, websites, social links, photos, logos, and contact information.\n\nAbilene Vibes may approve, reject, edit, hide, pause, or remove business listings to keep the app accurate, lawful, and appropriate.\n\nBusiness names, trademarks, logos, and brand assets belong to their respective owners. Abilene Vibes is an independent local guide unless a business is clearly marked as a sponsor, advertiser, or partner.",
+          "Business submitters are responsible for providing accurate business names, categories, descriptions, addresses, phone numbers, websites, social links, photos, logos, and contact information.\n\nAbilene Vibes may approve, reject, edit, hide, pause, or remove business listings to keep the app accurate, lawful, and appropriate.\n\nBusiness names, trademarks, logos, and brand assets belong to their respective owners. Abilene Vibes is an independent local guide unless a business is clearly marked as a sponsor, advertiser, or partner.\n\nAbilene Vibes is an independent local platform and is not affiliated with, endorsed by, or operated by the City of Abilene.",
+      },
+      {
+        title: "Google Play",
+        copy:
+          "Abilene Vibes may be distributed through Google Play.\n\nGoogle Play is a third-party platform. Use of Google Play may also be subject to Google's applicable terms, policies, and privacy practices.\n\nAvailability through Google Play does not mean that Google controls, operates, or endorses Abilene Vibes content.",
       },
       {
         title: "Featured and Premium Placements",
         copy:
-          "Featured and Premium placements are paid promotional placements that improve visibility inside Abilene Vibes.\n\nFeatured currently costs $19 per month.\n\nPremium currently costs $59 per month.\n\nPayment does not guarantee immediate publication. Paid listings may still require Admin review before appearing publicly.\n\nPaid placement does not guarantee sales, visits, calls, rankings, customer interest, applications, rentals, purchases, or any specific result.",
+          "Featured and Premium placements are paid promotional placements that improve visibility inside Abilene Vibes.\n\nFeatured currently costs $19 per month.\n\nPremium currently costs $59 per month.\n\nCurrent prices are displayed at the time of purchase and may be changed prospectively.\n\nPayment does not guarantee immediate publication. Paid listings may still require Admin review before appearing publicly.\n\nPaid placement does not guarantee sales, visits, calls, rankings, customer interest, applications, rentals, purchases, or any specific result.",
       },
       {
         title: "Subscriptions and Payments",
         copy:
-          "Featured and Premium placements are monthly subscriptions processed through Stripe.\n\nBy purchasing a paid placement, you authorize Abilene Vibes and Stripe to charge the selected amount today and automatically each month until the subscription is canceled.\n\nStripe may process payments under its own terms and policies. Abilene Vibes does not store full credit card numbers.",
+          "Featured and Premium placements are monthly subscriptions processed through Stripe.\n\nBy purchasing a paid placement, you authorize Abilene Vibes and Stripe to charge the selected amount and recurring monthly renewals until the subscription is canceled, according to the pricing, billing terms, and renewal terms shown at the time of purchase.\n\nStripe may process payments under its own terms and policies. Abilene Vibes does not store full credit card numbers.",
       },
       {
         title: "Cancellations",
         copy:
-          "You may request cancellation of a paid subscription by contacting Abilene Vibes or through available Admin support.\n\nCancellation stops future renewals.\n\nIf a subscription is canceled at the end of the billing period, the paid placement may remain active until the current paid period expires. Immediate cancellation may remove the paid placement sooner.",
+          "You may request cancellation of a paid subscription by contacting Abilene Vibes at:\n\nabilenevibes@gmail.com\n\nCancellation stops future renewals.\n\nWhen applicable, if a subscription is canceled at the end of the billing period, the paid placement may remain active until the current paid period expires. Immediate cancellation may remove the paid placement sooner.",
       },
       {
         title: "Refunds",
         copy:
-          "Payments for the current billing period are not automatically refunded after purchase.\n\nRefund requests may be considered on a case-by-case basis by contacting Abilene Vibes. Stripe or other payment provider policies may also apply.",
+          "Payments for the current billing period are not automatically refunded after purchase.\n\nRefund requests may be considered on a case-by-case basis by contacting Abilene Vibes. Stripe or other payment provider policies may also apply.\n\nNothing in these Terms limits any consumer rights that cannot be waived under applicable law.",
       },
       {
         title: "Marketplace Listings",
@@ -974,9 +979,14 @@ const legalSections = {
           "Abilene Vibes may review, approve, reject, edit, hide, pause, restore, or remove any submitted content at any time.\n\nThis includes businesses, marketplace listings, jobs, rentals, gallery photos, reviews, events, comments, images, links, and promotional placements.\n\nAbilene Vibes may also remove content to comply with law, protect users, prevent abuse, respond to owner requests, correct errors, or maintain app quality.",
       },
       {
+        title: "Suspension or Termination",
+        copy:
+          "Abilene Vibes may limit, suspend, or remove content, listings, promotional placements, or access where applicable when there is a Terms violation, prohibited or unlawful content, fraud, abuse, a security risk, a legal requirement, or a need to protect users or the integrity of the platform.",
+      },
+      {
         title: "External Links and Services",
         copy:
-          "Abilene Vibes may link to business websites, social media pages, Google Maps or other map services, job application links, rental links, ticket links, and other external services.\n\nExternal services are not controlled by Abilene Vibes. Users access them at their own discretion, and those services may have their own terms, privacy policies, fees, and risks.",
+          "Abilene Vibes may link to Google Play, Google Maps or other map services, external business sites, social networks, employment links, rental links, ticketing or event providers, and other external services.\n\nExternal services are not controlled by Abilene Vibes. Users access them at their own discretion, and those services may have their own terms, privacy policies, fees, information practices, and risks.",
       },
       {
         title: "No Professional Advice",
@@ -986,7 +996,7 @@ const legalSections = {
       {
         title: "Limitation of Responsibility",
         copy:
-          "Abilene Vibes is not responsible for the actions, products, services, listings, claims, prices, availability, communications, payments, meetings, safety, or behavior of third-party businesses, sellers, buyers, employers, landlords, tenants, event organizers, contributors, or users.\n\nAbilene Vibes does not guarantee that all content is accurate, current, complete, available, or suitable for any particular purpose.",
+          "To the fullest extent permitted by applicable law, Abilene Vibes is not responsible for the actions, products, services, listings, claims, prices, availability, communications, payments, meetings, safety, or behavior of third-party businesses, sellers, buyers, employers, landlords, tenants, event organizers, contributors, or users.\n\nAbilene Vibes does not guarantee that all content is accurate, current, complete, available, or suitable for any particular purpose. Abilene Vibes also does not guarantee the accuracy of third-party listings, the availability or quality of businesses or third-party services, transactions between users, jobs, rentals, marketplace transactions, or event information.",
       },
       {
         title: "Updates, Corrections, and Removal Requests",
@@ -1001,7 +1011,7 @@ const legalSections = {
       {
         title: "Contact",
         copy:
-          "For questions, listing updates, removals, billing questions, permission concerns, or reports of inappropriate content, contact:\n\nabilenevibes@gmail.com\n\nThese Terms of Use are governed by the applicable laws of the United States and the State of Texas.\n\nThis document should be reviewed by a licensed attorney before a large-scale commercial launch.",
+          "For support, listing updates, removals, billing questions, permission concerns, privacy or data-related questions when applicable, or reports of inappropriate content, contact:\n\nabilenevibes@gmail.com\n\nThese Terms of Use are governed by the applicable laws of the United States and the State of Texas.",
       },
     ],
   },
@@ -1009,8 +1019,13 @@ const legalSections = {
     eyebrow: "Privacy",
     title: "Privacy Policy",
     intro:
-      "Effective Date: July 2026\n\nAbilene Vibes, operated by Abilene Labs, is a local guide for discovering businesses, events, rentals, jobs, marketplace listings, photos, and community content in Abilene.\n\nYou can browse Abilene Vibes for free. You are not required to create an account to explore the app.",
+      "Effective Date: August 2026\n\nAbilene Vibes is operated by Abilene Labs. Abilene Vibes is a local guide for discovering businesses, events, rentals, jobs, marketplace listings, photos, and community content in Abilene.\n\nYou can browse Abilene Vibes for free. You are not required to create an account to explore the app.",
     items: [
+      {
+        title: "Independent Local Platform",
+        copy:
+          "Abilene Vibes is an independent local platform and is not affiliated with, endorsed by, or operated by the City of Abilene.",
+      },
       {
         title: "Information We Collect",
         copy:
@@ -1034,17 +1049,22 @@ const legalSections = {
       {
         title: "Payments and Stripe",
         copy:
-          "Featured and Premium placements are processed through Stripe.\n\nStripe may collect and process payment information according to its own privacy policy and terms. Abilene Vibes may store payment status, plan type, Stripe customer identifiers, subscription identifiers, checkout session identifiers, and related billing status needed to manage paid placements and cancellations.\n\nAbilene Vibes does not store full card numbers.",
+          "Featured and Premium placements may be processed through Stripe as part of Abilene Vibes, the app, or related services.\n\nStripe may collect and process payment information according to its own privacy policy and terms. Abilene Vibes may store payment status, plan type, Stripe customer identifiers, subscription identifiers, checkout session identifiers, and related billing status needed to manage paid placements and cancellations.\n\nAbilene Vibes does not store full card numbers.",
       },
       {
         title: "Supabase",
         copy:
-          "Abilene Vibes uses Supabase for app data, database features, storage, authentication where needed, and related backend services.\n\nInformation submitted through the app may be stored in Supabase, including listings, photos, reviews, likes, saved items, payment status, and other app content.",
+          "Abilene Vibes may use Supabase for app data, database features, storage, authentication where needed, and related backend services.\n\nInformation submitted through the app may be stored in Supabase, including listings, photos, reviews, likes, saved items, payment status, and other app content.",
+      },
+      {
+        title: "Google Play",
+        copy:
+          "Abilene Vibes may be made available through Google Play.\n\nGoogle Play is a third-party distribution platform. Use of Google Play may also be subject to Google's own terms and privacy practices.\n\nAbilene Vibes does not control Google's independent processing of information through Google Play.",
       },
       {
         title: "Maps, Directions, and External Links",
         copy:
-          "Some parts of Abilene Vibes may open Google Maps, map search, directions, business websites, social media pages, job application links, rental links, ticket links, and other external services.\n\nExternal services are not controlled by Abilene Vibes. Their own privacy policies and terms may apply.",
+          "Some parts of Abilene Vibes may open Google Play, Google Maps, map search, directions, business websites, social media pages, job application links, rental links, ticketing or event services, and other external services.\n\nExternal services are not controlled by Abilene Vibes. Their own privacy policies, terms, and independent information practices may apply.",
       },
       {
         title: "Events",
@@ -1064,12 +1084,12 @@ const legalSections = {
       {
         title: "Corrections, Updates, and Removal Requests",
         copy:
-          "You may request correction, update, or removal of content you submitted by contacting:\n\nabilenevibes@gmail.com\n\nPlease include enough detail for us to identify the listing, photo, review, job, rental, marketplace item, or other content.\n\nWe may need to verify that the request comes from the submitter, owner, authorized representative, or another person with a valid reason to request the change.",
+          "You may request correction, update, removal of submitted content, review of information associated with you, or deletion of personal information that Abilene Vibes is legally permitted and technically able to delete by contacting:\n\nabilenevibes@gmail.com\n\nPlease include enough detail for us to identify the listing, photo, review, job, rental, marketplace item, or other content.\n\nWe may need to verify that the request comes from the submitter, owner, authorized representative, or another person with a valid reason to request the change.\n\nSome information may be retained when necessary for legal obligations, fraud prevention, security, dispute resolution, legitimate recordkeeping, or other purposes permitted by applicable law.",
       },
       {
         title: "Children and Sensitive Information",
         copy:
-          "Abilene Vibes is intended as a local information and discovery app. Users should not submit sensitive personal information, private documents, financial details, medical information, government IDs, or information about children unless they have the legal right and clear reason to do so.",
+          "Abilene Vibes is intended as a local information and discovery app. Users should not submit sensitive personal information, private documents, financial details, medical information, government IDs, or private or sensitive information about children unless they have the legal right and clear reason to do so.",
       },
       {
         title: "Content Moderation",
@@ -1084,7 +1104,7 @@ const legalSections = {
       {
         title: "Contact",
         copy:
-          "For privacy questions, corrections, removals, or data-related requests, contact:\n\nabilenevibes@gmail.com\n\nThis Privacy Policy is governed by the applicable laws of the United States and the State of Texas.\n\nThis document should be reviewed by a licensed attorney before a large-scale commercial launch.",
+          "For privacy questions, corrections, removals, or data-related requests, contact:\n\nabilenevibes@gmail.com\n\nThis Privacy Policy is governed by the applicable laws of the United States and the State of Texas.",
       },
     ],
   },
