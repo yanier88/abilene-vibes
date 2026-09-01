@@ -1,0 +1,98 @@
+.promo-3d-icon {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  pointer-events: none;
+  background: transparent;
+  transform: translateX(-50%);
+  filter:
+    drop-shadow(0 0 9px rgba(255, 202, 74, 0.56))
+    drop-shadow(0 0 18px rgba(255, 0, 204, 0.16));
+}
+
+.promo-3d-icon--featured {
+  top: clamp(-92px, -12.8vw, -56px);
+  width: clamp(58px, 14vw, 94px);
+  aspect-ratio: 1;
+}
+
+.promo-3d-icon--premium {
+  top: clamp(-92px, -12vw, -56px);
+  width: clamp(74px, 16.5vw, 112px);
+  aspect-ratio: 1.24;
+}
+
+.promo-3d-icon canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  opacity: 0;
+}
+
+.promo-3d-icon canvas.is-ready {
+  opacity: 1;
+}
+
+.promo-3d-sparkles,
+.promo-3d-sparkles span {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.promo-3d-sparkles span {
+  inset: auto;
+  width: clamp(3px, 0.8vw, 5px);
+  aspect-ratio: 1;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(45deg) scale(0.5);
+  background: #fff8ce;
+  box-shadow:
+    0 0 7px rgba(255, 248, 205, 0.95),
+    0 0 13px rgba(255, 196, 58, 0.72);
+  animation: promoSparkle 2.45s ease-in-out infinite;
+}
+
+.promo-3d-sparkles span::before,
+.promo-3d-sparkles span::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 999px;
+  background: currentColor;
+  color: #fff8ce;
+  transform: translate(-50%, -50%);
+}
+
+.promo-3d-sparkles span::before {
+  width: 520%;
+  height: 1px;
+}
+
+.promo-3d-sparkles span::after {
+  width: 1px;
+  height: 520%;
+}
+
+@keyframes promoSparkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(45deg) scale(0.38);
+  }
+
+  42%,
+  58% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) rotate(45deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-3d-sparkles span {
+    animation: none;
+    opacity: 0.45;
+  }
+}
