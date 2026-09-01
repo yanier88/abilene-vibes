@@ -66,7 +66,7 @@ const createStar = (THREE) => {
   geometry.center();
 
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0xffc24a,
+    color: 0xffd05a,
     emissive: 0x3a2100,
     emissiveIntensity: 0.12,
     metalness: 1,
@@ -94,7 +94,7 @@ const createGemMaterial = (THREE, color) =>
 const createCrown = (THREE) => {
   const group = new THREE.Group();
   const gold = new THREE.MeshPhysicalMaterial({
-    color: 0xf4b83c,
+    color: 0xffd05a,
     emissive: 0x332000,
     emissiveIntensity: 0.09,
     metalness: 1,
