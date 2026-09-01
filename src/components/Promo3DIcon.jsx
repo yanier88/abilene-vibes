@@ -106,20 +106,20 @@ const createCrown = (THREE) => {
   const sapphire = createGemMaterial(THREE, 0x165ad8);
   const emerald = createGemMaterial(THREE, 0x06985c);
 
-  const base = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.12, 12, 64), gold);
+  const base = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.11, 12, 64), gold);
   base.rotation.x = Math.PI / 2;
-  base.scale.y = 0.42;
+  base.scale.y = 0.92;
   base.position.y = -0.58;
   group.add(base);
 
-  const innerRim = new THREE.Mesh(new THREE.TorusGeometry(0.54, 0.04, 8, 48), gold);
+  const innerRim = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 8, 48), gold);
   innerRim.rotation.x = Math.PI / 2;
-  innerRim.scale.y = 0.36;
-  innerRim.position.set(0, -0.34, -0.08);
+  innerRim.scale.y = 0.9;
+  innerRim.position.set(0, -0.33, 0);
   group.add(innerRim);
 
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.88, 0.36, 64, 1, true), gold);
-  band.scale.z = 0.46;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.78, 0.36, 64, 1, true), gold);
+  band.scale.z = 0.9;
   band.position.y = -0.42;
   group.add(band);
 
@@ -140,29 +140,31 @@ const createCrown = (THREE) => {
   });
   panelGeometry.translate(0, 0, -0.025);
 
-  for (let i = 0; i < 9; i += 1) {
-    const angle = -1.16 + i * 0.29;
+  for (let i = 0; i < 12; i += 1) {
+    const angle = (i / 12) * Math.PI * 2;
+    const frontWeight = Math.max(0, Math.cos(angle));
     const panel = new THREE.Mesh(panelGeometry.clone(), gold);
-    panel.position.set(Math.sin(angle) * 0.78, 0, Math.cos(angle) * 0.36 + 0.08);
+    panel.position.set(Math.sin(angle) * 0.72, 0, Math.cos(angle) * 0.72);
     panel.rotation.y = angle;
-    panel.scale.y = i === 4 ? 1.22 : 1 - Math.abs(i - 4) * 0.045;
+    panel.scale.y = 0.78 + frontWeight * 0.36;
     group.add(panel);
   }
 
   const crownPoints = [
-    { angle: -0.86, height: 0.72, radius: 0.09, material: sapphire },
-    { angle: -0.43, height: 0.98, radius: 0.105, material: ruby },
-    { angle: 0, height: 1.32, radius: 0.13, material: emerald },
-    { angle: 0.43, height: 0.98, radius: 0.105, material: ruby },
-    { angle: 0.86, height: 0.72, radius: 0.09, material: sapphire },
+    { angle: 0, height: 1.2, radius: 0.12, material: emerald },
+    { angle: Math.PI / 4, height: 0.9, radius: 0.095, material: ruby },
+    { angle: -Math.PI / 4, height: 0.9, radius: 0.095, material: ruby },
+    { angle: Math.PI / 2, height: 0.72, radius: 0.082, material: sapphire },
+    { angle: -Math.PI / 2, height: 0.72, radius: 0.082, material: sapphire },
+    { angle: Math.PI, height: 0.66, radius: 0.078, material: emerald },
   ];
 
   crownPoints.forEach((point) => {
-    const x = Math.sin(point.angle) * 0.8;
-    const z = Math.cos(point.angle) * 0.34 + 0.08;
+    const x = Math.sin(point.angle) * 0.72;
+    const z = Math.cos(point.angle) * 0.72;
     const spike = new THREE.Mesh(new THREE.ConeGeometry(point.radius, point.height, 5), gold);
     spike.position.set(x, -0.2 + point.height / 2, z);
-    spike.rotation.y = point.angle * 0.35;
+    spike.rotation.set(0, point.angle, point.angle === 0 ? 0 : Math.sin(point.angle) * -0.08);
     group.add(spike);
 
     const orb = new THREE.Mesh(new THREE.SphereGeometry(point.radius * 0.92, 16, 10), gold);
@@ -170,35 +172,23 @@ const createCrown = (THREE) => {
     group.add(orb);
 
     const gem = new THREE.Mesh(new THREE.OctahedronGeometry(point.radius * 0.74, 1), point.material);
-    gem.position.set(x, -0.42, 0.43);
+    gem.position.set(Math.sin(point.angle) * 0.76, -0.42, Math.cos(point.angle) * 0.76);
+    gem.rotation.y = point.angle;
     gem.scale.set(1, 1.24, 0.58);
     group.add(gem);
   });
 
-  const rearPoints = [
-    { angle: Math.PI - 0.5, height: 0.5 },
-    { angle: Math.PI, height: 0.62 },
-    { angle: Math.PI + 0.5, height: 0.5 },
-  ];
-  rearPoints.forEach((point) => {
-    const x = Math.sin(point.angle) * 0.72;
-    const z = Math.cos(point.angle) * 0.24 - 0.08;
-    const rearSpike = new THREE.Mesh(new THREE.ConeGeometry(0.075, point.height, 5), gold);
-    rearSpike.position.set(x, -0.2 + point.height / 2, z);
-    group.add(rearSpike);
-  });
-
   const archGeometry = new THREE.TorusGeometry(0.5, 0.045, 8, 36, Math.PI);
-  for (let i = 0; i < 3; i += 1) {
+  for (let i = 0; i < 4; i += 1) {
     const arch = new THREE.Mesh(archGeometry, gold);
     arch.position.y = -0.06;
-    arch.rotation.set(0, (i * Math.PI) / 3, 0);
-    arch.scale.set(0.98, 0.96, 1);
+    arch.rotation.set(0, (i * Math.PI) / 4, 0);
+    arch.scale.set(1, 0.95, 1);
     group.add(arch);
   }
 
   const frontRuby = new THREE.Mesh(new THREE.OctahedronGeometry(0.09, 1), ruby);
-  frontRuby.position.set(0, -0.61, 0.46);
+  frontRuby.position.set(0, -0.61, 0.79);
   frontRuby.scale.set(1.18, 1, 0.58);
   group.add(frontRuby);
 
