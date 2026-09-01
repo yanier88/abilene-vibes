@@ -11,7 +11,7 @@
 }
 
 .promo-3d-icon--featured {
-  top: clamp(-84px, -11.7vw, -50px);
+  top: clamp(-92px, -12.8vw, -56px);
   width: clamp(58px, 14vw, 94px);
   aspect-ratio: 1;
 }
