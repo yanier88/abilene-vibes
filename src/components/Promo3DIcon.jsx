@@ -66,9 +66,9 @@ const createStar = (THREE) => {
   geometry.center();
 
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0xf5b72f,
-    emissive: 0x2c1600,
-    emissiveIntensity: 0.1,
+    color: 0xffc24a,
+    emissive: 0x3a2100,
+    emissiveIntensity: 0.12,
     metalness: 1,
     roughness: 0.23,
     clearcoat: 0.45,
@@ -94,57 +94,83 @@ const createGemMaterial = (THREE, color) =>
 const createCrown = (THREE) => {
   const group = new THREE.Group();
   const gold = new THREE.MeshPhysicalMaterial({
-    color: 0xf0b333,
-    emissive: 0x2b1600,
-    emissiveIntensity: 0.08,
+    color: 0xf4b83c,
+    emissive: 0x332000,
+    emissiveIntensity: 0.09,
     metalness: 1,
-    roughness: 0.21,
-    clearcoat: 0.52,
+    roughness: 0.2,
+    clearcoat: 0.55,
     clearcoatRoughness: 0.18,
   });
   const ruby = createGemMaterial(THREE, 0xa4051c);
   const sapphire = createGemMaterial(THREE, 0x165ad8);
   const emerald = createGemMaterial(THREE, 0x06985c);
 
-  const base = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.11, 12, 56), gold);
+  const base = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.12, 12, 64), gold);
   base.rotation.x = Math.PI / 2;
-  base.scale.y = 0.38;
-  base.position.y = -0.54;
+  base.scale.y = 0.42;
+  base.position.y = -0.58;
   group.add(base);
 
-  const innerRim = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.035, 8, 42), gold);
+  const innerRim = new THREE.Mesh(new THREE.TorusGeometry(0.54, 0.04, 8, 48), gold);
   innerRim.rotation.x = Math.PI / 2;
-  innerRim.scale.y = 0.34;
-  innerRim.position.set(0, -0.38, -0.1);
+  innerRim.scale.y = 0.36;
+  innerRim.position.set(0, -0.34, -0.08);
   group.add(innerRim);
 
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.92, 0.34, 56, 1, true), gold);
-  band.scale.z = 0.4;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.88, 0.36, 64, 1, true), gold);
+  band.scale.z = 0.46;
   band.position.y = -0.42;
   group.add(band);
 
+  const panelShape = new THREE.Shape();
+  panelShape.moveTo(-0.11, -0.58);
+  panelShape.lineTo(0.11, -0.58);
+  panelShape.lineTo(0.15, -0.18);
+  panelShape.lineTo(0, 0.08);
+  panelShape.lineTo(-0.15, -0.18);
+  panelShape.closePath();
+
+  const panelGeometry = new THREE.ExtrudeGeometry(panelShape, {
+    depth: 0.05,
+    bevelEnabled: true,
+    bevelThickness: 0.018,
+    bevelSize: 0.015,
+    bevelSegments: 2,
+  });
+  panelGeometry.translate(0, 0, -0.025);
+
+  for (let i = 0; i < 9; i += 1) {
+    const angle = -1.16 + i * 0.29;
+    const panel = new THREE.Mesh(panelGeometry.clone(), gold);
+    panel.position.set(Math.sin(angle) * 0.78, 0, Math.cos(angle) * 0.36 + 0.08);
+    panel.rotation.y = angle;
+    panel.scale.y = i === 4 ? 1.22 : 1 - Math.abs(i - 4) * 0.045;
+    group.add(panel);
+  }
+
   const crownPoints = [
-    { angle: -0.86, height: 0.68, radius: 0.1, material: sapphire },
-    { angle: -0.42, height: 0.9, radius: 0.115, material: ruby },
-    { angle: 0, height: 1.18, radius: 0.14, material: emerald },
-    { angle: 0.42, height: 0.9, radius: 0.115, material: ruby },
-    { angle: 0.86, height: 0.68, radius: 0.1, material: sapphire },
+    { angle: -0.86, height: 0.72, radius: 0.09, material: sapphire },
+    { angle: -0.43, height: 0.98, radius: 0.105, material: ruby },
+    { angle: 0, height: 1.32, radius: 0.13, material: emerald },
+    { angle: 0.43, height: 0.98, radius: 0.105, material: ruby },
+    { angle: 0.86, height: 0.72, radius: 0.09, material: sapphire },
   ];
 
   crownPoints.forEach((point) => {
-    const x = Math.sin(point.angle) * 0.9;
-    const z = Math.cos(point.angle) * 0.28 + 0.12;
+    const x = Math.sin(point.angle) * 0.8;
+    const z = Math.cos(point.angle) * 0.34 + 0.08;
     const spike = new THREE.Mesh(new THREE.ConeGeometry(point.radius, point.height, 5), gold);
-    spike.position.set(x, -0.16 + point.height / 2, z);
+    spike.position.set(x, -0.2 + point.height / 2, z);
     spike.rotation.y = point.angle * 0.35;
     group.add(spike);
 
     const orb = new THREE.Mesh(new THREE.SphereGeometry(point.radius * 0.92, 16, 10), gold);
-    orb.position.set(x, -0.14 + point.height, z);
+    orb.position.set(x, -0.18 + point.height, z);
     group.add(orb);
 
     const gem = new THREE.Mesh(new THREE.OctahedronGeometry(point.radius * 0.74, 1), point.material);
-    gem.position.set(x, -0.4, 0.42);
+    gem.position.set(x, -0.42, 0.43);
     gem.scale.set(1, 1.24, 0.58);
     group.add(gem);
   });
@@ -162,7 +188,7 @@ const createCrown = (THREE) => {
     group.add(rearSpike);
   });
 
-  const archGeometry = new THREE.TorusGeometry(0.52, 0.045, 8, 36, Math.PI);
+  const archGeometry = new THREE.TorusGeometry(0.5, 0.045, 8, 36, Math.PI);
   for (let i = 0; i < 3; i += 1) {
     const arch = new THREE.Mesh(archGeometry, gold);
     arch.position.y = -0.06;
@@ -176,15 +202,15 @@ const createCrown = (THREE) => {
   frontRuby.scale.set(1.18, 1, 0.58);
   group.add(frontRuby);
 
-  group.rotation.x = -0.1;
-  group.scale.setScalar(1.18);
+  group.rotation.x = -0.08;
+  group.scale.setScalar(1.12);
   return group;
 };
 
 export default function Promo3DIcon({ type }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
-  const [fallback, setFallback] = useState(false);
+  const [renderStatus, setRenderStatus] = useState("loading");
   const config = iconConfig[type] ?? iconConfig.featured;
 
   useEffect(() => {
@@ -229,7 +255,9 @@ export default function Promo3DIcon({ type }) {
           alpha: true,
           antialias: true,
           powerPreference: "high-performance",
+          premultipliedAlpha: false,
         });
+        renderer.setClearColor(0x000000, 0);
         renderer.setClearAlpha(0);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
         renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -266,6 +294,7 @@ export default function Promo3DIcon({ type }) {
         };
 
         resize();
+        setRenderStatus("ready");
         resizeObserver = new ResizeObserver(resize);
         resizeObserver.observe(containerRef.current);
         observer = new IntersectionObserver(([entry]) => {
@@ -277,7 +306,7 @@ export default function Promo3DIcon({ type }) {
         frameId = window.requestAnimationFrame(renderFrame);
       } catch (error) {
         console.warn("[Promo3DIcon] WebGL icon fallback:", error);
-        setFallback(true);
+        setRenderStatus("failed");
       }
     };
 
@@ -305,10 +334,13 @@ export default function Promo3DIcon({ type }) {
     };
   }, [type]);
 
+  if (renderStatus === "failed") {
+    return null;
+  }
+
   return (
     <div className={`promo-3d-icon ${config.sizeClass}`} aria-hidden="true" ref={containerRef}>
-      {fallback ? <span className="promo-3d-fallback">{type === "premium" ? "Premium" : "Featured"}</span> : null}
-      <canvas ref={canvasRef} aria-label={config.label} />
+      <canvas className={renderStatus === "ready" ? "is-ready" : ""} ref={canvasRef} aria-label={config.label} />
       <span className="promo-3d-sparkles">
         {config.sparkles.map(([left, top, delay]) => (
           <span key={`${left}-${top}`} style={{ left, top, animationDelay: delay }} />
