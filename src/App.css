@@ -496,6 +496,22 @@
   cursor: pointer;
 }
 
+.lobby-featured-promo-frame {
+  position: absolute;
+  right: 4%;
+  top: 55.6%;
+  z-index: 2;
+  width: 38%;
+}
+
+.lobby-featured-promo-frame .lobby-about {
+  position: relative;
+  right: auto;
+  top: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .lobby-about span {
   display: inline-flex;
   margin-bottom: 6px;
@@ -840,6 +856,25 @@
   transition:
     transform 180ms ease,
     filter 180ms ease;
+}
+
+.lobby-premium-promo-frame {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 6.85%;
+  z-index: 2;
+  min-height: 12.4%;
+}
+
+.lobby-premium-promo-frame .lobby-highlight {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 .lobby-highlight:hover {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import { createClient } from "@supabase/supabase-js";
+import Promo3DIcon from "./components/Promo3DIcon";
 import "./App.css";
 
 const appAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
@@ -6516,36 +6517,39 @@ function App() {
             </span>
           </button>
 
-          <button
-            className={`lobby-about${lobbyCarouselItem ? " is-featured" : ""}`}
-            type="button"
-            onClick={async () => {
-              if (lobbyCarouselItem) {
-                await openLobbyPromotionItem(lobbyCarouselItem, "featured");
-              }
-            }}
-            aria-label={lobbyCarouselItem ? `Featured ${lobbyCarouselItem.categoryLabel} ${lobbyCarouselItem.name}` : "About Abilene Vibes"}
-          >
-            {lobbyCarouselItem ? (
-              <>
-                <img className="lobby-about-thumb" src={lobbyCarouselItem.image} alt="" />
-                <span>Featured local</span>
-                <strong>{lobbyCarouselItem.name}</strong>
-                <p>{lobbyCarouselItem.categoryLabel}</p>
-                {lobbyCarouselItem.type === "job" && lobbyCarouselItem.company && <p>{lobbyCarouselItem.company}</p>}
-                {lobbyCarouselItem.type === "rental" && lobbyCarouselItem.location && <p>{lobbyCarouselItem.location}</p>}
-                {lobbyCarouselItem.type === "business" && lobbyCarouselItem.phone && <p>{lobbyCarouselItem.phone}</p>}
-              </>
-            ) : (
-              <>
-                <span>About the app</span>
-                <p>
-                  Abilene Vibes is your local guide to events, nightlife, eats, shopping, family plans, stays, and
-                  businesses around Abilene.
-                </p>
-              </>
-            )}
-          </button>
+          <div className="lobby-featured-promo-frame">
+            {lobbyCarouselItem && <Promo3DIcon type="featured" />}
+            <button
+              className={`lobby-about${lobbyCarouselItem ? " is-featured" : ""}`}
+              type="button"
+              onClick={async () => {
+                if (lobbyCarouselItem) {
+                  await openLobbyPromotionItem(lobbyCarouselItem, "featured");
+                }
+              }}
+              aria-label={lobbyCarouselItem ? `Featured ${lobbyCarouselItem.categoryLabel} ${lobbyCarouselItem.name}` : "About Abilene Vibes"}
+            >
+              {lobbyCarouselItem ? (
+                <>
+                  <img className="lobby-about-thumb" src={lobbyCarouselItem.image} alt="" />
+                  <span>Featured local</span>
+                  <strong>{lobbyCarouselItem.name}</strong>
+                  <p>{lobbyCarouselItem.categoryLabel}</p>
+                  {lobbyCarouselItem.type === "job" && lobbyCarouselItem.company && <p>{lobbyCarouselItem.company}</p>}
+                  {lobbyCarouselItem.type === "rental" && lobbyCarouselItem.location && <p>{lobbyCarouselItem.location}</p>}
+                  {lobbyCarouselItem.type === "business" && lobbyCarouselItem.phone && <p>{lobbyCarouselItem.phone}</p>}
+                </>
+              ) : (
+                <>
+                  <span>About the app</span>
+                  <p>
+                    Abilene Vibes is your local guide to events, nightlife, eats, shopping, family plans, stays, and
+                    businesses around Abilene.
+                  </p>
+                </>
+              )}
+            </button>
+          </div>
 
           <nav className="lobby-action-list" aria-label="Abilene Vibes sections">
             {lobbyActions.map((action) => (
@@ -6577,34 +6581,37 @@ function App() {
             More <span className="lobby-more-arrows" aria-hidden="true">≫</span>
           </button>
 
-          <button className="lobby-highlight" type="button" onClick={openUpcomingHighlight} aria-label="Upcoming highlight">
-            {spotlightItem ? (
-              <>
-                <img src={spotlightItem.image} alt="" />
-                <div>
-                  <span>Upcoming Highlight</span>
-                  <strong>{spotlightItem.name}</strong>
-                  <p>{spotlightItem.categoryLabel}</p>
-                  <p>
-                    {spotlightItem.type === "job"
-                      ? (spotlightItem.pay || spotlightItem.location)
-                      : spotlightItem.type === "rental"
-                        ? (spotlightItem.price || spotlightItem.location)
-                        : spotlightItem.phone}
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <img src={appAsset("lobby-correcta.jpg")} alt="" />
-                <div>
-                  <span>Upcoming Highlight</span>
-                  <strong>Upcoming local highlights will appear here soon.</strong>
-                  <p>Check back soon for local highlights.</p>
-                </div>
-              </>
-            )}
-          </button>
+          <div className="lobby-premium-promo-frame">
+            {spotlightItem && <Promo3DIcon type="premium" />}
+            <button className="lobby-highlight" type="button" onClick={openUpcomingHighlight} aria-label="Upcoming highlight">
+              {spotlightItem ? (
+                <>
+                  <img src={spotlightItem.image} alt="" />
+                  <div>
+                    <span>Upcoming Highlight</span>
+                    <strong>{spotlightItem.name}</strong>
+                    <p>{spotlightItem.categoryLabel}</p>
+                    <p>
+                      {spotlightItem.type === "job"
+                        ? (spotlightItem.pay || spotlightItem.location)
+                        : spotlightItem.type === "rental"
+                          ? (spotlightItem.price || spotlightItem.location)
+                          : spotlightItem.phone}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <img src={appAsset("lobby-correcta.jpg")} alt="" />
+                  <div>
+                    <span>Upcoming Highlight</span>
+                    <strong>Upcoming local highlights will appear here soon.</strong>
+                    <p>Check back soon for local highlights.</p>
+                  </div>
+                </>
+              )}
+            </button>
+          </div>
 
           <div className="lobby-bottom-actions">
             <button
