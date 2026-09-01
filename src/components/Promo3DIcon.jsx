@@ -193,7 +193,7 @@ const createCrown = (THREE) => {
   group.add(frontRuby);
 
   group.rotation.x = -0.08;
-  group.scale.setScalar(1.12);
+  group.scale.setScalar(1.4);
   return group;
 };
 
