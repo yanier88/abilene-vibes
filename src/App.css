@@ -1,3 +1,44 @@
+/* Inset only the top controls; do not extend the full-height page. */
+html.capacitor-ios-safe-area .lobby-title-badge {
+  top: calc(1.45% + env(safe-area-inset-top, 0px));
+}
+
+html.capacitor-ios-safe-area .weather-widget {
+  top: calc(1% + env(safe-area-inset-top, 0px));
+}
+
+html.capacitor-ios-safe-area .more-back-button {
+  top: calc(2.2% + env(safe-area-inset-top, 0px));
+}
+
+html.capacitor-ios-safe-area .more-header {
+  top: calc(7.2% + env(safe-area-inset-top, 0px));
+}
+
+/* The first Back control leads the headers in scrollable public modules. */
+html.capacitor-ios-safe-area .app:not(.admin-page) > :is(.events-shell, .calendar-shell, .nightlife-shell, .eats-shell, .gallery-shell, .promote-shell, .directory-shell, .legal-shell, .marketplace-shell) > .back-button:first-child {
+  margin-top: env(safe-area-inset-top, 0px);
+}
+
+/* Preserve each public page's background artwork and positioning on iOS. */
+html.capacitor-ios-safe-area :is(.news-page, .nightlife-page, .eats-page, .family-page, .sports-fitness-page, .groceries-page, .shopping-page, .dealers-page, .barbers-page, .insurance-page, .health-page, .schools-page, .rentals-page:not(.post-rental-page), .rental-detail-page, .rentals-page:not(.rental-detail-page)) {
+  background-attachment: scroll;
+}
+
+/* Enlarge Home with at most 10% side cropping, keeping Explore fully visible. */
+html.capacitor-ios-safe-area .home-hero-frame {
+  width: min(125%, calc(100svh * 1357 / 2048));
+  height: auto;
+  aspect-ratio: 1357 / 2048;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* Fixed public-module dialogs are outside normal page flow. */
+html.capacitor-ios-safe-area .app:not(.admin-page) .admin-modal-backdrop {
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+}
+
 .app {
   min-height: 100svh;
   color: #fff;
@@ -4445,4 +4486,28 @@
   display: block;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* iOS: size these backgrounds against the viewport, never the long form. */
+html.capacitor-ios-safe-area :is(.groceries-page, .dealers-page, .rentals-page:not(.rental-detail-page), .rental-detail-page, .insurance-page, .barbers-page, .shopping-page, .nightlife-page, .sports-fitness-page, .health-page, .schools-page, .eats-page, .family-page) {
+  position: relative;
+  isolation: isolate;
+  background-size: 0 0;
+}
+
+html.capacitor-ios-safe-area :is(.groceries-page, .dealers-page, .rentals-page:not(.rental-detail-page), .rental-detail-page, .insurance-page, .barbers-page, .shopping-page, .nightlife-page, .sports-fitness-page, .health-page, .schools-page, .eats-page, .family-page)::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: inherit;
+  background-color: transparent;
+  background-size: cover;
+  background-attachment: scroll;
+}
+
+/* Rental details retain their original width-scaled, repeating artwork. */
+html.capacitor-ios-safe-area .rentals-page.rental-detail-page::before {
+  background-size: 100% auto;
 }

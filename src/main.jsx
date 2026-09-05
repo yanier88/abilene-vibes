@@ -1,7 +1,16 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Capacitor } from '@capacitor/core'
 import './index.css'
 import App from './App.jsx'
+
+if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
+  document.documentElement.classList.add('capacitor-ios-safe-area')
+  const viewport = document.querySelector('meta[name="viewport"]')
+  if (viewport && !viewport.content.includes('viewport-fit=')) {
+    viewport.content += ', viewport-fit=cover'
+  }
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
