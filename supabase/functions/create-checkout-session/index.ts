@@ -1,3 +1,5 @@
+import { resolveCheckoutOwner, verifiedOwnership, CheckoutAuthError } from "./ownership.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -267,6 +269,12 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: "Missing Supabase service configuration." }, 500);
     }
 
+    const verifiedOwnerId = await resolveCheckoutOwner(request, {
+      supabaseUrl,
+      anonKey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      publishableKey: Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "",
+    });
+
     if (cleanListingType === "rental") {
       if (action !== "create_and_checkout" || !planAmounts[plan]) {
         return jsonResponse({ error: "Invalid paid rental plan request." }, 400);
@@ -277,7 +285,7 @@ Deno.serve(async (request) => {
         return jsonResponse({ error: "Invalid paid rental plan request." }, 400);
       }
 
-      const cleanRentalPayload = sanitizeRentalPayload(rentalPayload);
+      const cleanRentalPayload = verifiedOwnership(sanitizeRentalPayload(rentalPayload), verifiedOwnerId);
       const title = String(cleanRentalPayload?.title ?? "").trim();
       const address = String(cleanRentalPayload?.address ?? "").trim();
       const ownerUserId = String(cleanRentalPayload?.owner_user_id ?? "").trim();
@@ -361,7 +369,7 @@ Deno.serve(async (request) => {
           return jsonResponse({ error: "Invalid paid job plan request." }, 400);
         }
 
-        const cleanJobPayload = sanitizeJobPayload(jobPayload);
+        const cleanJobPayload = verifiedOwnership(sanitizeJobPayload(jobPayload), verifiedOwnerId);
         const title = String(cleanJobPayload?.title ?? "").trim();
         const company = String(cleanJobPayload?.company ?? "").trim();
 
@@ -562,6 +570,7 @@ Deno.serve(async (request) => {
 
     return jsonResponse({ url: session.url });
   } catch (error) {
+    if (error instanceof CheckoutAuthError) return jsonResponse({ error: error.message }, error.status);
     return jsonResponse({ error: error instanceof Error ? error.message : "Checkout failed." }, 500);
   }
 });

@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App as CapacitorApp } from "@capacitor/app";
 import { createClient } from "@supabase/supabase-js";
+import { verifiedAdminSession } from "./auth/session";
+import { readWithIdentity } from "./auth/readListings";
+import { canManageListing } from "./auth/ownership";
 import Promo3DIcon from "./components/Promo3DIcon";
 import "./App.css";
 
@@ -88,7 +91,7 @@ const createSupabaseClient = () => {
 
   try {
     return createClient(url, anonKey, {
-      auth: { persistSession: false },
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
   } catch {
     return null;
@@ -1334,6 +1337,7 @@ const businessSubmissionToBusiness = (business) => ({
   paymentStatus: business.payment_status ?? "",
   placementSource: business.placement_source ?? "paid",
   placementExpiresAt: business.placement_expires_at ?? "",
+  advertiser_user_id: business.advertiser_user_id ?? null,
   ownerUserId: business.owner_user_id ?? "",
   owner_user_id: business.owner_user_id ?? "",
 });
@@ -2350,7 +2354,7 @@ function App() {
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
   const [gallerySubmissionError, setGallerySubmissionError] = useState("");
   const [galleryOwnerDeleteStatus, setGalleryOwnerDeleteStatus] = useState("");
-  const [adminSession, setAdminSession] = useState(null);
+  const [adminSession, setAdminSession] = useState(null); // Only set after server authorization.
   const adminSessionRef = useRef(null); // keeps current value without triggering Realtime re-sub
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -2575,11 +2579,9 @@ function App() {
 
   const loadJobsPublic = useCallback(() => {
     if (!supabase) return;
-    supabase
-      .from("job_listings")
-      .select("id,created_at,title,company,category,job_type,pay_label,location,contact_person,phone,email,description,requirements,app_method,apply_url,duration,plan,payment_status,placement_source,image_data,logo_data,expires_at,placement_expires_at,owner_user_id")
-      .eq("status", "approved")
-      .order("created_at", { ascending: false })
+    const queryJobs = (fields) => supabase.from("job_listings").select(fields)
+      .eq("status", "approved").order("created_at", { ascending: false });
+    readWithIdentity(queryJobs, "id,created_at,title,company,category,job_type,pay_label,location,contact_person,phone,email,description,requirements,app_method,apply_url,duration,plan,payment_status,placement_source,image_data,logo_data,expires_at,placement_expires_at,owner_user_id")
       .then(({ data, error }) => {
         if (!error && data) {
           const now = Date.now();
@@ -2639,15 +2641,8 @@ function App() {
         .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
         .order("created_at", { ascending: false });
 
-    queryRentals(`${baseSelect},owner_user_id`).then(({ data, error }) => {
-      if (!error && data) {
-        setRentalListings(data);
-        return;
-      }
-      if (error?.code !== "42703") return;
-      queryRentals(baseSelect).then(({ data: fallbackData, error: fallbackError }) => {
-        if (!fallbackError && fallbackData) setRentalListings(fallbackData);
-      });
+    readWithIdentity(queryRentals, `${baseSelect},owner_user_id`).then(({ data, error }) => {
+      if (!error && data) setRentalListings(data);
     });
   }, []);
 
@@ -2661,15 +2656,8 @@ function App() {
         .eq("status", "approved")
         .order("created_at", { ascending: false });
 
-    queryBusinesses(`${baseSelect},owner_user_id`).then(({ data, error }) => {
-      if (!error && data) {
-        setBusinesses(data.map(businessSubmissionToBusiness));
-        return;
-      }
-      if (error?.code !== "42703") return;
-      queryBusinesses(baseSelect).then(({ data: fallbackData, error: fallbackError }) => {
-        if (!fallbackError && fallbackData) setBusinesses(fallbackData.map(businessSubmissionToBusiness));
-      });
+    readWithIdentity(queryBusinesses, `${baseSelect},owner_user_id`).then(({ data, error }) => {
+      if (!error && data) setBusinesses(data.map(businessSubmissionToBusiness));
     });
   }, []);
 
@@ -3024,17 +3012,30 @@ function App() {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setAdminSession(data.session);
-      setOwnerUserId(data.session?.user?.id ?? "");
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAdminSession(session);
+    let disposed = false;
+    let revision = 0;
+    const applySession = async (session) => {
+      const current = ++revision;
       setOwnerUserId(session?.user?.id ?? "");
+      setAdminSession(null);
+      adminSessionRef.current = null;
+      if (!session) return;
+      const verified = await verifiedAdminSession(supabase, session);
+      if (!disposed && current === revision && verified) {
+        setAdminSession(session);
+        adminSessionRef.current = session;
+      }
+    };
+    // Do not await Supabase calls inside onAuthStateChange (auth lock).
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => { if (!disposed) void applySession(session); }, 0);
     });
-
+    supabase.auth.getSession().then(({ data }) => {
+      if (!disposed && revision === 0) void applySession(data.session);
+    });
     return () => {
+      disposed = true;
+      revision++;
       authListener.subscription.unsubscribe();
     };
   }, []);
@@ -4047,6 +4048,13 @@ function App() {
       return;
     }
 
+    const verified = await verifiedAdminSession(supabase, data.session);
+    if (!verified) {
+      setAdminSession(null);
+      setAdminPassword("");
+      setAdminStatus("login-error");
+      return;
+    }
     setAdminSession(data.session);
     setAdminPassword("");
     setAdminStatus("ready");
@@ -5691,10 +5699,7 @@ function App() {
   // ── End marketplace computed ──────────────────────────────
 
   // ── Jobs computed ─────────────────────────────────────────
-  const isJobOwner = (j) => {
-    const ownerId = j?.owner_user_id ?? j?.ownerUserId ?? "";
-    return !!(ownerId && (ownerId === effectiveOwnerId || ownerId === visitorKey));
-  };
+  const isJobOwner = (j) => canManageListing(j, ownerUserId, visitorKey);
 
   const jobOwnerRequestId = (j) => {
     const ownerId = j?.owner_user_id ?? j?.ownerUserId ?? "";
@@ -5786,7 +5791,7 @@ function App() {
     setOwnerJobStatus("");
   };
 
-  const isRentalOwner = (r) => !!(r?.owner_user_id && r.owner_user_id === effectiveOwnerId);
+  const isRentalOwner = (r) => canManageListing(r, ownerUserId, visitorKey);
 
   const mergeRentalUpdate = (id, update) => {
     setRentalListings((items) => items.map((item) => (item.id === id ? { ...item, ...update } : item)));
@@ -5821,7 +5826,7 @@ function App() {
     setOwnerRentalStatus("saving");
     const { data, error } = await supabase.rpc("owner_update_rental_listing", {
       listing_id: editingOwnerRental.id,
-      owner_id: effectiveOwnerId,
+      owner_id: editingOwnerRental?.owner_user_id || effectiveOwnerId,
       new_title: update.title,
       new_property_type: update.property_type,
       new_address: update.address,
@@ -5855,7 +5860,7 @@ function App() {
     setOwnerRentalStatus("saving");
     const { data, error } = await supabase.rpc("owner_delete_rental_listing", {
       listing_id: deletingOwnerRental.id,
-      owner_id: effectiveOwnerId,
+      owner_id: deletingOwnerRental.owner_user_id || effectiveOwnerId,
     });
     if (error || data !== true) {
       setOwnerRentalStatus("error");
@@ -6151,8 +6156,7 @@ function App() {
   const isEditableBusiness = (business) =>
     !!business?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(business.id));
 
-  const isBusinessOwner = (business) =>
-    !!(business?.owner_user_id && business.owner_user_id === effectiveOwnerId);
+  const isBusinessOwner = (business) => canManageListing(business, ownerUserId, visitorKey);
 
   const canManageBusiness = (business) => isEditableBusiness(business) && (!!adminSession || isBusinessOwner(business));
 
@@ -6182,7 +6186,7 @@ function App() {
       const nextImage = imageFile && imageFile.size ? await optimizeGalleryImage(imageFile) : editingOwnerBusiness.image;
       const { data: result, error } = await supabase.rpc("owner_update_business_submission", {
         p_business_id: editingOwnerBusiness.id,
-        p_owner_id: effectiveOwnerId,
+        p_owner_id: editingOwnerBusiness.owner_user_id || effectiveOwnerId,
         p_business_name: update.name,
         p_contact_name: update.contactName,
         p_contact_email: update.contactEmail,
@@ -6212,7 +6216,7 @@ function App() {
     setOwnerBusinessStatus("saving");
     const { data: result, error } = await supabase.rpc("owner_hide_business_submission", {
       p_business_id: deletingOwnerBusiness.id,
-      p_owner_id: effectiveOwnerId,
+      p_owner_id: deletingOwnerBusiness.owner_user_id || effectiveOwnerId,
     });
 
     if (error || result !== true) {
@@ -10464,7 +10468,7 @@ function App() {
     );
   }
 
-  if (page === "admin" && editRentalPage && editingRental) {
+  if (page === "admin" && adminSession && editRentalPage && editingRental) {
     const isSTR = editingRental.property_type === "Short-Term";
     return withSplash(
       <main className="app admin-page">
@@ -10686,7 +10690,7 @@ function App() {
     );
   }
 
-  if (page === "admin" && editJobPage && editingJob) {
+  if (page === "admin" && adminSession && editJobPage && editingJob) {
     return withSplash(
       <main className="app admin-page">
         <div className="admin-shell">
