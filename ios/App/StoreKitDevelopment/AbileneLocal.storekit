@@ -1,0 +1,530 @@
+{
+  "identifier": "d20c1b6b-c518-569e-b4eb-d27727b663af",
+  "nonRenewingSubscriptions": [],
+  "products": [],
+  "settings": {
+    "_applicationInternalID": "",
+    "_developerTeamID": "",
+    "_failTransactionsEnabled": false,
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": [],
+    "_timeRate": 0
+  },
+  "subscriptionGroups": [
+    {
+      "id": "72d49f81-3103-59a4-9618-d4c6a36e36e0",
+      "localizations": [],
+      "name": "promotion_slot_01",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "11c449eb-fb26-5095-8d2f-767c915d2ca6",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 01",
+              "displayName": "Featured slot 01 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot01.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot01 featured",
+          "subscriptionGroupID": "72d49f81-3103-59a4-9618-d4c6a36e36e0",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "94ea84e3-1fa6-524e-910c-d8dffdd93c38",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 01",
+              "displayName": "Premium slot 01 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot01.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot01 premium",
+          "subscriptionGroupID": "72d49f81-3103-59a4-9618-d4c6a36e36e0",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    },
+    {
+      "id": "abe2ef33-e6cf-55e6-aa6b-4b9e0e750744",
+      "localizations": [],
+      "name": "promotion_slot_02",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "83c2d993-95fb-5bb9-934c-35c64d5ea345",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 02",
+              "displayName": "Featured slot 02 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot02.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot02 featured",
+          "subscriptionGroupID": "abe2ef33-e6cf-55e6-aa6b-4b9e0e750744",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "c67605d4-c659-5d24-b952-d340489f9781",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 02",
+              "displayName": "Premium slot 02 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot02.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot02 premium",
+          "subscriptionGroupID": "abe2ef33-e6cf-55e6-aa6b-4b9e0e750744",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    },
+    {
+      "id": "4ea0172f-719a-5d6c-957b-05d9ed7775b4",
+      "localizations": [],
+      "name": "promotion_slot_03",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "74302209-8316-579e-8d00-7a9ac35d9484",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 03",
+              "displayName": "Featured slot 03 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot03.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot03 featured",
+          "subscriptionGroupID": "4ea0172f-719a-5d6c-957b-05d9ed7775b4",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "1623b669-618a-546e-9905-ac722d7b0b38",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 03",
+              "displayName": "Premium slot 03 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot03.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot03 premium",
+          "subscriptionGroupID": "4ea0172f-719a-5d6c-957b-05d9ed7775b4",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    },
+    {
+      "id": "4567c1e8-2cd6-52db-b681-4da474e92fba",
+      "localizations": [],
+      "name": "promotion_slot_04",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "6cd18ba3-593e-5ada-aeb7-47c3e6d25946",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 04",
+              "displayName": "Featured slot 04 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot04.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot04 featured",
+          "subscriptionGroupID": "4567c1e8-2cd6-52db-b681-4da474e92fba",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "073b0900-dfa3-5e92-b5ab-7401de6ec87e",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 04",
+              "displayName": "Premium slot 04 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot04.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot04 premium",
+          "subscriptionGroupID": "4567c1e8-2cd6-52db-b681-4da474e92fba",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    },
+    {
+      "id": "4cbf7dd6-cf5d-53fb-83d5-5e74bb4a11e5",
+      "localizations": [],
+      "name": "promotion_slot_05",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "29837bc7-c224-59ad-9e36-eedcbefd12f6",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 05",
+              "displayName": "Featured slot 05 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot05.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot05 featured",
+          "subscriptionGroupID": "4cbf7dd6-cf5d-53fb-83d5-5e74bb4a11e5",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "babad7d1-ba56-5776-b681-d40e62774805",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 05",
+              "displayName": "Premium slot 05 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot05.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot05 premium",
+          "subscriptionGroupID": "4cbf7dd6-cf5d-53fb-83d5-5e74bb4a11e5",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    },
+    {
+      "id": "b77e00af-71aa-5249-b058-57a5d0f3f240",
+      "localizations": [],
+      "name": "promotion_slot_06",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "b86a3e56-4938-5ca5-bc4d-b8c6fdb5a222",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 06",
+              "displayName": "Featured slot 06 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot06.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot06 featured",
+          "subscriptionGroupID": "b77e00af-71aa-5249-b058-57a5d0f3f240",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "d9e64556-5c94-5002-8fac-7c1a5610609f",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 06",
+              "displayName": "Premium slot 06 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot06.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot06 premium",
+          "subscriptionGroupID": "b77e00af-71aa-5249-b058-57a5d0f3f240",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    },
+    {
+      "id": "e6d27482-6f12-50d8-a110-2724346c4f33",
+      "localizations": [],
+      "name": "promotion_slot_07",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "944b559f-72fb-5784-9ea6-4ccab08f7856",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 07",
+              "displayName": "Featured slot 07 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot07.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot07 featured",
+          "subscriptionGroupID": "e6d27482-6f12-50d8-a110-2724346c4f33",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "a54a7bec-cd32-5254-ab45-ce16e9991c21",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 07",
+              "displayName": "Premium slot 07 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot07.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot07 premium",
+          "subscriptionGroupID": "e6d27482-6f12-50d8-a110-2724346c4f33",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    },
+    {
+      "id": "129937e6-3533-5534-9938-866fe07f49b4",
+      "localizations": [],
+      "name": "promotion_slot_08",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "dfc192a6-71b6-5e6b-83fe-e7aa72db50bd",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 08",
+              "displayName": "Featured slot 08 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot08.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot08 featured",
+          "subscriptionGroupID": "129937e6-3533-5534-9938-866fe07f49b4",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "8f78bc38-c3dd-5045-a051-c89e1fdbb5c2",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 08",
+              "displayName": "Premium slot 08 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot08.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot08 premium",
+          "subscriptionGroupID": "129937e6-3533-5534-9938-866fe07f49b4",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    },
+    {
+      "id": "aadf25ee-893a-5456-97ac-e8305752c056",
+      "localizations": [],
+      "name": "promotion_slot_09",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "b9694486-1c24-5ab7-b271-e93e4db0b5e4",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 09",
+              "displayName": "Featured slot 09 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot09.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot09 featured",
+          "subscriptionGroupID": "aadf25ee-893a-5456-97ac-e8305752c056",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "f2badcb8-a3c4-5537-b041-8684e315e63e",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 09",
+              "displayName": "Premium slot 09 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot09.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot09 premium",
+          "subscriptionGroupID": "aadf25ee-893a-5456-97ac-e8305752c056",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    },
+    {
+      "id": "5f4eacdd-7bba-5335-935f-b2eca7eae19c",
+      "localizations": [],
+      "name": "promotion_slot_10",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "24.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "2bb5b0d2-f829-5855-8341-b2e8ecaf36df",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 featured slot 10",
+              "displayName": "Featured slot 10 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot10.featured.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot10 featured",
+          "subscriptionGroupID": "5f4eacdd-7bba-5335-935f-b2eca7eae19c",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "67.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "7e83c5d4-2791-596f-9839-d85a662ea519",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "LOCAL TEST ONLY \u2014 premium slot 10",
+              "displayName": "Premium slot 10 (Local Test)",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.abilenevibes.app.promotion.slot10.premium.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "LOCAL slot10 premium",
+          "subscriptionGroupID": "5f4eacdd-7bba-5335-935f-b2eca7eae19c",
+          "type": "RecurringSubscription",
+          "winBackOffers": []
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 3,
+    "minor": 0
+  }
+}

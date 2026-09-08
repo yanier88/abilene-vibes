@@ -2,7 +2,6 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Capacitor } from '@capacitor/core'
 import './index.css'
-import App from './App.jsx'
 
 if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
   document.documentElement.classList.add('capacitor-ios-safe-area')
@@ -12,13 +11,15 @@ if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios') {
   }
 }
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+const localTestRequested = import.meta.env.VITE_APPLE_IAP_LOCAL_TEST === 'true' && Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios'
+const root = createRoot(document.getElementById('root'))
+if (localTestRequested) {
+  import('./native/AppleIAPLocalTest.jsx').then(({ default: AppleIAPLocalTest }) => root.render(<AppleIAPLocalTest />))
+} else {
+  import('./App.jsx').then(({ default: App }) => root.render(<StrictMode><App /></StrictMode>))
+}
 
-if ('serviceWorker' in navigator) {
+if (!localTestRequested && 'serviceWorker' in navigator) {
   let refreshing = false
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
