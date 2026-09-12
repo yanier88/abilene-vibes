@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { websiteUrl as iosWebsiteUrl, directionsUrl as iosDirectionsUrl, openBusinessUrl } from "./ios/businessLinks";
+import { createWeatherLoader } from "./ios/weather";
 import { App as CapacitorApp } from "@capacitor/app";
 import { createClient } from "@supabase/supabase-js";
 import { verifiedAdminSession } from "./auth/session";
@@ -1329,6 +1332,8 @@ const businessSubmissionToBusiness = (business) => ({
   phone: business.phone,
   contactName: business.contact_name ?? "",
   contactEmail: business.contact_email ?? "",
+  latitude: business.latitude,
+  longitude: business.longitude,
   address: business.address ?? "",
   social: business.social ?? "",
   description: business.description ?? "",
@@ -1715,7 +1720,11 @@ const businessImageForCategory = (category) => {
   return appAsset("abilene-vibes-icon.png");
 };
 
+const isIOS = () => Capacitor.getPlatform() === "ios";
+const businessDirectionsUrl = (business) => isIOS() ? iosDirectionsUrl(business) : mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`);
+
 const visitUrl = (value) => {
+  if (isIOS()) return iosWebsiteUrl(value);
   if (!value) {
     return "";
   }
@@ -2817,6 +2826,25 @@ function App() {
   }, [adminSession]);
 
   useEffect(() => {
+    if (isIOS()) {
+      let storage;
+      try { storage = window.localStorage; } catch { /* Optional cache. */ }
+      const loader = createWeatherLoader({ storage, onValue: setWeather, isDay: getAbileneIsDay,
+        log: (result) => console.info("[Weather iOS]", result) });
+      void loader.load();
+      const timer = window.setInterval(loader.load, abileneWeatherRefreshMs);
+      const resume = () => { if (!document.hidden) void loader.load(); };
+      document.addEventListener("visibilitychange", resume);
+      window.addEventListener("online", resume);
+      const listener = CapacitorApp.addListener("appStateChange", ({ isActive }) => { if (isActive) void loader.load(); });
+      return () => {
+        loader.stop();
+        window.clearInterval(timer);
+        document.removeEventListener("visibilitychange", resume);
+        window.removeEventListener("online", resume);
+        void listener.then((handle) => handle.remove()).catch(() => {});
+      };
+    }
     let isMounted = true;
 
     const loadAbileneWeather = async () => {
@@ -3654,6 +3682,10 @@ function App() {
   };
 
   const openTrackedBusinessLink = async (event, business, actionType, url, target = "_self") => {
+    if (isIOS() && ["visits", "directions"].includes(actionType)) {
+      openBusinessUrl(event, business, actionType, { open: window.open.bind(window), track: trackBusinessInteraction });
+      return;
+    }
     event.preventDefault();
     await trackBusinessInteraction(business, actionType);
 
@@ -10054,7 +10086,7 @@ function App() {
 
                   <a
                     className="directory-link"
-                    href={mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`)}
+                    href={businessDirectionsUrl(business)}
                     target="_blank"
                     rel="noreferrer"
                     onClick={(event) =>
@@ -10062,7 +10094,7 @@ function App() {
                         event,
                         business,
                         "directions",
-                        mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`),
+                        businessDirectionsUrl(business),
                         "_blank",
                       )
                     }
@@ -10070,7 +10102,7 @@ function App() {
                     Directions
                   </a>
 
-                  {business.social && (
+                  {(isIOS() ? visitUrl(business.social) : business.social) && (
                     <a
                       className="directory-link"
                       href={visitUrl(business.social)}
@@ -10423,7 +10455,7 @@ function App() {
                     )}
                     <a
                       className="directory-link"
-                      href={mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`)}
+                      href={businessDirectionsUrl(business)}
                       target="_blank"
                       rel="noreferrer"
                       onClick={(event) =>
@@ -10431,14 +10463,14 @@ function App() {
                           event,
                           business,
                           "directions",
-                          mapSearchUrl(`${business.name}, ${business.address || "Abilene TX"}`),
+                          businessDirectionsUrl(business),
                           "_blank",
                         )
                       }
                     >
                       Directions
                     </a>
-                    {business.social && (
+                    {(isIOS() ? visitUrl(business.social) : business.social) && (
                       <a
                         className="directory-link"
                         href={visitUrl(business.social)}
