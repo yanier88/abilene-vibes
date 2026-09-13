@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:ios": "node scripts/ios-build-guard.mjs",
+    "prepare:ios": "node scripts/ios-build-guard.mjs --copy",
     "build:github": "vite build --mode github-pages",
     "build:admin": "vite build --config vite.admin.config.js",
     "build:android": "vite build && cap sync android",

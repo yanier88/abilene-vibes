@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		490000000000000000000102 /* SandboxPhysicalCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490000000000000000000101 /* SandboxPhysicalCapture.swift */; };
+		490000000000000000000002 /* SandboxCaptureGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490000000000000000000001 /* SandboxCaptureGate.swift */; };
 		1CBE58C45639BECA601AA7BA /* App/AbileneStoreKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F989B26AA51A2F2BCD024C5F /* App/AbileneStoreKitService.swift */; };
 		2C3EAE25DE2E020EC72DA656 /* App/AbileneBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA31AB022CCE3328DD79871F /* App/AbileneBridgeViewController.swift */; };
 		2CB745224685D9ACB8450B26 /* App/AbileneStoreKitPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74E6990BA14DCFEC2C998873 /* App/AbileneStoreKitPlugin.swift */; };
@@ -22,6 +24,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		490000000000000000000101 /* SandboxPhysicalCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/SandboxPhysicalCapture.swift; sourceTree = SOURCE_ROOT; };
+		490000000000000000000001 /* SandboxCaptureGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/SandboxCaptureGate.swift; sourceTree = SOURCE_ROOT; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		35A000000000000000000001 /* App/LocalStoreKitSecurity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/LocalStoreKitSecurity.swift; sourceTree = SOURCE_ROOT; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
@@ -72,6 +76,8 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				490000000000000000000001 /* SandboxCaptureGate.swift */,
+				490000000000000000000101 /* SandboxPhysicalCapture.swift */,
 				35A000000000000000000001 /* App/LocalStoreKitSecurity.swift */,
 				EA31AB022CCE3328DD79871F /* App/AbileneBridgeViewController.swift */,
 				74E6990BA14DCFEC2C998873 /* App/AbileneStoreKitPlugin.swift */,
@@ -169,6 +175,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				490000000000000000000002 /* SandboxCaptureGate.swift in Sources */,
+				490000000000000000000102 /* SandboxPhysicalCapture.swift in Sources */,
 				35A000000000000000000002 /* App/LocalStoreKitSecurity.swift in Sources */,
 				2C3EAE25DE2E020EC72DA656 /* App/AbileneBridgeViewController.swift in Sources */,
 				2CB745224685D9ACB8450B26 /* App/AbileneStoreKitPlugin.swift in Sources */,
