@@ -9,6 +9,7 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const urlVariable = 'VITE_SUPABASE_URL';
 const keyVariable = 'VITE_SUPABASE_ANON_KEY';
 const execute = promisify(execFile);
+const modulePath = value => value.replace(/\\/g, '/').replace(/^\/([A-Za-z]:\/)/, '$1');
 
 // Structure only. Public keys are bundled into the app; this is not authentication.
 function publicKey(value) {
@@ -64,7 +65,7 @@ export async function inspectBundle(root, result, config) {
     reachable.add(name);
     queue.push(...chunk.imports, ...chunk.dynamicImports);
   }
-  const appModule = join(root, 'src/App.jsx');
+  const appModule = modulePath(join(root, 'src/App.jsx'));
   let urlPresent = false, keyPresent = false, sameChunk = false;
   for (const name of reachable) {
     // Refuse unexpected output paths and symlink chunks before reading/copying.
@@ -73,7 +74,7 @@ export async function inspectBundle(root, result, config) {
     if (!(await lstat(path)).isFile()) return invalid;
     const code = await readFile(path, 'utf8');
     if (code !== chunk.code) return invalid;
-    if (!Object.hasOwn(chunk.modules, appModule)) continue;
+    if (!Object.keys(chunk.modules).some(name => modulePath(name) === appModule)) continue;
     const hasURL = code.includes(config.url), hasKey = code.includes(config.key);
     urlPresent ||= hasURL; keyPresent ||= hasKey; sameChunk ||= hasURL && hasKey;
   }
