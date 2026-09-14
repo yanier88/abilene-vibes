@@ -1,19 +1,10 @@
+import { resolvePricing, resolveLineItem, applyLineItem, PricingError } from "./pricing.mjs";
 import { resolveCheckoutOwner, verifiedOwnership, CheckoutAuthError } from "./ownership.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
-const planAmounts: Record<string, number> = {
-  Featured: 1900,
-  Premium: 5900,
-};
-
-const planPriceEnv: Record<string, string> = {
-  Featured: "STRIPE_FEATURED_PRICE_ID",
-  Premium: "STRIPE_PREMIUM_PRICE_ID",
 };
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) =>
@@ -249,8 +240,9 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const { listingType, action, submissionId, jobId, plan, businessName, contactEmail, returnUrl, jobPayload, rentalPayload } =
-      await request.json();
+    const body = await request.json();
+    const pricing = resolvePricing(body);
+    const { listingType, action, submissionId, jobId, plan, businessName, contactEmail, returnUrl, jobPayload, rentalPayload } = body;
     const cleanListingType = listingType === "job" ? "job" : listingType === "rental" ? "rental" : "business";
     const secretKey = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
     const appPublicUrl = cleanPublicUrl(Deno.env.get("APP_PUBLIC_URL") ?? returnUrl ?? "");
@@ -275,8 +267,10 @@ Deno.serve(async (request) => {
       publishableKey: Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "",
     });
 
+    const lineItem = await resolveLineItem(pricing, (name: string) => Deno.env.get(name), secretKey);
+
     if (cleanListingType === "rental") {
-      if (action !== "create_and_checkout" || !planAmounts[plan]) {
+      if (action !== "create_and_checkout" || !(["Featured", "Premium"].includes(plan))) {
         return jsonResponse({ error: "Invalid paid rental plan request." }, 400);
       }
 
@@ -325,19 +319,7 @@ Deno.serve(async (request) => {
         params.set("customer_email", String(insertedRental.email ?? contactEmail));
       }
 
-      const priceId = Deno.env.get(planPriceEnv[plan]) ?? "";
-      if (priceId) {
-        params.set("line_items[0][price]", priceId);
-      } else {
-        params.set("line_items[0][price_data][currency]", "usd");
-        params.set("line_items[0][price_data][unit_amount]", String(planAmounts[plan]));
-        params.set("line_items[0][price_data][recurring][interval]", "month");
-        params.set("line_items[0][price_data][product_data][name]", `Abilene Vibes ${plan} Rental Listing`);
-        params.set(
-          "line_items[0][price_data][product_data][description]",
-          `${insertedRental.title ?? businessName ?? "Rental"} monthly rental promotion plan`,
-        );
-      }
+      applyLineItem(params, lineItem, `Abilene Vibes ${plan} Rental Listing`, `${insertedRental.title ?? businessName ?? "Rental"} monthly rental promotion plan`);
 
       const session = await stripeRequest(secretKey, params);
 
@@ -360,7 +342,7 @@ Deno.serve(async (request) => {
 
     if (cleanListingType === "job") {
       if (action === "create_and_checkout") {
-        if (!planAmounts[plan]) {
+        if (!(["Featured", "Premium"].includes(plan))) {
           return jsonResponse({ error: "Invalid paid job plan request." }, 400);
         }
 
@@ -403,19 +385,7 @@ Deno.serve(async (request) => {
           params.set("customer_email", String(insertedJob.email ?? contactEmail));
         }
 
-        const priceId = Deno.env.get(planPriceEnv[plan]) ?? "";
-        if (priceId) {
-          params.set("line_items[0][price]", priceId);
-        } else {
-          params.set("line_items[0][price_data][currency]", "usd");
-          params.set("line_items[0][price_data][unit_amount]", String(planAmounts[plan]));
-          params.set("line_items[0][price_data][recurring][interval]", "month");
-          params.set("line_items[0][price_data][product_data][name]", `Abilene Vibes ${plan} Job Listing`);
-          params.set(
-            "line_items[0][price_data][product_data][description]",
-            `${insertedJob.company ?? businessName ?? insertedJob.title ?? "Job"} monthly hiring promotion plan`,
-          );
-        }
+        applyLineItem(params, lineItem, `Abilene Vibes ${plan} Job Listing`, `${insertedJob.company ?? businessName ?? insertedJob.title ?? "Job"} monthly hiring promotion plan`);
 
         const session = await stripeRequest(secretKey, params);
 
@@ -436,7 +406,7 @@ Deno.serve(async (request) => {
         return jsonResponse({ url: session.url });
       }
 
-      if (!jobId || !planAmounts[plan]) {
+      if (!jobId || !(["Featured", "Premium"].includes(plan))) {
         return jsonResponse({ error: "Invalid paid job plan request." }, 400);
       }
 
@@ -474,19 +444,7 @@ Deno.serve(async (request) => {
         params.set("customer_email", String(job.email ?? contactEmail));
       }
 
-      const priceId = Deno.env.get(planPriceEnv[plan]) ?? "";
-      if (priceId) {
-        params.set("line_items[0][price]", priceId);
-      } else {
-        params.set("line_items[0][price_data][currency]", "usd");
-        params.set("line_items[0][price_data][unit_amount]", String(planAmounts[plan]));
-        params.set("line_items[0][price_data][recurring][interval]", "month");
-        params.set("line_items[0][price_data][product_data][name]", `Abilene Vibes ${plan} Job Listing`);
-        params.set(
-          "line_items[0][price_data][product_data][description]",
-          `${job.company ?? businessName ?? job.title ?? "Job"} monthly hiring promotion plan`,
-        );
-      }
+      applyLineItem(params, lineItem, `Abilene Vibes ${plan} Job Listing`, `${job.company ?? businessName ?? job.title ?? "Job"} monthly hiring promotion plan`);
 
       const session = await stripeRequest(secretKey, params);
 
@@ -507,7 +465,7 @@ Deno.serve(async (request) => {
       return jsonResponse({ url: session.url });
     }
 
-    if (!submissionId || !planAmounts[plan]) {
+    if (!submissionId || !(["Featured", "Premium"].includes(plan))) {
       return jsonResponse({ error: "Invalid paid plan request." }, 400);
     }
 
@@ -538,19 +496,7 @@ Deno.serve(async (request) => {
       params.set("customer_email", String(submission.contact_email ?? contactEmail));
     }
 
-    const priceId = Deno.env.get(planPriceEnv[plan]) ?? "";
-    if (priceId) {
-      params.set("line_items[0][price]", priceId);
-    } else {
-      params.set("line_items[0][price_data][currency]", "usd");
-      params.set("line_items[0][price_data][unit_amount]", String(planAmounts[plan]));
-      params.set("line_items[0][price_data][recurring][interval]", "month");
-      params.set("line_items[0][price_data][product_data][name]", `Abilene Vibes ${plan} Listing`);
-      params.set(
-        "line_items[0][price_data][product_data][description]",
-        `${submission.business_name ?? businessName ?? "Business"} monthly promotion plan`,
-      );
-    }
+    applyLineItem(params, lineItem, `Abilene Vibes ${plan} Listing`, `${submission.business_name ?? businessName ?? "Business"} monthly promotion plan`);
 
     const session = await stripeRequest(secretKey, params);
 
@@ -570,6 +516,7 @@ Deno.serve(async (request) => {
 
     return jsonResponse({ url: session.url });
   } catch (error) {
+    if (error instanceof PricingError) return jsonResponse({ error: error.message }, error.status);
     if (error instanceof CheckoutAuthError) return jsonResponse({ error: error.message }, error.status);
     return jsonResponse({ error: error instanceof Error ? error.message : "Checkout failed." }, 500);
   }

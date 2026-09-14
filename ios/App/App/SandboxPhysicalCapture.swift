@@ -3,6 +3,42 @@ import Foundation
 import StoreKit
 import UIKit
 
+/// Debug UI only. Never dump error descriptions/userInfo that may contain account data.
+@available(iOS 16.0, *)
+private enum SandboxStoreKitDiagnostic {
+    static func summary(_ error: Error) -> String {
+        let domains: Set<String> = ["StoreKit.StoreKitError", "SKErrorDomain", "ASDErrorDomain",
+            "AMSErrorDomain", "NSURLErrorDomain", "NSCocoaErrorDomain", "NSPOSIXErrorDomain", "NSOSStatusErrorDomain"]
+        let descriptions: Set<String> = ["No active account", "No accounts available", "Account not found",
+            "Not signed in", "An unknown error occurred.", "The operation couldn’t be completed."]
+        var kind = "NSError", storeKitCase = "not StoreKitError"
+        var underlying: Error?
+        if let value = error as? StoreKitError {
+            kind = "StoreKitError"
+            switch value {
+            case .unknown: storeKitCase = "unknown"
+            case .userCancelled: storeKitCase = "userCancelled"
+            case .networkError(let nested): storeKitCase = "networkError"; underlying = nested
+            case .systemError(let nested): storeKitCase = "systemError"; underlying = nested
+            case .notAvailableInStorefront: storeKitCase = "notAvailableInStorefront"
+            case .notEntitled: storeKitCase = "notEntitled"
+            default: storeKitCase = "other"
+            }
+        }
+        var lines = ["type=\(kind); case=\(storeKitCase)"]
+        var current: NSError? = error as NSError
+        for depth in 0..<4 {
+            guard let value = current else { break }
+            let domain = domains.contains(value.domain) ? value.domain : "REDACTED_DOMAIN"
+            let raw = value.userInfo[NSLocalizedDescriptionKey] as? String ?? ""
+            let description = descriptions.contains(raw) ? raw : "WITHHELD"
+            lines.append("\(depth == 0 ? "error" : "underlying") domain=\(domain); code=\(value.code); description=\(description)")
+            current = depth == 0 && underlying != nil ? underlying! as NSError : value.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return lines.joined(separator: "\n")
+    }
+}
+
 /// Entire capture implementation is absent from Release and simulator builds.
 enum SandboxPhysicalRuntime {
     static var requested: Bool {
@@ -26,6 +62,7 @@ enum SandboxPhysicalRuntime {
     private var directory: URL?
     private var purchaseAttempt = SandboxCaptureAttempt()
     var purchaseAttempted: Bool { purchaseAttempt.reserved }
+    private(set) var diagnosticStage = "not started"
 
     func stop() { updates?.cancel(); updates = nil }
 
@@ -49,6 +86,7 @@ enum SandboxPhysicalRuntime {
     private func verifyApp() async throws -> SandboxCaptureGate {
         var gate = SandboxPhysicalRuntime.gate
         guard gate.configured else { throw SandboxCaptureError.gateClosed }
+        diagnosticStage = "AppTransaction.shared"
         let result = try await AppTransaction.shared
         try Task.checkCancellation()
         guard case .verified(let app) = result else { throw SandboxCaptureError.appNotVerifiedSandbox }
@@ -71,6 +109,7 @@ enum SandboxPhysicalRuntime {
     func prepare() async throws -> [Product] {
         products.removeAll()
         _ = try await verifyApp()
+        diagnosticStage = "Product.products"
         let found = try await Product.products(for: SandboxCaptureGate.products)
         guard !found.isEmpty, found.allSatisfy({ SandboxCaptureGate.products.contains($0.id) &&
             $0.type == .autoRenewable && $0.subscription?.subscriptionPeriod.unit == .month &&
@@ -257,7 +296,7 @@ enum SandboxPhysicalRuntime {
             }
             do { try await operation() }
             catch let error as SandboxCaptureError { status.text = "BLOCKED: " + error.rawValue + ". No automatic retry or finish." }
-            catch { status.text = "StoreKit operation failed. Handle any Apple login manually. No automatic retry or finish." }
+            catch { status.text = "StoreKit failed at \(session.diagnosticStage). No retry or finish.\n" + SandboxStoreKitDiagnostic.summary(error) }
         }
     }
     override func viewDidDisappear(_ animated: Bool) { super.viewDidDisappear(animated); session.stop() }

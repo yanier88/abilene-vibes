@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { websiteUrl as iosWebsiteUrl, directionsUrl as iosDirectionsUrl, openBusinessUrl } from "./ios/businessLinks";
 import { createWeatherLoader } from "./ios/weather";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -7,6 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import { verifiedAdminSession } from "./auth/session";
 import { readWithIdentity } from "./auth/readListings";
 import { canManageListing } from "./auth/ownership";
+import { promotionPlansFor, promotionPriceFor, promotionCheckoutPayload } from "./billing/promotionCatalog.mjs";
 import Promo3DIcon from "./components/Promo3DIcon";
 import "./App.css";
 
@@ -15,6 +16,7 @@ const appAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
 const mapSearchUrl = (query) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
 const paidPlanNames = new Set(["Featured", "Premium"]);
+const applePromotionPlans = registerPlugin("ApplePromotionPlans");
 
 const lobbyAboutRotationMs = 2000;
 const featuredPromotionRotationMs = 3000;
@@ -867,26 +869,11 @@ const promoteCategories = [
   { label: "Jobs & Hiring", icon: "jobsHiring" },
 ];
 
-const promotePlans = [
-  {
-    name: "Free",
-    price: "$0",
-    cadence: "forever",
-    note: "Basic directory listing",
-  },
-  {
-    name: "Featured",
-    price: "$19",
-    cadence: "per month",
-    note: "Monthly subscription. $19 today, then auto-renews until canceled.",
-  },
-  {
-    name: "Premium",
-    price: "$59",
-    cadence: "per month",
-    note: "Monthly subscription. $59 today, then auto-renews until canceled.",
-  },
-];
+const promotePlans = promotionPlansFor(Capacitor.getPlatform());
+const promotionPrice = name => promotionPriceFor(Capacitor.getPlatform(), name);
+const invokePromotionCheckout = (client, options) => client.functions.invoke("create-checkout-session", {
+  ...options, body: promotionCheckoutPayload(Capacitor.getPlatform(), options.body),
+});
 
 const legalSections = {
   terms: {
@@ -928,7 +915,7 @@ const legalSections = {
       {
         title: "Featured and Premium Placements",
         copy:
-          "Featured and Premium placements are paid promotional placements that improve visibility inside Abilene Vibes.\n\nFeatured currently costs $19 per month.\n\nPremium currently costs $59 per month.\n\nCurrent prices are displayed at the time of purchase and may be changed prospectively.\n\nPayment does not guarantee immediate publication. Paid listings may still require Admin review before appearing publicly.\n\nPaid placement does not guarantee sales, visits, calls, rankings, customer interest, applications, rentals, purchases, or any specific result.",
+          `Featured and Premium placements are paid promotional placements that improve visibility inside Abilene Vibes.\n\nFeatured currently costs ${promotionPrice("Featured")} per month.\n\nPremium currently costs ${promotionPrice("Premium")} per month.\n\nCurrent prices are displayed at the time of purchase and may be changed prospectively.\n\nPayment does not guarantee immediate publication. Paid listings may still require Admin review before appearing publicly.\n\nPaid placement does not guarantee sales, visits, calls, rankings, customer interest, applications, rentals, purchases, or any specific result.`,
       },
       {
         title: "Subscriptions and Payments",
@@ -3321,7 +3308,7 @@ function App() {
     if (isSupabaseSubmission && paidPlanNames.has(submissionPlan)) {
       setSubmissionStatus("checkout");
       const returnUrl = window.location.origin.startsWith("https://") ? window.location.origin : "";
-      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+      const { data, error } = await invokePromotionCheckout(supabase, {
         body: {
           submissionId,
           plan: submissionPlan,
@@ -7091,6 +7078,28 @@ function App() {
     );
   }
 
+  if (page === "promote" && isIOS()) {
+    return withSplash(
+      <main className="app promote-page">
+        <div className="promote-shell">
+          <button className="back-button" onClick={backToLobby}>Back to lobby</button>
+          <section className="promote-header" aria-labelledby="apple-promote-title">
+            <p className="eyebrow">Abilene Vibes · Apple subscriptions</p>
+            <h1 id="apple-promote-title">Promote your business</h1>
+            <p className="events-intro">Explore Featured and Premium monthly promotions for your business.</p>
+          </section>
+          <button className="plan-card" type="button" onClick={async () => {
+            try { await applePromotionPlans.open(); }
+            catch { window.alert("Apple plan selection is unavailable. Please try again later."); }
+          }}>
+            <span className="plan-name">Choose your Apple plan</span>
+            <span className="plan-note">Compare plans. Purchases are not available yet.</span>
+          </button>
+        </div>
+      </main>,
+    );
+  }
+
   if (page === "promote") {
     return withSplash(
       <main className="app promote-page">
@@ -7246,7 +7255,7 @@ function App() {
             {paidPlanNames.has(selectedPlan) && (
               <p className="legal-disclaimer billing-disclaimer">
                 {selectedPlan} is a monthly subscription. By continuing to checkout, you authorize Abilene Vibes and
-                Stripe to charge {selectedPlan === "Featured" ? "$19" : "$59"} today and automatically every month
+                Stripe to charge {promotionPrice(selectedPlan)} today and automatically every month
                 until the subscription is canceled. Payment starts the review process; the paid placement goes live
                 after admin approval. Cancellation stops future renewals, and current-period payments are not
                 automatically refunded. Contact {contactEmail} for billing or cancellation help.
@@ -8334,7 +8343,7 @@ function App() {
             contactEmail: postJobForm.email,
             returnUrl,
           };
-          const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-checkout-session", {
+          const { data: checkoutData, error: checkoutError } = await invokePromotionCheckout(supabase, {
             body: checkoutPayload,
           });
 
@@ -8401,7 +8410,7 @@ function App() {
             contactEmail: postJobForm.email,
             returnUrl,
           };
-          const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-checkout-session", {
+          const { data: checkoutData, error: checkoutError } = await invokePromotionCheckout(supabase, {
             body: checkoutPayload,
           });
 
@@ -8478,8 +8487,8 @@ function App() {
                 {/* FEATURED */}
                 <div className={`post-job-plan-card post-job-plan-featured${selectedPostJobPlan === "Featured" ? " is-selected" : ""}`}>
                   <p className="plan-badge plan-badge-featured">FEATURED</p>
-                  <p className="plan-price">$19</p>
-                  <p className="plan-duration">{postJobForm.duration}</p>
+                  <p className="plan-price">{promotionPrice("Featured")}</p>
+                  <p className="plan-duration">{Capacitor.getPlatform() === "android" ? "per month · auto-renews until canceled" : postJobForm.duration}</p>
                   <ul className="plan-features">
                     <li>⭐ Featured badge</li>
                     <li>Higher placement in results</li>
@@ -8493,8 +8502,8 @@ function App() {
                 {/* PREMIUM */}
                 <div className={`post-job-plan-card post-job-plan-premium${selectedPostJobPlan === "Premium" ? " is-selected" : ""}`}>
                   <p className="plan-badge plan-badge-premium">PREMIUM</p>
-                  <p className="plan-price">$59</p>
-                  <p className="plan-duration">{postJobForm.duration}</p>
+                  <p className="plan-price">{promotionPrice("Premium")}</p>
+                  <p className="plan-duration">{Capacitor.getPlatform() === "android" ? "per month · auto-renews until canceled" : postJobForm.duration}</p>
                   <ul className="plan-features">
                     <li>🏆 Premium badge</li>
                     <li>Highest placement</li>
@@ -9374,7 +9383,7 @@ function App() {
           delete rentalPayload.requested_plan;
           delete rentalPayload.expires_at;
           const returnUrl = window.location.origin.startsWith("https://") ? window.location.origin : "";
-          const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke("create-checkout-session", {
+          const { data: checkoutData, error: checkoutError } = await invokePromotionCheckout(supabase, {
             body: {
               listingType: "rental",
               action: "create_and_checkout",
@@ -10362,7 +10371,7 @@ function App() {
                 {paidPlanNames.has(selectedPlan) && (
                   <p className="legal-disclaimer billing-disclaimer">
                     {selectedPlan} is a monthly subscription. By continuing to checkout, you authorize Abilene Vibes
-                    and Stripe to charge {selectedPlan === "Featured" ? "$19" : "$59"} today and automatically every
+                    and Stripe to charge {promotionPrice(selectedPlan)} today and automatically every
                     month until the subscription is canceled. Payment starts the review process; the paid placement
                     goes live after admin approval.
                   </p>

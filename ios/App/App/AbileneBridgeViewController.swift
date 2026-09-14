@@ -1,16 +1,39 @@
 import Capacitor
 import UIKit
+import StoreKit
 
 final class AbileneBridgeViewController: CAPBridgeViewController {
     override func viewDidLoad() {
         #if DEBUG && os(iOS) && !targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("--abilene-apple-plans-review"),
+           ProcessInfo.processInfo.environment["ABILENE_APPLE_PLANS_REVIEW"] == "VISUAL_ONLY",
+           !SandboxPhysicalRuntime.requested {
+            let plans = ApplePromotionPlansViewController()
+            let container = UIView()
+            view = container
+            addChild(plans)
+            plans.view.frame = container.bounds
+            plans.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            container.addSubview(plans.view)
+            plans.didMove(toParent: self)
+            return
+        }
         if SandboxPhysicalRuntime.requested {
             // CAPBridgeViewController.viewDidLoad loads the web application. Do not call it
             // in capture mode: no React UI, Supabase, public promotions or JS evidence.
             if #available(iOS 16.0, *) {
                 let capture = SandboxPhysicalCaptureViewController()
+                let container = UIView()
+                view = container
                 addChild(capture)
-                view = capture.view
+                capture.view.translatesAutoresizingMaskIntoConstraints = false
+                container.addSubview(capture.view)
+                NSLayoutConstraint.activate([
+                    capture.view.topAnchor.constraint(equalTo: container.topAnchor),
+                    capture.view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+                    capture.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                    capture.view.trailingAnchor.constraint(equalTo: container.trailingAnchor)
+                ])
                 capture.didMove(toParent: self)
             } else {
                 let blocked = UILabel()
@@ -33,5 +56,185 @@ final class AbileneBridgeViewController: CAPBridgeViewController {
 
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(AbileneStoreKitPlugin())
+        bridge?.registerPluginInstance(ApplePromotionPlansPlugin())
+    }
+}
+
+/// Presentation only. No purchase, receipt, delivery or capture APIs cross this bridge.
+@objc(ApplePromotionPlansPlugin)
+public final class ApplePromotionPlansPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "ApplePromotionPlansPlugin"
+    public let jsName = "ApplePromotionPlans"
+    public let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "open", returnType: CAPPluginReturnPromise)]
+
+    @objc func open(_ call: CAPPluginCall) {
+        Task { @MainActor in
+            guard let parent = self.bridge?.viewController, parent.presentedViewController == nil else {
+                call.reject("Plan screen unavailable"); return
+            }
+            let plans = ApplePromotionPlansViewController()
+            plans.modalPresentationStyle = .fullScreen
+            parent.present(plans, animated: true) { call.resolve() }
+        }
+    }
+}
+
+/// The same native selection UI is used by the normal iOS flow and isolated Debug review.
+@MainActor final class ApplePromotionPlansViewController: UIViewController {
+    private let stack = UIStackView()
+    private let notice = UILabel()
+    private var cards: [String: UIView] = [:]
+    private var prices: [String: UILabel] = [:]
+    private var buttons: [String: UIButton] = [:]
+    private var available: Set<String> = []
+    private var selected: String?
+    private var loading = false
+    private let cyan = UIColor(red: 0, green: 0.83, blue: 1, alpha: 1)
+    private let pink = UIColor(red: 1, green: 0, blue: 0.8, alpha: 1)
+    private let backdrop = CAGradientLayer()
+
+    private var reviewMode: Bool {
+        #if DEBUG && os(iOS) && !targetEnvironment(simulator)
+        return ProcessInfo.processInfo.arguments.contains("--abilene-apple-plans-review") &&
+            ProcessInfo.processInfo.environment["ABILENE_APPLE_PLANS_REVIEW"] == "VISUAL_ONLY" &&
+            !SandboxPhysicalRuntime.requested
+        #else
+        return false
+        #endif
+    }
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+
+    private func label(_ text: String, size: CGFloat, weight: UIFont.Weight = .regular,
+                       color: UIColor = .white) -> UILabel {
+        let label = UILabel()
+        label.text = text; label.numberOfLines = 0; label.textColor = color
+        label.font = UIFontMetrics.default.scaledFont(for: .systemFont(ofSize: size, weight: weight))
+        label.adjustsFontForContentSizeCategory = true
+        return label
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = UIColor(red: 0.02, green: 0, blue: 0.03, alpha: 1)
+        backdrop.colors = [UIColor(red: 0.14, green: 0.02, blue: 0.22, alpha: 1).cgColor,
+                           UIColor(red: 0.02, green: 0, blue: 0.04, alpha: 1).cgColor,
+                           UIColor(red: 0, green: 0.08, blue: 0.13, alpha: 1).cgColor]
+        view.layer.insertSublayer(backdrop, at: 0)
+        let scroll = UIScrollView(); scroll.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scroll)
+        stack.axis = .vertical; stack.spacing = 16; stack.translatesAutoresizingMaskIntoConstraints = false
+        scroll.addSubview(stack)
+        NSLayoutConstraint.activate([
+            scroll.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scroll.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            scroll.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            scroll.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 12),
+            stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -20),
+            stack.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor),
+            stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor)
+        ])
+        let brand = label("ABILENE VIBES", size: 15, weight: .heavy, color: cyan)
+        stack.addArrangedSubview(brand)
+        if presentingViewController != nil {
+            let close = UIButton(type: .system); close.setTitle("Back to Abilene Vibes", for: .normal)
+            close.tintColor = cyan
+            close.addAction(UIAction { [weak self] _ in self?.dismiss(animated: true) }, for: .touchUpInside)
+            stack.addArrangedSubview(close)
+        }
+        stack.addArrangedSubview(label("Promote your\nbusiness", size: 35, weight: .heavy))
+        stack.addArrangedSubview(label("Stand out in Abilene. Choose the monthly promotion that fits your business.", size: 16,
+                                     color: UIColor(white: 0.8, alpha: 1)))
+        stack.addArrangedSubview(label("APPLE SUBSCRIPTIONS  ·  SLOT 01", size: 11, weight: .bold, color: cyan))
+        for id in SandboxCaptureGate.products.sorted() { addPlan(id) }
+        notice.numberOfLines = 0; notice.textColor = UIColor(white: 0.78, alpha: 1)
+        notice.font = .preferredFont(forTextStyle: .footnote)
+        notice.text = "Select a plan to compare. Purchases are not available yet."
+        stack.addArrangedSubview(notice)
+        if reviewMode {
+            #if DEBUG && os(iOS) && !targetEnvironment(simulator)
+            stack.addArrangedSubview(label("DEBUG / REVIEW · Reference prices from App Store Connect. Not fetched from Apple on this device.",
+                                         size: 11, color: UIColor(white: 0.65, alpha: 1)))
+            #endif
+        } else {
+            let load = UIButton(type: .system); load.setTitle("Load Apple prices", for: .normal); load.tintColor = cyan
+            load.addAction(UIAction { [weak self] _ in self?.loadPrices() }, for: .touchUpInside)
+            stack.addArrangedSubview(load)
+        }
+    }
+
+    override func viewDidLayoutSubviews() { super.viewDidLayoutSubviews(); backdrop.frame = view.bounds }
+
+    private func addPlan(_ id: String) {
+        let premium = id.hasSuffix(".premium.monthly")
+        let name = premium ? "Premium" : "Featured"
+        let accent = premium ? pink : cyan
+        let card = UIView(); card.backgroundColor = UIColor(white: 1, alpha: 0.055)
+        card.layer.cornerRadius = 22; card.layer.borderWidth = 1; card.layer.borderColor = accent.withAlphaComponent(0.45).cgColor
+        let content = UIStackView(); content.axis = .vertical; content.spacing = 9
+        content.translatesAutoresizingMaskIntoConstraints = false; card.addSubview(content)
+        NSLayoutConstraint.activate([
+            content.topAnchor.constraint(equalTo: card.topAnchor, constant: 18),
+            content.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -18),
+            content.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 20),
+            content.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -20)
+        ])
+        content.addArrangedSubview(label(name.uppercased() + " PROMOTION", size: 17, weight: .heavy, color: accent))
+        let price = label("Price unavailable", size: 28, weight: .bold)
+        #if DEBUG && os(iOS) && !targetEnvironment(simulator)
+        if reviewMode { price.text = premium ? "$67.99/month" : "$24.99/month" }
+        #endif
+        content.addArrangedSubview(price); prices[id] = price
+        content.addArrangedSubview(label(premium ? "Maximum visibility for your Abilene business listing." :
+            "Enhanced visibility for your Abilene business listing.", size: 15, color: UIColor(white: 0.85, alpha: 1)))
+        content.addArrangedSubview(label("Monthly subscription", size: 12, color: UIColor(white: 0.65, alpha: 1)))
+        let button = UIButton(type: .system)
+        button.setTitle("Select " + name, for: .normal); button.tintColor = accent
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .bold)
+        button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+        button.isEnabled = reviewMode
+        button.addAction(UIAction { [weak self] _ in self?.selectPlan(id) }, for: .touchUpInside)
+        content.addArrangedSubview(button); buttons[id] = button; cards[id] = card
+        stack.addArrangedSubview(card)
+    }
+
+    private func selectPlan(_ id: String) {
+        guard reviewMode || available.contains(id) else { return }
+        selected = id
+        for (key, card) in cards {
+            let premium = key.hasSuffix(".premium.monthly")
+            card.layer.borderWidth = key == selected ? 3 : 1
+            card.layer.borderColor = (premium ? pink : cyan).withAlphaComponent(key == selected ? 1 : 0.45).cgColor
+            buttons[key]?.setTitle((key == selected ? "Selected · " : "Select ") + (premium ? "Premium" : "Featured"), for: .normal)
+        }
+        notice.text = (id.hasSuffix(".premium.monthly") ? "Premium" : "Featured") + " selected. No purchase has been made."
+    }
+
+    private func loadPrices() {
+        guard !reviewMode, !loading else { return }
+        loading = true; available.removeAll(); selected = nil
+        for (id, button) in buttons {
+            button.isEnabled = false
+            button.setTitle("Select " + (id.hasSuffix(".premium.monthly") ? "Premium" : "Featured"), for: .normal)
+            cards[id]?.layer.borderWidth = 1; prices[id]?.text = "Price unavailable"
+        }
+        notice.text = "Loading prices from Apple…"
+        Task { [weak self] in
+            guard let self else { return }
+            defer { self.loading = false }
+            do {
+                let products = try await Product.products(for: SandboxCaptureGate.products)
+                for product in products where SandboxCaptureGate.products.contains(product.id) &&
+                    product.type == .autoRenewable && product.subscription?.subscriptionPeriod.unit == .month &&
+                    product.subscription?.subscriptionPeriod.value == 1 {
+                    self.prices[product.id]?.text = product.displayPrice + "/month"
+                    self.available.insert(product.id); self.buttons[product.id]?.isEnabled = true
+                }
+                self.notice.text = self.available.count == SandboxCaptureGate.products.count ?
+                    "Apple prices loaded. Selection only; purchases are not available yet." :
+                    "Some Apple plans are unavailable. No purchase has been made."
+            } catch { self.notice.text = "Apple prices are unavailable. Please try again later." }
+        }
     }
 }
