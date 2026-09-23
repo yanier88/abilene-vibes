@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A11200000000000000000003 /* AppleProductionPurchase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11200000000000000000004; };
+		A11200000000000000000001 /* AppleDeliveryACK.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11200000000000000000002; };
 		490000000000000000000102 /* SandboxPhysicalCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490000000000000000000101 /* SandboxPhysicalCapture.swift */; };
 		490000000000000000000002 /* SandboxCaptureGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490000000000000000000001 /* SandboxCaptureGate.swift */; };
 		1CBE58C45639BECA601AA7BA /* App/AbileneStoreKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F989B26AA51A2F2BCD024C5F /* App/AbileneStoreKitService.swift */; };
@@ -24,6 +26,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A11200000000000000000004 /* AppleProductionPurchase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/AppleProductionPurchase.swift; sourceTree = SOURCE_ROOT; };
+		A11200000000000000000002 /* AppleDeliveryACK.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/AppleDeliveryACK.swift; sourceTree = SOURCE_ROOT; };
 		490000000000000000000101 /* SandboxPhysicalCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/SandboxPhysicalCapture.swift; sourceTree = SOURCE_ROOT; };
 		490000000000000000000001 /* SandboxCaptureGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/SandboxCaptureGate.swift; sourceTree = SOURCE_ROOT; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -82,6 +86,8 @@
 				EA31AB022CCE3328DD79871F /* App/AbileneBridgeViewController.swift */,
 				74E6990BA14DCFEC2C998873 /* App/AbileneStoreKitPlugin.swift */,
 				F989B26AA51A2F2BCD024C5F /* App/AbileneStoreKitService.swift */,
+				A11200000000000000000002 /* AppleDeliveryACK.swift */,
+				A11200000000000000000004 /* AppleProductionPurchase.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -181,6 +187,8 @@
 				2C3EAE25DE2E020EC72DA656 /* App/AbileneBridgeViewController.swift in Sources */,
 				2CB745224685D9ACB8450B26 /* App/AbileneStoreKitPlugin.swift in Sources */,
 				1CBE58C45639BECA601AA7BA /* App/AbileneStoreKitService.swift in Sources */,
+				A11200000000000000000001 /* AppleDeliveryACK.swift in Sources */,
+				A11200000000000000000003 /* AppleProductionPurchase.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

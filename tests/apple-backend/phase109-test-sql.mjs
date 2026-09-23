@@ -1,0 +1,5 @@
+import {spawn} from 'node:child_process';export const q=x=>"'"+String(x).replaceAll("'","''")+"'";
+export async function sql(text,role='postgres',database='phase109test'){
+ if(!['postgres','service_role','anon','authenticated'].includes(role)||!['phase109test','phase109base','postgres'].includes(database))throw Error('DENIED');
+ return new Promise((resolve,reject)=>{const p=spawn('/Applications/Docker.app/Contents/Resources/bin/docker',['--context','desktop-linux','exec','-i','abilene-phase76-postgres','sh','-c',`PGPASSWORD="$POSTGRES_PASSWORD" psql -X -qAt -w -h 127.0.0.1 -U postgres -d ${database} -v ON_ERROR_STOP=1`],{stdio:['pipe','pipe','pipe']});let out='',err='';p.stdout.on('data',b=>out+=b);p.stderr.on('data',b=>err+=b);p.on('error',reject);p.on('close',c=>c?reject(Error('SQL_REJECTED '+(err.split('\n').find(x=>x.includes('ERROR:'))??'').replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi,'[ID]'))):resolve(out.trim()));p.stdin.end(`SET statement_timeout='20s'; SET lock_timeout='10s'; SET ROLE ${role};\n${text}`);});
+}

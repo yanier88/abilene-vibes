@@ -1,7 +1,7 @@
 import {BUNDLE,requireThat,sandbox,iso,uuid} from './domain.mjs';
-const TYPES=['SUBSCRIBED','DID_RENEW','DID_CHANGE_RENEWAL_STATUS','DID_FAIL_TO_RENEW','GRACE_PERIOD_EXPIRED','EXPIRED','REFUND','REVOKE'];
-export function recordNotification(s,event,hash,now) {
-  sandbox(event.environment);
+const TYPES=['SUBSCRIBED','DID_RENEW','DID_CHANGE_RENEWAL_STATUS','DID_CHANGE_RENEWAL_PREF','DID_FAIL_TO_RENEW','GRACE_PERIOD_EXPIRED','EXPIRED','REFUND','REVOKE'];
+export function recordNotification(s,event,hash,now,environment='Sandbox') {
+  requireThat(['Sandbox','Production'].includes(environment)&&event.environment===environment,'ENVIRONMENT_DISABLED',503);
   requireThat(event.bundle_id===BUNDLE && typeof event.notification_uuid==='string' && event.notification_uuid.length>0 && Number.isFinite(event.signed_date) && event.signed_date<=now+30000,'NOTIFICATION_SCOPE');
   const prior=s.notifications.find(x=>x.environment===event.environment && x.notification_uuid===event.notification_uuid);
   if(prior) {requireThat(prior.payload_hash===hash,'NOTIFICATION_REPLAY_CONFLICT');return prior;}
@@ -14,6 +14,7 @@ export function processNotification(s,n,now) {
   if(['processed','quarantined'].includes(n.status)) return n;
   n.attempts++;n.status='processing';
   const e=n.facts;
+  if(e.notification_type==='TEST'){n.status='processed';n.processed_at=iso(now);return n;}
   const sub=s.subscriptions.find(x=>x.bundle_id===BUNDLE && x.environment===e.environment && x.original_transaction_id===e.original_transaction_id);
   if(!sub) {n.status='retry';n.error_code='ASSIGNMENT_NOT_YET_KNOWN';return n;}
   const buyer=s.buyers.find(x=>x.id===sub.buyer_id);
@@ -28,11 +29,16 @@ export function processNotification(s,n,now) {
     return n;
   };
   if(e.signed_date<=sub.last_event_signed_date) return quarantine('OUT_OF_ORDER_RECONCILIATION',['REFUND','REVOKE'].includes(e.notification_type));
-  if(!['SUBSCRIBED','DID_RENEW'].includes(e.notification_type) && e.transaction_id!==sub.current_transaction_id) return quarantine('NONCURRENT_TRANSACTION_RECONCILIATION',true);
+  const periodEvent=['SUBSCRIBED','DID_RENEW'].includes(e.notification_type)||(e.notification_type==='DID_CHANGE_RENEWAL_PREF'&&e.subtype==='UPGRADE');
+  if(!periodEvent && e.transaction_id!==sub.current_transaction_id) return quarantine('NONCURRENT_TRANSACTION_RECONCILIATION',true);
   // Do not infer chronology from arrival order. Unknown history remains blocked.
-  if(sub.status==='revoked' && !['REFUND','REVOKE'].includes(e.notification_type)) {n.status='quarantined';n.error_code='REVOKED_CHAIN_RECONCILIATION';return n;}
+  if(['revoked','reconciliation'].includes(sub.status) && !['REFUND','REVOKE'].includes(e.notification_type)) {n.status='quarantined';n.error_code='REVOKED_CHAIN_RECONCILIATION';return n;}
   let status=sub.status;
   switch(e.notification_type) {
+    case 'DID_CHANGE_RENEWAL_PREF':
+      if(e.subtype!=='UPGRADE')break; // Downgrades take effect only in the next signed renewal.
+      if(!(sub.plan==='featured'&&product.plan==='premium'))return quarantine('UPGRADE_POLICY');
+      // Fall through: the upgraded signed transaction must pass all period guards.
     case 'SUBSCRIBED': case 'DID_RENEW':
       if(!e.transaction || e.transaction.ownership_type!=='PURCHASED' || e.transaction.revocation_date || e.transaction.is_upgraded || e.transaction.transaction_id!==e.transaction_id || e.transaction.original_transaction_id!==sub.original_transaction_id || e.transaction.product_id!==product.product_id || e.transaction.environment!==sub.environment || e.transaction.bundle_id!==BUNDLE || e.transaction.app_account_token!==buyer.app_account_token || e.transaction.app_transaction_id!==buyer.app_transaction_id || e.transaction.subscription_group_id!==sub.subscription_group_id || e.transaction.purchase_date!==e.period_start || e.transaction.expires_date!==e.period_end || !Number.isFinite(Date.parse(e.period_start)) || !Number.isFinite(Date.parse(e.period_end)) || Date.parse(e.period_end)<=Date.parse(e.period_start) || Date.parse(e.period_end)<Date.parse(sub.period_end) || !e.transaction_id) {
         n.status='quarantined';n.error_code='PERIOD_RECONCILIATION';return n;
@@ -66,7 +72,9 @@ export function processNotification(s,n,now) {
   n.status='processed';n.processed_at=iso(now);n.error_code=null;return n;
 }
 export function reconcile(s,now) {
-  for(const n of s.notifications.filter(x=>['received','retry'].includes(x.status)).sort((a,b)=>a.signed_date-b.signed_date)) processNotification(s,n,now);
+  // ASSN retries need a newly authenticated Node response through notification().
+  // Never apply previously persisted facts under an expired OCSP authorization.
+  for(const n of s.notifications.filter(x=>['received','retry'].includes(x.status)&&x.facts.verification_source!=='ASSN_NODE').sort((a,b)=>a.signed_date-b.signed_date)) processNotification(s,n,now);
   for(const i of s.intents) {
     if(i.status!=='completed' && Date.parse(i.expires_at)<=now) {
       i.status='reconciliation';i.reconciliation_reason='EXPIRED_INTENT_NO_TERMINAL_EVIDENCE';

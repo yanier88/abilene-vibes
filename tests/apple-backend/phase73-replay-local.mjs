@@ -1,0 +1,37 @@
+import {spawn} from 'node:child_process';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {randomUUID,createHash} from 'node:crypto';
+import assert from 'node:assert/strict';
+import {PersistentReplayStore} from '/Users/yanier/Documents/abilene-apple-verifier/src/persistent-replay-store.mjs';
+const container='abilene-phase72-postgres';
+function command(args,input=''){return new Promise((resolve,reject)=>{const p=spawn('/Users/yanier/.docker/bin/docker',args);let out='',err='';p.stdout.on('data',x=>out+=x);p.stderr.on('data',x=>err+=x);p.on('error',reject);p.on('close',code=>code?reject(new Error(err)):resolve(out.trim()));p.stdin.end(input);});}
+const q=x=>"'"+String(x).replaceAll("'","''")+"'";
+const sql=(s,role='postgres')=>command(['exec','-i',container,'psql','-X','-qAt','-U','postgres','-d','phase72','-v','ON_ERROR_STOP=1'],`set statement_timeout='10s';set lock_timeout='5s';set role ${role};\n${s}`);
+const c=JSON.parse(await command(['inspect','--format','{{json .}}',container]));assert.equal(c.HostConfig.NetworkMode,'none');assert.deepEqual(c.HostConfig.PortBindings,{});
+await sql(readFileSync('supabase/migrations/202609160003_apple_replay_claim.sql','utf8'));
+await sql("do $$ begin if not exists(select 1 from pg_roles where rolname='authenticator') then create role authenticator nologin noinherit;end if;end $$;");
+await sql(readFileSync('supabase/migrations/202609160004_apple_replay_readiness.sql','utf8'));
+const results=[];
+async function test(name,fn){try{await fn();results.push({name,result:'PASS'});console.log('PASS',name);}catch(e){results.push({name,result:'FAIL'});console.error('FAIL',name,e.message);throw e;}finally{writeFileSync('/private/tmp/phase73-replay-results.json',JSON.stringify(results,null,2));}}
+const binding=()=>({requestId:randomUUID(),bodyHash:'a'.repeat(64)});
+const make=()=>new PersistentReplayStore({claimAtomic:async a=>{const r=await sql(`select apple_verifier_claim_nonce(${q(a.nonceHash)},${q(a.requestHash)},${q(a.bodyHash)});`,'apple_replay_caller');assert.ok(['t','f'].includes(r));return r==='t';}});
+await test('migration reapplication safe',async()=>await sql(readFileSync('supabase/migrations/202609160003_apple_replay_claim.sql','utf8')));
+await test('first claim true',async()=>assert.equal(await make().claim(randomUUID(),120000,binding()),true));
+await test('duplicate nonce rejected',async()=>{const k=randomUUID();await make().claim(k,120000,binding());assert.equal(await make().claim(k,120000,binding()),false);});
+await test('request binding cannot change nonce or body',async()=>{const b=binding();await make().claim(randomUUID(),120000,b);assert.equal(await make().claim(randomUUID(),120000,{...b,bodyHash:'b'.repeat(64)}),false);});
+await test('x10 cross-instance exactly one winner',async()=>{const k=randomUUID(),b=binding();const r=await Promise.all(Array.from({length:10},()=>make().claim(k,120000,b)));assert.equal(r.filter(Boolean).length,1);});
+await test('TTL minimum 120 seconds persisted',async()=>assert.equal(await sql("select bool_and(expires_at-created_at >= interval '120 seconds') from apple_verifier_nonces"),'t'));
+await test('expiry cleanup and reclaim',async()=>{const k=randomUUID(),b=binding();await make().claim(k,120000,b);const h=createHash('sha256').update(k).digest('hex');await sql(`update apple_verifier_nonces set created_at=statement_timestamp()-interval '121 seconds',expires_at=statement_timestamp()-interval '1 second' where nonce_hash=${q(h)};`);assert.equal(await make().claim(k,120000,b),true);});
+await test('storage error fails closed',async()=>{const s=new PersistentReplayStore({claimAtomic:async()=>{throw Error('offline');}});await assert.rejects(s.claim(randomUUID(),120000,binding()),/REPLAY_STORE_UNAVAILABLE/);});
+await test('nonboolean storage result rejected',async()=>await assert.rejects(new PersistentReplayStore({claimAtomic:async()=> 'true'}).claim(randomUUID(),120000,binding()),/REPLAY_STORE_UNAVAILABLE/));
+await test('restricted role cannot read/write business or nonce tables',async()=>{for(const stmt of ['select * from apple_buyers','select * from apple_verifier_nonces','delete from apple_verifier_nonces','select apple_ledger_snapshot()',"select apple_ledger_compare_and_swap(0,'{}')",'create table public.forged(id int)'])await assert.rejects(sql(stmt,'apple_replay_caller'),/permission denied/);});
+await test('public application roles cannot claim',async()=>{for(const role of ['anon','authenticated','service_role'])await assert.rejects(sql(`select apple_verifier_claim_nonce('${'a'.repeat(64)}','${'b'.repeat(64)}','${'c'.repeat(64)}')`,role),/permission denied/);});
+await test('invalid claim fails closed',async()=>await assert.rejects(sql("select apple_verifier_claim_nonce('bad','bad','bad')",'apple_replay_caller'),/INVALID_REPLAY_CLAIM/));
+await test('guarded CAS commits before deadline',async()=>assert.equal(await sql("select apple_ledger_compare_and_swap_verified((s->>'version')::bigint,s->'state',clock_timestamp()+interval '30 seconds') from (select apple_ledger_snapshot() s) t",'service_role'),'t'));
+await test('guard rejects expired deadline without revision change',async()=>{const before=await sql('select apple_ledger_snapshot()','service_role');await assert.rejects(sql("select apple_ledger_compare_and_swap_verified((s->>'version')::bigint,s->'state',clock_timestamp()) from (select apple_ledger_snapshot() s) t",'service_role'),/VERIFICATION_EXPIRED/);assert.equal(await sql('select apple_ledger_snapshot()','service_role'),before);});
+await test('expiry during SQL writes rolls back complete CAS',async()=>{const before=await sql('select apple_ledger_snapshot()','service_role');await assert.rejects(sql("begin; create function phase72_delay() returns trigger language plpgsql as $$ begin perform pg_sleep(0.2);return new;end $$;create trigger phase72_delay before update on apple_ledger_revision for each row execute function phase72_delay();select apple_ledger_compare_and_swap_verified((s->>'version')::bigint,s->'state',clock_timestamp()+interval '100 milliseconds') from (select apple_ledger_snapshot() s) t;commit;"),/VERIFICATION_EXPIRED/);assert.equal(await sql('select apple_ledger_snapshot()','service_role'),before);});
+await test('restricted readiness RPC works without business access',async()=>assert.equal(await sql('select apple_verifier_replay_ready()','apple_replay_caller'),'t'));
+await test('application roles cannot probe restricted readiness',async()=>{for(const role of ['anon','authenticated','service_role'])await assert.rejects(sql('select apple_verifier_replay_ready()',role),/permission denied/);});
+await test('route namespaces isolated but request ID reuse rejected',async()=>{const k=randomUUID(),b=binding();assert.equal(await make().claim('purchase:'+k,120000,b),true);assert.equal(await make().claim('assn:'+k,120000,b),false);assert.equal(await make().claim('assn:'+k,120000,binding()),true);});
+await test('PostgREST authenticator can assume only restricted replay role',async()=>{assert.equal(await sql('set session authorization authenticator;set role apple_replay_caller;select apple_verifier_replay_ready()'),'t');await assert.rejects(sql('set session authorization authenticator;set role apple_replay_caller;select * from apple_buyers'),/permission denied/);});
+console.log('TOTAL',results.length,'PASS',results.length,'FAIL',0);

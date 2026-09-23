@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {withApplePromotions} from '../../src/billing/appleProjection.mjs';
+const expiry=new Date(Date.now()+100000).toISOString(),item={id:'listing',plan:'Free',payment_status:'not_required'},client=rows=>({rpc:async()=>({data:rows})});
+test('Apple public commercial projection overlays only matching active entitlement',async()=>{const r=await withApplePromotions(client([{listing_type:'business',listing_id:'listing',plan:'premium',valid_until:expiry}]),'business',{data:[item]});assert.equal(r.data[0].plan,'Premium');assert.equal(r.data[0].placement_source,'apple');assert.equal(item.plan,'Free');});
+test('Apple projection never overwrites Stripe source',async()=>{const row={...item,placement_source:'stripe'};assert.deepEqual((await withApplePromotions(client([{listing_type:'business',listing_id:'listing',plan:'premium',valid_until:expiry}]),'business',{data:[row]})).data,[row]);});
+test('Apple expired or wrong-listing projection cannot promote',async()=>{for(const change of [{valid_until:new Date(0).toISOString()},{listing_id:'other'},{listing_type:'job'},{plan:'invented'}])assert.deepEqual((await withApplePromotions(client([{listing_type:'business',listing_id:'listing',plan:'premium',valid_until:expiry,...change}]),'business',{data:[item]})).data,[item]);});

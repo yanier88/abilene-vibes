@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Reviewed Apple-only delta after Phase102; Android and Stripe source pins unchanged",
+  "entries": [
+    {
+      "path": "supabase/functions/_shared/apple/domain.mjs",
+      "beforeSHA256": "93607f7d84b9d36053d8ce6eadc86f0d29282c2cc5d059de060bc2dbeb2459d0",
+      "afterSHA256": "e647c6e9e1f236f4a448330d3cb53479ee3ad927cdbb55c87bfe2a812e179d22",
+      "reviewedChanges": [
+        "Current non-revoked unique listing authorization with created_at and expiry bounds",
+        "Exclude released_never_started from occupied slots; reuse only released reservations; PostgreSQL release constraints remain required"
+      ]
+    }
+  ]
+}

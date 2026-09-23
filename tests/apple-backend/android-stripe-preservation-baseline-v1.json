@@ -1,0 +1,730 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "ANDROID_STRIPE_PRESERVATION_BASELINE_V1",
+  "purpose": "Current reproducible preservation test; not reconstruction of phase71 snapshot",
+  "entries": [
+    {
+      "path": "android/.gitignore",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "48354a3dfc4ad41c5c7af1451315d335cda7d611",
+      "sha256": "065e4a92a240fe11a0ea230491ad9dabef143f5fd5a3e6884ad6f0395666a971",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/.gitignore",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "043df802a29f1f386a23cba600c84be8eee2a0c6",
+      "sha256": "99c54e51ee601a60fbde8016b2cbf717483bc2e92773be86c9247d02a7fa6ea4",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/build.gradle",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "dade6b1e83f7b96f29efcd9e1586191c4b114604",
+      "sha256": "8020ad6b2a2216e425393eef4a5352ae06035feabe71859821e8d36188ebdd37",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/capacitor.build.gradle",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "1005ebc6152859cb76d0aa39dbed0ca207775782",
+      "sha256": "47e2308de17888afa42c3a6975626c50ef2fc0abbaf4c7da862eb32d567c3105",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/proguard-rules.pro",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "f1b424510da51fd82143bc74a0a801ae5a1e2fcd",
+      "sha256": "1cf8c57e8f79c250b0af9c1a5a4edad71a5c348a79ab70243b6bae086c150ad2",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "f2c2217efa5a746f23ea722450a40fe0ca3db099",
+      "sha256": "ff50b4c110a7434312f9af54171f9e8523b015836f707c9b387b76d4c38a97f8",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/AndroidManifest.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "89e3dedabe88220b51fb0eebff2ed5eb1aac13c6",
+      "sha256": "699dcea3af2a6ac481a50342f6aa504189522f317d50f39bda1cc091887231c2",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/java/com/abilenevibes/app/AdminActivity.java",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "c0bab631ee034351d848477340b94e7ec800fa37",
+      "sha256": "9c277d31f55ed410a00a0afcfe600f9ef05beb0472afe2f6dff621b88385e518",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/java/com/abilenevibes/app/MainActivity.java",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "bcc112ddf8fdbda140d5655c6ec2dcbb9bacca77",
+      "sha256": "cf1f9f4d4fc55517c95fdc4ea53922ad15befc451c6a200137f3466ef6822b5e",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-hdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "e31573b4fc93e60d171f4046c0220e1463075d9e",
+      "sha256": "08cc34ad7713fe7ed58bceaa37b2387b670c53cd60264b4bd6442db3098e75dc",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-mdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "f7a64923ea1a0565d25fa139c176d6bf42184e48",
+      "sha256": "5cf98b4451bd99b20df26f9e608a46946118be6b0ae90762f9ca1786a30c76ff",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-xhdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "807725501bdd92e94e51e7b2b0006f69e0083a0b",
+      "sha256": "22f87e1e3bc89aa01a7dbc39c9a4db058cd0bf4ad3fe9f55712bf69eb997f4bf",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-xxhdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "14c6c8fe39fcd51a0414866ad28cbe8ff3acb060",
+      "sha256": "42aa26392546fcdee1b8d3ac6d4b41bfcceb41dc6a4f3a3c30c24a8a8f4db862",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-land-xxxhdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "244ca2506dbe0fd8f6a05520ac7d1a629ea81438",
+      "sha256": "60393ce8636fd263e4e1fea3fd4ab2de948c6295e898fda9b50ac4e5283be809",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-hdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "74faaa583c8221c27a8cb822c3fbe218bafa3299",
+      "sha256": "c5015f4ba3628392b538386c5e210f0b94f352a3160adab934fd0311972137ca",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-mdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "e944f4ad4e1ca1c8cf9a87b366acc01c4e5c1616",
+      "sha256": "07fa579e1c83e04ba7f9cbcbfcf41b68e15fe3638f2c44a04e58b809103e6b69",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-xhdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "564a82ff954aec267492467c0169a270c4e8fea9",
+      "sha256": "b73049cb37fe76d6c11b87a796766bf6af0c85483b31eb6a921657b0d764a4b9",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-xxhdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "bfabe6871a17a5e95b78fb30d49b7d2b4d2fe4c0",
+      "sha256": "0c7f1212f25b7b90e9a6e1d320013e4ff3d3e03e634cbb07b7b7981cac51627f",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-port-xxxhdpi/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "6929071268eb03ee0f088142b6523566b78550e2",
+      "sha256": "3db071a03b2f8ffe0dfd4170fc59842d53cd15bba5e88af59401d58efabf7827",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "c7bd21dbd86990cde81fea8abd3bf904b4546749",
+      "sha256": "a8514094f754b099d3e55ce1d6e0b2de79db418b2eeacb0fc2a6bb0bfadef221",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable/ic_launcher_background.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "d5fccc538c179838bfdce779c26eebb4fa0b5ce9",
+      "sha256": "718ba51adf166bb55c3e9936bb8199a0148457f7f0191aaa2f37a94f3159d6ec",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/drawable/splash.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "f7a64923ea1a0565d25fa139c176d6bf42184e48",
+      "sha256": "5cf98b4451bd99b20df26f9e608a46946118be6b0ae90762f9ca1786a30c76ff",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/layout/activity_main.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "b5ad1387011da0894cc1d91f44f3bd77f5403f5d",
+      "sha256": "5d770feb791313b947020cbfc57e5c733c556dac5e9e49261a1190e527073253",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "036d09bc5fd523323794379703c4a111d1e28a04",
+      "sha256": "9c3a7e0a6515c6e1a7ae834a9ae430311ebc3241f7b2e5e7f0460aa690709a7c",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "036d09bc5fd523323794379703c4a111d1e28a04",
+      "sha256": "9c3a7e0a6515c6e1a7ae834a9ae430311ebc3241f7b2e5e7f0460aa690709a7c",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "13e640ce8d07f761963762fdc3fc8e6b5ecf80a8",
+      "sha256": "8550ab113f208b9716a990e2cb2c5889ae9153c4d1bcddcc2611b3d5da561290",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "65ca39ccc47017f2b942039745da137f84672c8f",
+      "sha256": "61e1852f6b7edc49d2a2ba64bc0543b7452fa11e142679c232872e760f1f89a1",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "13e640ce8d07f761963762fdc3fc8e6b5ecf80a8",
+      "sha256": "8550ab113f208b9716a990e2cb2c5889ae9153c4d1bcddcc2611b3d5da561290",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "c7f2a9ac2f3f17ed7c1aaf32d4e9b9eb7c0cdea0",
+      "sha256": "04f0f23577f5f1037be349204c12eb46ceac804b5315ec75bcbead0dbbf9cd15",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "9e901117f5451f99ab922cfbe38d822c6027f900",
+      "sha256": "44f9a6bd111cd934818ffd9d1869df042eecd96811f95742545876f6c4a1c941",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "c7f2a9ac2f3f17ed7c1aaf32d4e9b9eb7c0cdea0",
+      "sha256": "04f0f23577f5f1037be349204c12eb46ceac804b5315ec75bcbead0dbbf9cd15",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "b5979a9724f6be53b3056f61c745c61ff31a98af",
+      "sha256": "78b65b0e8ab6651c6b0abad21fa8cc6b5d7d5ad5bfc99802339ab304eafcac0a",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "cdba36934e27a288ea47aa353192ed5b80f2acd6",
+      "sha256": "3e9eb15a07454e063f8ae68bce09f015a33973ec466a9bc04e6f60ddd643059c",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "b5979a9724f6be53b3056f61c745c61ff31a98af",
+      "sha256": "78b65b0e8ab6651c6b0abad21fa8cc6b5d7d5ad5bfc99802339ab304eafcac0a",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "76bd5421bafd3ed01a064f3efb4abba6a0c09c9b",
+      "sha256": "3cd421bcecfe38803c389d5899c4d024b0851de5a1f0637d5d9392efde21786c",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "c3bee2bb16e51290491d5ea5229ea5be9020081c",
+      "sha256": "999e5a6d2b706d4ee0eaddeca7b51f1a7c2dfe889cdf7481815821af1fc3e620",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "76bd5421bafd3ed01a064f3efb4abba6a0c09c9b",
+      "sha256": "3cd421bcecfe38803c389d5899c4d024b0851de5a1f0637d5d9392efde21786c",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "90a121ea01d95d1ba149e481bc9cd85063206e4e",
+      "sha256": "adb48d0ae78169df17104bfabe7564f4304b9cc996e943de46b70a866cc16856",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "32373137dc21a3b64fbc1ecff66be692c170b0e9",
+      "sha256": "dc77e6a27ee24dd6fe9112e39c4ec138c3283e5e7ac2b2636a8d53e0cd951a2a",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "90a121ea01d95d1ba149e481bc9cd85063206e4e",
+      "sha256": "adb48d0ae78169df17104bfabe7564f4304b9cc996e943de46b70a866cc16856",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/values/ic_launcher_background.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "17ba9a363539a74f94740e66cfea4fc358b926f7",
+      "sha256": "3947662036250b6b1534cee7e402966d8db8cb1caa1cf16a07167a536bdef6cc",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/values/strings.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "19ea413ff6174fc3e14eb94c3e6063fab36901a6",
+      "sha256": "4beb1afc65242f32b57d571998acc1b412b8496f2eaeea2e88ac0b14e6d870c8",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/values/styles.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "be874e54a4a64059503427dbefeabcee2989549d",
+      "sha256": "18ebba36575e9461347ee67361b23caf095f158ee85dbefe1b83a4669ba5bd6c",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/main/res/xml/file_paths.xml",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "bd0c4d80d0473953333d5adb0d38ac713d0d648b",
+      "sha256": "a46ed43ef65c90cb6778f4581decf3556e3f0055aad8f36d69dae16f9a0e99aa",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "0297327842dfa194b316aec9730bb3c7349b7282",
+      "sha256": "d4045ae8fac1f0807e6b24eb34e68409a9a235df9d1a3f896fb8c9a49424363d",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/build.gradle",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "f8f0e43b6d57dca414ad5c0683621397a4ed3c72",
+      "sha256": "46ade7db7afeb8049ccea59fce83095dca736ceb8c9acd79cc944e988c3357d9",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/capacitor.settings.gradle",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "2085c8639be7c9b19f0a1b6e71e1241cdf2c6571",
+      "sha256": "1fdbc4499634a5cf33c0d421c6e3fd779f4ec36d06d2e76c6107987d7bd1a979",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/gradle.properties",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "2e87c52f83c298527b1d1c747d496227dc0c6e71",
+      "sha256": "3bab15c5b8bc4c2f4b6cf525497d15ad4abca53a460e6dd2eb0f0135817d31e6",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/gradle/wrapper/gradle-wrapper.jar",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "1b33c55baabb587c669f562ae36f953de2481846",
+      "sha256": "7d3a4ac4de1c32b59bc6a4eb8ecb8e612ccd0cf1ae1e99f66902da64df296172",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/gradle/wrapper/gradle-wrapper.properties",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "7705927e949fdfbe2bfa90ef9d397e6057ccf104",
+      "sha256": "9a479a85aa879bb55284fc16d0de5b81a745c3854f4e2d88c42e7debaf007435",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/gradlew",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "23d15a9367071145e9c79bb4ddf879d1fbe78b5d",
+      "sha256": "b187b4c52e749f5760afdd6fadc31b2a98ad35fb249bf0dff03b72650f320409",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/gradlew.bat",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "5eed7ee8452842305a18a4eb967442683808226a",
+      "sha256": "1d297e00bd21de3ace22b4d7f2de1f9dfa858883d66bbf7c1ccbecccec8f4f3b",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/settings.gradle",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "3b4431d7724bd82d1aeb2ce59e7a0504b8869f81",
+      "sha256": "6ce098d15ebd69b44c4ecd786bca1bdc366340d2459b2af4d7bb0ab317aa9669",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "android/variables.gradle",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "ee4ba41c46f546910a153b2938cad859cd7cd86e",
+      "sha256": "83d502c9ed8fcf1dd4791482067abeedbebae49fafe9cd14a8a1f5891deb0d88",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "supabase/functions/create-checkout-session/index.ts",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "9fb9984294aa330eea6d99baf0f8d2ea66059d48",
+      "sha256": "4deb7bb8bc9754f13f56d69a67129f15646eb40ff6a9ee662cfab1043cd67571",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "supabase/functions/create-checkout-session/ownership.ts",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "14fe75ae7c4959ddd817ad82dac5a1befc587b73",
+      "sha256": "dee50c1e62d57fbda1000a32df4bdcb1e03cb6b0d0b503cd97f83c4af0cedf5e",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "supabase/functions/create-checkout-session/pricing.mjs",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "7ba6e8f8d02f5898029da96f8396dddc9f804818",
+      "sha256": "633cd5837a35cdad43bc717201fde2eff5d089b26f31a5723bc9d6465d982153",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "supabase/functions/stripe-webhook/index.ts",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "6568b898d3526967374c94dc406c41095d1b70cb",
+      "sha256": "5aa4f45f6c1fdabb986b12259de6466789df5f2b9302df86d50af7ea14e227bc",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "src/billing/promotionCatalog.mjs",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "603d1b053224bc9cba710d929075c68edf776283",
+      "sha256": "6745eccc04bfd1aae54f78ff55dafd02b920c30a3a3f0e588982209662f3b9bd",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "src/App.jsx",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "39c7fcc78a8c442878379746336afbe62111336c",
+      "sha256": "13d5d5805883b80c0e36dc4f27fdfdbd99d2f1e2c455639f96e9170b6405c28e",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "supabase/functions/payment-return/index.ts",
+      "baselineType": "GIT_BLOB",
+      "gitBlob": "7981b442c38b285b93e3df14aebd2481c0d453f7",
+      "sha256": "9cfdaa71ca69b298794780f3050500aa943c155585f6d8bf2b4e83c74b865b6f",
+      "classification": "PROVEN_UNCHANGED_FROM_GIT_BASELINE",
+      "provenance": {
+        "commit": "fcc8ce82efeba3167314e42e3ce8550c99f2d8d9"
+      },
+      "gitStatus": "CLEAN"
+    },
+    {
+      "path": "supabase/functions/_shared/apple/domain.mjs",
+      "baselineType": "PRESERVED_HASH",
+      "gitBlob": null,
+      "sha256": "8a79ab37f0719faf951b33c29e3754f92c08611dbd08b4aae075ffce4c87ad26",
+      "classification": "PREEXISTING_MODIFICATION_PRESERVED",
+      "provenance": {
+        "phase": "92",
+        "manifestSHA256": "a56f6ab45b7c56b8846bb1b8112b28319337729f31a5ff1e3bad8a836256f590",
+        "entry": "supabase/functions/_shared/apple/domain.mjs"
+      },
+      "gitStatus": "MODIFIED_PREEXISTING"
+    },
+    {
+      "path": "supabase/functions/_shared/apple/backend.mjs",
+      "baselineType": "PRESERVED_HASH",
+      "gitBlob": null,
+      "sha256": "635fbc8ee0a21f33e504cb305213da4edd15a71a1f13b27b94d61ca4ceb425f8",
+      "classification": "PREEXISTING_MODIFICATION_PRESERVED",
+      "provenance": {
+        "phase": "92",
+        "manifestSHA256": "a56f6ab45b7c56b8846bb1b8112b28319337729f31a5ff1e3bad8a836256f590",
+        "entry": "supabase/functions/_shared/apple/backend.mjs"
+      },
+      "gitStatus": "MODIFIED_PREEXISTING"
+    },
+    {
+      "path": "supabase/functions/_shared/apple/reconciliation.mjs",
+      "baselineType": "PRESERVED_HASH",
+      "gitBlob": null,
+      "sha256": "5b746d59495ac636e5957e5218224de76aab6070a1f130f195db56248d995bfc",
+      "classification": "PREEXISTING_MODIFICATION_PRESERVED",
+      "provenance": {
+        "phase": "92",
+        "manifestSHA256": "a56f6ab45b7c56b8846bb1b8112b28319337729f31a5ff1e3bad8a836256f590",
+        "entry": "supabase/functions/_shared/apple/reconciliation.mjs"
+      },
+      "gitStatus": "MODIFIED_PREEXISTING"
+    },
+    {
+      "path": "supabase/functions/_shared/apple/repository.mjs",
+      "baselineType": "PRESERVED_HASH",
+      "gitBlob": null,
+      "sha256": "91896d53c3f0c1ab81db8bcd5e74dfc2d3ba761e0b1351b1b44cd6f184935118",
+      "classification": "PREEXISTING_MODIFICATION_PRESERVED",
+      "provenance": {
+        "phase": "92",
+        "manifestSHA256": "a56f6ab45b7c56b8846bb1b8112b28319337729f31a5ff1e3bad8a836256f590",
+        "entry": "supabase/functions/_shared/apple/repository.mjs"
+      },
+      "gitStatus": "MODIFIED_PREEXISTING"
+    }
+  ]
+}

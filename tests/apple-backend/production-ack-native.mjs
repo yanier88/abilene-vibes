@@ -1,0 +1,15 @@
+import {writeFile,mkdir} from 'node:fs/promises';
+import {ProductionAckSigner,ACK_BINDINGS} from '../../supabase/functions/_shared/apple/production/ack.mjs';
+const directory=process.argv[2];if(!directory)throw Error('OUTPUT_REQUIRED');await mkdir(directory,{recursive:true,mode:0o700});
+const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']),now=1789990000,kid='production-fixture-v1';
+const expected=Object.fromEntries(ACK_BINDINGS.map(k=>[k,k+'-fixture']));expected.environment='Production';
+const claims={...expected,iss:'abilene-apple-delivery',aud:'com.abilenevibes.app',schemaVersion:1,iat:now,issued_at:now,exp:now+300,deliveredAt:new Date(now*1000).toISOString(),delivery_status:'delivered',ackId:'fixture-ack'};
+const signer=await ProductionAckSigner.create({pkcs8:await crypto.subtle.exportKey('pkcs8',pair.privateKey),kid,clock:()=>now*1000}),ack=await signer.sign(claims);
+const cases=[{name:'valid',...ack,expected,now,valid:true},...ACK_BINDINGS.map(k=>({name:'wrong-'+k,...ack,expected:{...expected,[k]:'other'},now,valid:false})),{name:'expired',...ack,expected,now:now+300,valid:false},{name:'future',...ack,expected,now:now-1,valid:false},{name:'local-envelope',...ack,kind:'LOCAL.apple.delivery.v1',expected,now,valid:false}];
+const p=ack.signed_jws.split('.');p[1]=Buffer.from(JSON.stringify({...claims,delivery_id:'tampered'})).toString('base64url');cases.push({name:'signature-tampering',...ack,signed_jws:p.join('.'),expected:{...expected,delivery_id:'tampered'},now,valid:false});
+const wrongPair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+const wrongSigner=await ProductionAckSigner.create({pkcs8:await crypto.subtle.exportKey('pkcs8',wrongPair.privateKey),kid,clock:()=>now*1000});
+cases.push({name:'wrong-signing-key',...await wrongSigner.sign(claims),expected,now,valid:false});
+const alternateSigner=await ProductionAckSigner.create({pkcs8:await crypto.subtle.exportKey('pkcs8',pair.privateKey),kid:'unknown-key-v1',clock:()=>now*1000});
+cases.push({name:'unknown-kid',...await alternateSigner.sign(claims),expected,now,valid:false});
+await writeFile(directory+'/native-vectors.json',JSON.stringify({publicKey:Buffer.from(await crypto.subtle.exportKey('raw',pair.publicKey)).toString('base64'),kid,cases}),{mode:0o600});

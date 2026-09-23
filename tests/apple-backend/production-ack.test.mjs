@@ -1,0 +1,18 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {ProductionAckSigner,verifyProductionAck,ACK_BINDINGS} from '../../supabase/functions/_shared/apple/production/ack.mjs';
+const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+const now=1789990000,kid='production-fixture-v1',keys={[kid]:pair.publicKey};
+const expected=Object.fromEntries(ACK_BINDINGS.map(k=>[k,k+'-fixture']));expected.environment='Production';
+const claims={...expected,iss:'abilene-apple-delivery',aud:'com.abilenevibes.app',schemaVersion:1,iat:now,issued_at:now,exp:now+300,deliveredAt:new Date(now*1000).toISOString(),delivery_status:'delivered',ackId:'fixture-ack'};
+const signer=await ProductionAckSigner.create({pkcs8:await crypto.subtle.exportKey('pkcs8',pair.privateKey),kid,clock:()=>now*1000});
+const ack=await signer.sign(claims);
+test('production ACK cryptographic signature accepts exact durable delivery claims',async()=>assert.equal((await verifyProductionAck(ack,expected,{keys,now})).finishAllowed,true));
+for(const name of ACK_BINDINGS)test('production ACK rejects changed '+name,async()=>assert.equal((await verifyProductionAck(ack,{...expected,[name]:'wrong'},{keys,now})).finishAllowed,false));
+test('production ACK rejects unknown kid',async()=>assert.equal((await verifyProductionAck(ack,expected,{keys:{},now})).finishAllowed,false));
+test('production ACK rejects expiry and future issuance',async()=>{for(const t of [now-1,now+300])assert.equal((await verifyProductionAck(ack,expected,{keys,now:t})).finishAllowed,false);});
+test('production ACK rejects payload tampering',async()=>{const p=ack.signed_jws.split('.');p[1]=Buffer.from(JSON.stringify({...claims,delivery_id:'evil'})).toString('base64url');assert.equal((await verifyProductionAck({...ack,signed_jws:p.join('.')},{...expected,delivery_id:'evil'},{keys,now})).finishAllowed,false);});
+test('production signer rejects Sandbox entitlement',async()=>assert.rejects(signer.sign({...claims,environment:'Sandbox'})));
+test('production signer refuses evidence without durable delivery',async()=>assert.rejects(signer.sign({...claims,delivery_status:'reserved'})));
+test('production verifier refuses local envelope',async()=>assert.equal((await verifyProductionAck({...ack,kind:'LOCAL.apple.delivery.v1'},expected,{keys,now})).finishAllowed,false));
+test('production ACK rejects different public key under the same kid',async()=>{const other=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},false,['sign','verify']);assert.equal((await verifyProductionAck(ack,expected,{keys:{[kid]:other.publicKey},now})).finishAllowed,false);});
+test('production ACK rejects changed kid even when its public key exists',async()=>{const parts=ack.signed_jws.split('.');parts[0]=Buffer.from(JSON.stringify({alg:'ES256',typ:'abilene-delivery+jwt',kid:'changed-kid'})).toString('base64url');assert.equal((await verifyProductionAck({...ack,signed_jws:parts.join('.')},expected,{keys:{'changed-kid':pair.publicKey},now})).finishAllowed,false);});

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "supabase/functions/_shared/apple/domain.mjs",
+      "beforeSHA256": "8a79ab37f0719faf951b33c29e3754f92c08611dbd08b4aae075ffce4c87ad26",
+      "afterSHA256": "93607f7d84b9d36053d8ce6eadc86f0d29282c2cc5d059de060bc2dbeb2459d0",
+      "reason": "Phase102 authorized expired purchase reconciliation. Stripe/Android code unchanged; provider isolation regression required."
+    },
+    {
+      "path": "supabase/functions/_shared/apple/backend.mjs",
+      "beforeSHA256": "635fbc8ee0a21f33e504cb305213da4edd15a71a1f13b27b94d61ca4ceb425f8",
+      "afterSHA256": "291788c294275fe18108e0a522ca50c208caa756e6c5a58dd76ee561a3b424d0",
+      "reason": "Phase102 authorized expired purchase reconciliation. Stripe/Android code unchanged; provider isolation regression required."
+    },
+    {
+      "path": "supabase/functions/_shared/apple/repository.mjs",
+      "beforeSHA256": "91896d53c3f0c1ab81db8bcd5e74dfc2d3ba761e0b1351b1b44cd6f184935118",
+      "afterSHA256": "c1e5a6f79e4b3d8001c19d52643a4b4947bdc4d6fbeca9ab59a2899781db1251",
+      "reason": "Phase102 observability distinguishes confirmed SQL rollback from lost/unknown commit response. No provider semantics changed."
+    }
+  ]
+}

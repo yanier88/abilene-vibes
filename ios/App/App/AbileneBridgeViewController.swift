@@ -72,15 +72,37 @@ public final class ApplePromotionPlansPlugin: CAPPlugin, CAPBridgedPlugin {
             guard let parent = self.bridge?.viewController, parent.presentedViewController == nil else {
                 call.reject("Plan screen unavailable"); return
             }
+            guard let jwt = call.getString("accessToken"), !jwt.isEmpty,
+                  let kind = call.getString("listingType"), ["business", "job", "rental"].contains(kind),
+                  let listing = call.getString("listingId"), UUID(uuidString: listing) != nil,
+                  #available(iOS 16.0, *) else { call.reject("Sign in to your account to manage this listing on iOS 16.0 or later."); return }
             let plans = ApplePromotionPlansViewController()
+            do {
+                let service = try AppleProductionPurchase(jwt: jwt, listingType: kind, listingID: listing)
+                service.onDelivery = { [weak self] in self?.notifyListeners("promotionChanged", data: [:]) }
+                plans.purchaseService = service
+                plans.onOpenLegal = { [weak self, weak plans] page in plans?.dismiss(animated: true); self?.notifyListeners("openLegal", data: ["page": page]) }
+            }
+            catch { call.reject("Secure purchase storage is unavailable."); return }
             plans.modalPresentationStyle = .fullScreen
             parent.present(plans, animated: true) { call.resolve() }
         }
     }
 }
 
+// Production catalog identifiers; display prices always come from StoreKit.
+private enum ApplePromotionCatalog {
+    static let products: Set<String> = [
+        "com.abilenevibes.app.promotion.slot01.featured.monthly",
+        "com.abilenevibes.app.promotion.slot01.premium.monthly"
+    ]
+}
+
 /// The same native selection UI is used by the normal iOS flow and isolated Debug review.
 @MainActor final class ApplePromotionPlansViewController: UIViewController {
+    var purchaseService: AnyObject?
+    var onOpenLegal: ((String) -> Void)?
+    private var storeProducts: [String: Product] = [:]
     private let stack = UIStackView()
     private let notice = UILabel()
     private var cards: [String: UIView] = [:]
@@ -146,11 +168,11 @@ public final class ApplePromotionPlansPlugin: CAPPlugin, CAPBridgedPlugin {
         stack.addArrangedSubview(label("Promote your\nbusiness", size: 35, weight: .heavy))
         stack.addArrangedSubview(label("Stand out in Abilene. Choose the monthly promotion that fits your business.", size: 16,
                                      color: UIColor(white: 0.8, alpha: 1)))
-        stack.addArrangedSubview(label("APPLE SUBSCRIPTIONS  ·  SLOT 01", size: 11, weight: .bold, color: cyan))
-        for id in SandboxCaptureGate.products.sorted() { addPlan(id) }
+        stack.addArrangedSubview(label("MONTHLY APPLE SUBSCRIPTIONS", size: 11, weight: .bold, color: cyan))
+        for id in ApplePromotionCatalog.products.sorted() { addPlan(id) }
         notice.numberOfLines = 0; notice.textColor = UIColor(white: 0.78, alpha: 1)
         notice.font = .preferredFont(forTextStyle: .footnote)
-        notice.text = "Select a plan to compare. Purchases are not available yet."
+        notice.text = "Choose a plan. Prices are provided by Apple."
         stack.addArrangedSubview(notice)
         if reviewMode {
             #if DEBUG && os(iOS) && !targetEnvironment(simulator)
@@ -161,6 +183,21 @@ public final class ApplePromotionPlansPlugin: CAPPlugin, CAPBridgedPlugin {
             let load = UIButton(type: .system); load.setTitle("Load Apple prices", for: .normal); load.tintColor = cyan
             load.addAction(UIAction { [weak self] _ in self?.loadPrices() }, for: .touchUpInside)
             stack.addArrangedSubview(load)
+            let recover = UIButton(type: .system); recover.setTitle("Recover purchase", for: .normal)
+            recover.addAction(UIAction { [weak self] _ in self?.recoverPurchase() }, for: .touchUpInside)
+            stack.addArrangedSubview(recover)
+            let manage = UIButton(type: .system); manage.setTitle("Manage Apple subscription", for: .normal)
+            manage.addAction(UIAction { [weak self] _ in
+                guard let scene = self?.view.window?.windowScene else { return }
+                Task { try? await AppStore.showManageSubscriptions(in: scene) }
+            }, for: .touchUpInside)
+            stack.addArrangedSubview(manage)
+            for page in ["terms", "privacy"] {
+                let legal = UIButton(type: .system); legal.setTitle(page == "terms" ? "Terms of Use" : "Privacy Policy", for: .normal)
+                legal.addAction(UIAction { [weak self] _ in self?.onOpenLegal?(page) }, for: .touchUpInside)
+                stack.addArrangedSubview(legal)
+            }
+            stack.addArrangedSubview(label("Subscriptions renew automatically until cancelled. Manage plan changes or cancellation with Apple.", size: 12))
         }
     }
 
@@ -190,7 +227,7 @@ public final class ApplePromotionPlansPlugin: CAPPlugin, CAPBridgedPlugin {
             "Enhanced visibility for your Abilene business listing.", size: 15, color: UIColor(white: 0.85, alpha: 1)))
         content.addArrangedSubview(label("Monthly subscription", size: 12, color: UIColor(white: 0.65, alpha: 1)))
         let button = UIButton(type: .system)
-        button.setTitle("Select " + name, for: .normal); button.tintColor = accent
+        button.setTitle("Subscribe to " + name, for: .normal); button.tintColor = accent
         button.titleLabel?.font = .systemFont(ofSize: 16, weight: .bold)
         button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
         button.isEnabled = reviewMode
@@ -206,17 +243,34 @@ public final class ApplePromotionPlansPlugin: CAPPlugin, CAPBridgedPlugin {
             let premium = key.hasSuffix(".premium.monthly")
             card.layer.borderWidth = key == selected ? 3 : 1
             card.layer.borderColor = (premium ? pink : cyan).withAlphaComponent(key == selected ? 1 : 0.45).cgColor
-            buttons[key]?.setTitle((key == selected ? "Selected · " : "Select ") + (premium ? "Premium" : "Featured"), for: .normal)
+            buttons[key]?.setTitle((key == selected ? "Selected · " : "Subscribe to ") + (premium ? "Premium" : "Featured"), for: .normal)
         }
-        notice.text = (id.hasSuffix(".premium.monthly") ? "Premium" : "Featured") + " selected. No purchase has been made."
+        guard !reviewMode, #available(iOS 16.0, *), let service = purchaseService as? AppleProductionPurchase, let product = storeProducts[id], !loading else { return }
+        loading = true; buttons.values.forEach { $0.isEnabled = false }
+        service.message = { [weak self] value in self?.notice.text = value }
+        Task { [weak self] in
+            await service.purchase(product)
+            self?.loading = false
+            self?.buttons.values.forEach { $0.isEnabled = true }
+        }
     }
 
+    private func recoverPurchase() {
+        guard !reviewMode, !loading, #available(iOS 16.0, *), let service = purchaseService as? AppleProductionPurchase else { return }
+        loading = true; buttons.values.forEach { $0.isEnabled = false }; notice.text = "Checking your purchase…"
+        service.message = { [weak self] value in self?.notice.text = value }
+        Task { [weak self] in
+            guard let self else { return }
+            defer { self.loading = false; for (id, button) in self.buttons { button.isEnabled = self.available.contains(id) } }
+            do { try await service.recover() } catch { self.notice.text = "Your purchase could not be confirmed yet. Please try recovery later." }
+        }
+    }
     private func loadPrices() {
         guard !reviewMode, !loading else { return }
         loading = true; available.removeAll(); selected = nil
         for (id, button) in buttons {
             button.isEnabled = false
-            button.setTitle("Select " + (id.hasSuffix(".premium.monthly") ? "Premium" : "Featured"), for: .normal)
+            button.setTitle("Subscribe to " + (id.hasSuffix(".premium.monthly") ? "Premium" : "Featured"), for: .normal)
             cards[id]?.layer.borderWidth = 1; prices[id]?.text = "Price unavailable"
         }
         notice.text = "Loading prices from Apple…"
@@ -224,16 +278,20 @@ public final class ApplePromotionPlansPlugin: CAPPlugin, CAPBridgedPlugin {
             guard let self else { return }
             defer { self.loading = false }
             do {
-                let products = try await Product.products(for: SandboxCaptureGate.products)
-                for product in products where SandboxCaptureGate.products.contains(product.id) &&
+                guard #available(iOS 16.0, *), let service = self.purchaseService as? AppleProductionPurchase else { throw NSError(domain: "Subscriptions", code: 1) }
+                service.message = { [weak self] value in self?.notice.text = value }
+                let products = try await service.catalog()
+                try await service.recover()
+                self.storeProducts = Dictionary(uniqueKeysWithValues: products.map { ($0.id, $0) })
+                for product in products where ApplePromotionCatalog.products.contains(product.id) &&
                     product.type == .autoRenewable && product.subscription?.subscriptionPeriod.unit == .month &&
                     product.subscription?.subscriptionPeriod.value == 1 {
                     self.prices[product.id]?.text = product.displayPrice + "/month"
                     self.available.insert(product.id); self.buttons[product.id]?.isEnabled = true
                 }
-                self.notice.text = self.available.count == SandboxCaptureGate.products.count ?
-                    "Apple prices loaded. Selection only; purchases are not available yet." :
-                    "Some Apple plans are unavailable. No purchase has been made."
+                self.notice.text = self.available.count == ApplePromotionCatalog.products.count ?
+                    "Choose Featured or Premium to subscribe." :
+                    "Some Apple plans are temporarily unavailable."
             } catch { self.notice.text = "Apple prices are unavailable. Please try again later." }
         }
     }

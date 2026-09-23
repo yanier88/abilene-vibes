@@ -21,12 +21,15 @@ test('wrong bundle, product, verification or environment cannot enter reconciler
  for(const overrides of [{bundleId:'wrong'},{productId:'wrong'},{verification:'unverified'},{environment:'Sandbox'}]) assert.deepEqual(mergeKnown({},[{...e('1'),proof:{...e('1').proof,...overrides}}],'purchase'),{});
  const proof={status:'verified',localTestEnabled:true,proof:{verification:'verified',bundleId:'wrong',environment:'Xcode'}};assert.equal(verifiedLocalGate(proof),false);
 });
-test('all Swift bridge finish calls are confined to finishTransaction',()=>{
+test('all native finish calls require their explicit delivery verifier',()=>{
  const dir=new URL('../../ios/App/App/',import.meta.url);let total=0;
  for(const file of readdirSync(dir).filter(f=>f.endsWith('.swift'))){
   const s=readFileSync(new URL(file,dir),'utf8');const hits=[...s.matchAll(/\b(?:\w+\.)?finish\s*\(/g)];total+=hits.length;
-  for(const hit of hits){assert.equal(file,'AbileneStoreKitService.swift');const start=s.indexOf('func finishTransaction('),end=s.indexOf('private func record(',start);assert.ok(hit.index>start&&hit.index<end);}
- }assert.equal(total,1);
+  for(const hit of hits){
+   if(file==='AbileneStoreKitService.swift'){const start=s.indexOf('func finishTransaction('),end=s.indexOf('private func record(',start);assert.ok(hit.index>start&&hit.index<end);}
+   else {assert.equal(file,'AppleProductionPurchase.swift');const start=s.indexOf('private func deliver('),end=s.indexOf('func recover(',start);assert.ok(hit.index>start&&hit.index<end);assert.match(s.slice(start,hit.index),/guard try AppleACKTrust\.verifier\(\)\.permitsFinish[\s\S]*else \{ throw Failure\.rejected \}/);}
+  }
+ }assert.equal(total,2);
 });
 test('native purchase and sync fail closed unconditionally; web build marker required',()=>{
  const s=readFileSync(new URL('../../ios/App/App/AbileneStoreKitService.swift',import.meta.url),'utf8');

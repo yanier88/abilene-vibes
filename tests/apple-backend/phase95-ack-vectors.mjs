@@ -1,0 +1,18 @@
+import {writeFileSync,readFileSync,statSync} from 'node:fs';import assert from 'node:assert/strict';
+import {integration} from './node-integration-fixtures.mjs';
+import {LocalPersistentAckSigner} from '../../supabase/functions/_shared/apple/local-ack-signer.mjs';
+const dir=process.env.ABILENE_ACK_TEST_DIR;if(!dir)throw Error('Explicit private test directory required');const keys=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+writeFileSync(dir+'/test-key.pk8',Buffer.from(await crypto.subtle.exportKey('pkcs8',keys.privateKey)),{mode:0o600});assert.equal(statSync(dir+'/test-key.pk8').mode&0o777,0o600);
+const f=await integration();f.backend.signer=await LocalPersistentAckSigner.fromPKCS8(readFileSync(dir+'/test-key.pk8'));const r=await f.verify();
+const jws=r.confirmation.signed_jws,p=JSON.parse(Buffer.from(jws.split('.')[1],'base64url'));const expected=Object.fromEntries(['transactionId','buyer_id','installation_id','installation_key_id','delivery_id','productId','environment'].map(k=>[k,p[k]]));
+const cases=[{name:'valid',jws,expected,now:Math.floor(f.now()/1000),valid:true}];
+for(const [name,k,value]of [['wrong transaction','transactionId','999'],['wrong installation','installation_id','other'],['wrong environment','environment','Production']])cases.push({...cases[0],name,expected:{...expected,[k]:value},valid:false});
+cases.push({...cases[0],name:'expired',now:p.exp,valid:false});const parts=jws.split('.');parts[1]=Buffer.from(JSON.stringify({...p,transactionId:'999'})).toString('base64url');cases.push({...cases[0],name:'tamper',jws:parts.join('.'),valid:false});
+f.backend.signer=await LocalPersistentAckSigner.fromPKCS8(readFileSync(dir+'/test-key.pk8'));const again=await f.verify();assert.equal(again.delivery_id,r.delivery_id);cases.push({...cases[0],name:'persistent key reloaded',jws:again.confirmation.signed_jws});
+const encode=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
+const sign=async(key,header)=>{const data=encode(header)+'.'+encode(p);return data+'.'+Buffer.from(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,Buffer.from(data))).toString('base64url');};
+const header=JSON.parse(Buffer.from(jws.split('.')[0],'base64url'));
+const other=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+cases.push({...cases[0],name:'wrong signing key',jws:await sign(other.privateKey,header),valid:false});
+cases.push({...cases[0],name:'wrong kid valid signature',jws:await sign(keys.privateKey,{...header,kid:'wrong-kid'}),valid:false});
+writeFileSync(dir+'/vectors.json',JSON.stringify({publicKey:Buffer.from(await crypto.subtle.exportKey('raw',keys.publicKey)).toString('base64'),cases}),{mode:0o600});console.log('LOCAL TEST KEY PERSISTENCE PASS; vectors:9; no key material logged');

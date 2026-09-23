@@ -7,8 +7,10 @@ import { createClient } from "@supabase/supabase-js";
 import { verifiedAdminSession } from "./auth/session";
 import { readWithIdentity } from "./auth/readListings";
 import { canManageListing } from "./auth/ownership";
+import { withApplePromotions } from "./billing/appleProjection.mjs";
 import { promotionPlansFor, promotionPriceFor, promotionCheckoutPayload } from "./billing/promotionCatalog.mjs";
 import Promo3DIcon from "./components/Promo3DIcon";
+import ApplePromotionPurchase from "./components/ApplePromotionPurchase";
 import "./App.css";
 
 const appAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
@@ -1358,6 +1360,8 @@ const hasActiveJobPromotion = (job) => {
     return false;
   }
 
+  if (placementSource === "apple") return paymentStatus === "paid";
+
   if (placementSource === "stripe") {
     return paymentStatus === "paid";
   }
@@ -2578,6 +2582,7 @@ function App() {
     const queryJobs = (fields) => supabase.from("job_listings").select(fields)
       .eq("status", "approved").order("created_at", { ascending: false });
     readWithIdentity(queryJobs, "id,created_at,title,company,category,job_type,pay_label,location,contact_person,phone,email,description,requirements,app_method,apply_url,duration,plan,payment_status,placement_source,image_data,logo_data,expires_at,placement_expires_at,owner_user_id")
+      .then(result => withApplePromotions(supabase, 'job', result))
       .then(({ data, error }) => {
         if (!error && data) {
           const now = Date.now();
@@ -2637,7 +2642,7 @@ function App() {
         .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
         .order("created_at", { ascending: false });
 
-    readWithIdentity(queryRentals, `${baseSelect},owner_user_id`).then(({ data, error }) => {
+    readWithIdentity(queryRentals, `${baseSelect},owner_user_id`).then(result => withApplePromotions(supabase, 'rental', result)).then(({ data, error }) => {
       if (!error && data) setRentalListings(data);
     });
   }, []);
@@ -2652,7 +2657,7 @@ function App() {
         .eq("status", "approved")
         .order("created_at", { ascending: false });
 
-    readWithIdentity(queryBusinesses, `${baseSelect},owner_user_id`).then(({ data, error }) => {
+    readWithIdentity(queryBusinesses, `${baseSelect},owner_user_id`).then(result => withApplePromotions(supabase, 'business', result)).then(({ data, error }) => {
       if (!error && data) setBusinesses(data.map(businessSubmissionToBusiness));
     });
   }, []);
@@ -7088,13 +7093,7 @@ function App() {
             <h1 id="apple-promote-title">Promote your business</h1>
             <p className="events-intro">Explore Featured and Premium monthly promotions for your business.</p>
           </section>
-          <button className="plan-card" type="button" onClick={async () => {
-            try { await applePromotionPlans.open(); }
-            catch { window.alert("Apple plan selection is unavailable. Please try again later."); }
-          }}>
-            <span className="plan-name">Choose your Apple plan</span>
-            <span className="plan-note">Compare plans. Purchases are not available yet.</span>
-          </button>
+          <ApplePromotionPurchase client={supabase} bridge={applePromotionPlans} onChanged={() => { loadBusinessesPublic(); loadJobsPublic(); loadRentalsPublic(); }} onLegal={page => { legalReturnRef.current = "promote"; navigateTo(page); }} />
         </div>
       </main>,
     );

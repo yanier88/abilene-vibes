@@ -12,3 +12,9 @@ verify_jwt = false
 
 [functions.cancel-subscription]
 verify_jwt = false
+
+[functions.apple-iap]
+verify_jwt = false
+
+[functions.apple-iap-notifications]
+verify_jwt = false

@@ -63,3 +63,9 @@ android-admin/build/
 **/fileHashes/
 **/checksums/
 android-admin/
+
+# Private Apple IAP evidence and local signing material (never app resources)
+*-private.json
+*.jws
+*.p8
+abilene-phase*/

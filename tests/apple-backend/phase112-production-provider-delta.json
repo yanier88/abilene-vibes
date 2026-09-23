@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/App.jsx",
+      "beforeSHA256": "13d5d5805883b80c0e36dc4f27fdfdbd99d2f1e2c455639f96e9170b6405c28e",
+      "afterSHA256": "3e5a442a772288396d898f95604bc59daee2661db22d3b67a1a59635f8da8d88",
+      "reviewedChanges": "iOS-only authenticated promotion UI and additive Apple public projection; existing Stripe checkout/prices/handlers unchanged"
+    },
+    {
+      "path": "supabase/functions/_shared/apple/domain.mjs",
+      "beforeSHA256": "e647c6e9e1f236f4a448330d3cb53479ee3ad927cdbb55c87bfe2a812e179d22",
+      "afterSHA256": "93f3d71dff8a67acc81907385c229327671a6eb648423a99017883cfdfdcebba",
+      "reviewedChanges": "Trusted backend environment scope; default Sandbox and cross-environment rejection retained; audited Production-only cancellation slot reuse, historical release states preserved"
+    },
+    {
+      "path": "supabase/functions/_shared/apple/backend.mjs",
+      "beforeSHA256": "291788c294275fe18108e0a522ca50c208caa756e6c5a58dd76ee561a3b424d0",
+      "afterSHA256": "ce1635b5239943fbbf63ec5427ee565d26b45af31fc45a3bcff7f48b4df0b68c",
+      "reviewedChanges": "Explicit server-composed environment; commit-before-sign and all commercial guards retained"
+    },
+    {
+      "path": "supabase/functions/_shared/apple/repository.mjs",
+      "beforeSHA256": "c1e5a6f79e4b3d8001c19d52643a4b4947bdc4d6fbeca9ab59a2899781db1251",
+      "afterSHA256": "7f26bf0d26565637fe8a7093739dae6fab8ad8c3a220ce0b537a4754291db21b",
+      "reviewedChanges": "Production-only RPC suffix selected by server; default Sandbox unchanged"
+    },
+    {
+      "path": "supabase/functions/_shared/apple/reconciliation.mjs",
+      "beforeSHA256": "5b746d59495ac636e5957e5218224de76aab6070a1f130f195db56248d995bfc",
+      "afterSHA256": "2332a50abbaf2dc000ad247f029ad3b4008cbb50856d76e37bc10f445be4d2d2",
+      "reviewedChanges": "Explicit notification environment and same-group Apple upgrade/downgrade lifecycle; provider writes remain Apple-only; cryptographically verified TEST notification is idempotent and never delivers"
+    }
+  ]
+}

@@ -3,6 +3,24 @@ import Foundation
 import StoreKit
 import UIKit
 
+/// Local first-purchase policy; does not change the general catalog.
+private enum FirstFeaturedSandboxPurchase {
+    static let productID = "com.abilenevibes.app.promotion.slot01.featured.monthly"
+    static func allows(_ id: String) -> Bool { id == productID }
+    static func privateMetadata(expirationDate: Date?, ownershipType: String, revocationDate: Date?) -> [String: Any] {
+        func dateValue(_ date: Date?) -> Any {
+            guard let date else { return NSNull() }
+            return date.timeIntervalSince1970 * 1000
+        }
+        return ["expirationDate": dateValue(expirationDate), "ownershipType": ownershipType,
+                "revocationDate": dateValue(revocationDate)]
+    }
+}
+
+private enum FirstFeaturedPurchaseError: String, Error {
+    case notFeatured = "PURCHASE_BLOCKED_NOT_FEATURED"
+}
+
 /// Debug UI only. Never dump error descriptions/userInfo that may contain account data.
 @available(iOS 16.0, *)
 private enum SandboxStoreKitDiagnostic {
@@ -63,6 +81,12 @@ enum SandboxPhysicalRuntime {
     private var purchaseAttempt = SandboxCaptureAttempt()
     var purchaseAttempted: Bool { purchaseAttempt.reserved }
     private(set) var diagnosticStage = "not started"
+    private(set) var catalogDiagnostic = ""
+
+    private func recordCatalog(_ line: String) {
+        catalogDiagnostic += line + "\n"
+        print("[StoreKitCatalog] " + line)
+    }
 
     func stop() { updates?.cancel(); updates = nil }
 
@@ -83,13 +107,26 @@ enum SandboxPhysicalRuntime {
     }
 
     /// Writes the signed app evidence before a purchase can become available.
-    private func verifyApp() async throws -> SandboxCaptureGate {
+    private func verifyApp(reportCatalog: Bool = false) async throws -> SandboxCaptureGate {
         var gate = SandboxPhysicalRuntime.gate
         guard gate.configured else { throw SandboxCaptureError.gateClosed }
         diagnosticStage = "AppTransaction.shared"
-        let result = try await AppTransaction.shared
+        let result: VerificationResult<AppTransaction>
+        do { result = try await AppTransaction.shared }
+        catch {
+            if reportCatalog { recordCatalog("APPTRANSACTION_VERIFIED = NO") }
+            throw error
+        }
         try Task.checkCancellation()
-        guard case .verified(let app) = result else { throw SandboxCaptureError.appNotVerifiedSandbox }
+        guard case .verified(let app) = result else {
+            if reportCatalog { recordCatalog("APPTRANSACTION_VERIFIED = NO") }
+            throw SandboxCaptureError.appNotVerifiedSandbox
+        }
+        if reportCatalog {
+            recordCatalog("APPTRANSACTION_VERIFIED = YES")
+            recordCatalog("BUNDLE = \(app.bundleID)")
+            recordCatalog("ENVIRONMENT = \(app.environment.rawValue)")
+        }
         gate.appVerified = app.bundleID == SandboxCaptureGate.bundleID
         gate.environment = app.environment.rawValue
         guard gate.allowed else { throw SandboxCaptureError.appNotVerifiedSandbox }
@@ -107,21 +144,56 @@ enum SandboxPhysicalRuntime {
     }
 
     func prepare() async throws -> [Product] {
+        catalogDiagnostic = ""
         products.removeAll()
-        _ = try await verifyApp()
+        _ = try await verifyApp(reportCatalog: true)
+        let storefront = await Storefront.current
+        recordCatalog("STOREFRONT_AVAILABLE = \(storefront == nil ? "NO" : "YES")")
+        if let storefront {
+            recordCatalog("COUNTRY_CODE = \(storefront.countryCode)")
+            recordCatalog("STOREFRONT_ID = \(storefront.id)")
+        }
         diagnosticStage = "Product.products"
-        let found = try await Product.products(for: SandboxCaptureGate.products)
+        recordCatalog("REQUESTED_COUNT = \(SandboxCaptureGate.products.count)")
+        let found: [Product]
+        do { found = try await Product.products(for: SandboxCaptureGate.products) }
+        catch {
+            recordCatalog("PRODUCT_API_ERROR = YES")
+            recordCatalog(SandboxStoreKitDiagnostic.summary(error))
+            throw error
+        }
+        recordCatalog("RAW_RETURNED_COUNT = \(found.count)")
+        recordCatalog("RAW_RETURNED_IDS = \(found.map { $0.id }.sorted())")
+        recordCatalog("PRODUCT_API_ERROR = NO")
+        for product in found.sorted(by: { $0.id < $1.id }) {
+            let period = product.subscription?.subscriptionPeriod
+            recordCatalog("PRODUCT id=\(product.id); type=\(product.type); periodUnit=\(period.map { String(describing: $0.unit) } ?? "NONE"); periodValue=\(period.map { String($0.value) } ?? "NONE"); group=\(product.subscription?.subscriptionGroupID ?? "NONE"); displayPrice=\(product.displayPrice)")
+        }
         guard !found.isEmpty, found.allSatisfy({ SandboxCaptureGate.products.contains($0.id) &&
             $0.type == .autoRenewable && $0.subscription?.subscriptionPeriod.unit == .month &&
             $0.subscription?.subscriptionPeriod.value == 1 }),
             Set(found.compactMap { $0.subscription?.subscriptionGroupID }).count == 1 else {
+            let failure: String
+            if found.isEmpty { failure = "EMPTY_RAW_RESPONSE" }
+            else if found.contains(where: { !SandboxCaptureGate.products.contains($0.id) }) { failure = "UNEXPECTED_ID" }
+            else if found.contains(where: { $0.type != .autoRenewable }) { failure = "NOT_AUTO_RENEWABLE" }
+            else if found.contains(where: { $0.subscription?.subscriptionPeriod.unit != .month || $0.subscription?.subscriptionPeriod.value != 1 }) { failure = "NOT_MONTHLY" }
+            else if Set(found.compactMap { $0.subscription?.subscriptionGroupID }).count != 1 { failure = "SUBSCRIPTION_GROUP_MISMATCH" }
+            else { failure = "OTHER_VALIDATION_FAILURE" }
+            recordCatalog("POST_GUARD = FAIL")
+            recordCatalog("FAILURE_CLASSIFICATION = " + failure)
             throw SandboxCaptureError.productUnavailable
         }
+        recordCatalog("POST_GUARD = PASS")
         products = Dictionary(uniqueKeysWithValues: found.map { ($0.id, $0) })
         return found.sorted { $0.id < $1.id }
     }
 
     func buy(_ id: String, confirmedByUser: Bool) async throws -> String {
+        guard FirstFeaturedSandboxPurchase.allows(id) else {
+            recordCatalog(FirstFeaturedPurchaseError.notFeatured.rawValue)
+            throw FirstFeaturedPurchaseError.notFeatured
+        }
         guard confirmedByUser else { throw SandboxCaptureError.userConfirmationRequired }
         guard !purchaseAttempted, SandboxCaptureGate.products.contains(id), let product = products[id] else {
             throw SandboxCaptureError.purchaseUnavailable
@@ -130,13 +202,32 @@ enum SandboxPhysicalRuntime {
         guard purchaseAttempt.reserve() else { throw SandboxCaptureError.purchaseUnavailable }
         let gate = try await verifyApp() // Revalidate immediately before StoreKit purchase.
         guard gate.allowed, AppStore.canMakePayments else { throw SandboxCaptureError.gateClosed }
-        switch try await product.purchase(options: [.appAccountToken(correlationToken)]) {
+        diagnosticStage = "Product.purchase"
+        let purchaseResult: Product.PurchaseResult
+        do { purchaseResult = try await product.purchase(options: [.appAccountToken(correlationToken)]) }
+        catch {
+            recordCatalog("PURCHASE_RESULT = ERROR")
+            recordCatalog(SandboxStoreKitDiagnostic.summary(error))
+            throw error
+        }
+        switch purchaseResult {
         case .success(let result):
-            try capture(result, gate: gate, source: "purchase", expectedProduct: id)
+            recordCatalog("PURCHASE_RESULT = SUCCESS")
+            switch result {
+            case .verified: recordCatalog("PURCHASE_SUCCESS_VERIFICATION = VERIFIED")
+            case .unverified: recordCatalog("PURCHASE_SUCCESS_VERIFICATION = UNVERIFIED")
+            }
+            try capture(result, gate: gate, source: "purchase", expectedProduct: FirstFeaturedSandboxPurchase.productID)
             return "Sandbox evidence saved. Transaction remains unfinished."
-        case .pending: return "Pending. Do not buy again. Recover with Unfinished / Updates."
-        case .userCancelled: return "Cancelled. No automatic retry."
-        @unknown default: throw SandboxCaptureError.transactionRejected
+        case .pending:
+            recordCatalog("PURCHASE_RESULT = PENDING")
+            return "Pending. Do not buy again. Recover with Unfinished / Updates."
+        case .userCancelled:
+            recordCatalog("PURCHASE_RESULT = USER_CANCELLED")
+            return "Cancelled. No automatic retry."
+        @unknown default:
+            recordCatalog("PURCHASE_RESULT = UNKNOWN")
+            throw SandboxCaptureError.transactionRejected
         }
     }
 
@@ -157,6 +248,8 @@ enum SandboxPhysicalRuntime {
         ]
         if let token = t.appAccountToken { metadata["appAccountToken"] = token.uuidString.lowercased() }
         if let group = t.subscriptionGroupID { metadata["subscriptionGroupID"] = group }
+        metadata.merge(FirstFeaturedSandboxPurchase.privateMetadata(expirationDate: t.expirationDate,
+            ownershipType: t.ownershipType.rawValue, revocationDate: t.revocationDate)) { _, value in value }
         try write(SandboxCaptureEnvelope.encode(jws: result.jwsRepresentation, metadata: metadata))
     }
 
@@ -201,7 +294,7 @@ enum SandboxPhysicalRuntime {
     private let stack = UIStackView()
     private let status = UILabel()
     private var busy = false
-    private var productButtons: [UIButton] = []
+    private var productButtons: [UIView] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -235,6 +328,14 @@ enum SandboxPhysicalRuntime {
                     self.productButtons.forEach { $0.removeFromSuperview() }; self.productButtons.removeAll()
                     let products = try await self.session.prepare()
                     for product in products {
+                        guard FirstFeaturedSandboxPurchase.allows(product.id) else {
+                            let evidence = UILabel()
+                            evidence.numberOfLines = 0
+                            evidence.text = "Catalog only: \(product.displayName) — \(product.displayPrice). Not authorized for the first purchase."
+                            self.stack.addArrangedSubview(evidence)
+                            self.productButtons.append(evidence)
+                            continue
+                        }
                         let button = self.addButton("Sandbox: \(product.displayName) — \(product.displayPrice) / month") { [weak self] in
                             self?.confirm("Sandbox test purchase of \(product.displayName), \(product.displayPrice) per month. No public promotion will be delivered. Confirm Apple's test sheet manually; cancel if Sandbox is not shown.") {
                                 self?.run {
@@ -245,7 +346,7 @@ enum SandboxPhysicalRuntime {
                         }
                         self.productButtons.append(button)
                     }
-                    self.status.text = "Verified Sandbox. Loaded \(products.count) product(s). One purchase attempt per launch."
+                    self.status.text = self.session.catalogDiagnostic + "Verified Sandbox. Loaded \(products.count) product(s). One purchase attempt per launch."
                 }
             }
         }
@@ -292,11 +393,12 @@ enum SandboxPhysicalRuntime {
             defer {
                 busy = false
                 stack.arrangedSubviews.compactMap { $0 as? UIButton }.forEach { $0.isEnabled = true }
-                if session.purchaseAttempted { productButtons.forEach { $0.isEnabled = false } }
+                if session.purchaseAttempted { productButtons.compactMap { $0 as? UIButton }.forEach { $0.isEnabled = false } }
             }
             do { try await operation() }
-            catch let error as SandboxCaptureError { status.text = "BLOCKED: " + error.rawValue + ". No automatic retry or finish." }
-            catch { status.text = "StoreKit failed at \(session.diagnosticStage). No retry or finish.\n" + SandboxStoreKitDiagnostic.summary(error) }
+            catch let error as FirstFeaturedPurchaseError { status.text = session.catalogDiagnostic + error.rawValue }
+            catch let error as SandboxCaptureError { status.text = session.catalogDiagnostic + "BLOCKED: " + error.rawValue + ". No automatic retry or finish." }
+            catch { status.text = session.catalogDiagnostic + "StoreKit failed at \(session.diagnosticStage). No retry or finish.\n" + SandboxStoreKitDiagnostic.summary(error) }
         }
     }
     override func viewDidDisappear(_ animated: Bool) { super.viewDidDisappear(animated); session.stop() }

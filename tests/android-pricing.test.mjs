@@ -102,7 +102,10 @@ test('UI integrations share catalog, every Checkout uses wrapper, Apple native e
   assert.equal((app.match(/functions.invoke\("create-checkout-session"/g)||[]).length,1);
   for(const label of ['promotionPrice(selectedPlan)','promotionPrice("Featured")','promotionPrice("Premium")']) assert.ok(app.includes(label));
   const apple=app.slice(app.indexOf('if (page === "promote" && isIOS())'),app.indexOf('if (page === "promote")'));
-  assert.match(apple,/applePromotionPlans.open/);assert.doesNotMatch(apple,/invokePromotionCheckout|android_v2/);
+  assert.match(apple,/<ApplePromotionPurchase\b[^>]*bridge=\{applePromotionPlans\}/);
+  const applePurchase=readFileSync(new URL('../src/components/ApplePromotionPurchase.jsx',import.meta.url),'utf8');
+  assert.match(applePurchase,/await bridge\.open\(\{accessToken:r\.data\.session\.access_token,listingType:listing\.listing_type,listingId:listing\.id\}\)/);
+  assert.doesNotMatch(apple+'\n'+applePurchase,/invokePromotionCheckout|create-checkout-session|android_v2/);
   const gate=readFileSync(new URL('../ios/App/App/SandboxCaptureGate.swift',import.meta.url),'utf8');
   for(const name of ['featured','premium']) assert.ok(gate.includes(`com.abilenevibes.app.promotion.slot01.${name}.monthly`));
 });
