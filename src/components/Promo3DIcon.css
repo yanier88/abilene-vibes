@@ -16,6 +16,10 @@
   aspect-ratio: 1;
 }
 
+html.capacitor-ios-safe-area .lobby-featured-promo-frame .promo-3d-icon--featured {
+  top: calc(clamp(-92px, -12.8vw, -56px) - 4px);
+}
+
 .promo-3d-icon--premium {
   top: clamp(-92px, -12vw, -56px);
   width: clamp(74px, 16.5vw, 112px);
