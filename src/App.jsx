@@ -5,6 +5,7 @@ import { createWeatherLoader } from "./ios/weather";
 import { App as CapacitorApp } from "@capacitor/app";
 import { createClient } from "@supabase/supabase-js";
 import { verifiedAdminSession } from "./auth/session";
+import { createAdminWebSession } from "./auth/adminWebSession.mjs";
 import { readWithIdentity } from "./auth/readListings";
 import { canManageListing } from "./auth/ownership";
 import { withApplePromotions } from "./billing/appleProjection.mjs";
@@ -2309,7 +2310,7 @@ function ImageViewer({ photo, onClose }) {
   );
 }
 
-function App() {
+function App({ adminWeb = false } = {}) {
   const [page, setPage] = useState(pageFromLocation);
   const [isStarting, setIsStarting] = useState(true);
   const [weather, setWeather] = useState({
@@ -2354,6 +2355,8 @@ function App() {
   const [gallerySubmissionStatus, setGallerySubmissionStatus] = useState("");
   const [gallerySubmissionError, setGallerySubmissionError] = useState("");
   const [galleryOwnerDeleteStatus, setGalleryOwnerDeleteStatus] = useState("");
+  const adminWebController = useRef(null);
+  const [adminAuthState, setAdminAuthState] = useState("AUTHENTICATING");
   const [adminSession, setAdminSession] = useState(null); // Only set after server authorization.
   const adminSessionRef = useRef(null); // keeps current value without triggering Realtime re-sub
   const [adminEmail, setAdminEmail] = useState("");
@@ -3032,6 +3035,24 @@ function App() {
       return;
     }
 
+    if (adminWeb) {
+      const controller = createAdminWebSession(supabase, {
+        onState: (state, session) => {
+          setAdminAuthState(state);
+          setAdminSession(session);
+          adminSessionRef.current = session;
+          setOwnerUserId(session?.user?.id ?? "");
+        },
+        load: (session, refresh, isCurrent) => performAdminDataLoad(session, refresh, isCurrent),
+      });
+      adminWebController.current = controller;
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        window.setTimeout(() => { void controller.apply(session); }, 0);
+      });
+      void controller.restore();
+      return () => { controller.dispose(); data.subscription.unsubscribe(); };
+    }
+
     let disposed = false;
     let revision = 0;
     const applySession = async (session) => {
@@ -3692,6 +3713,11 @@ function App() {
   const businessDisplayImage = (business) => business.image || business.image_data || businessImageForCategory(business.category);
 
   async function loadAdminData(sessionOverride = adminSession, showRefreshSuccess = false) {
+    if (adminWeb) return adminWebController.current?.refresh();
+    return performAdminDataLoad(sessionOverride, showRefreshSuccess);
+  }
+
+  async function performAdminDataLoad(sessionOverride = adminSession, showRefreshSuccess = false, isCurrent = () => true) {
     if (!supabase || !sessionOverride) {
       return;
     }
@@ -3781,6 +3807,8 @@ function App() {
         .select("id,created_at,business_submission_id,stripe_session_id,stripe_payment_intent_id,stripe_charge_id,stripe_balance_transaction_id,currency,gross_amount,stripe_fee,net_amount,paid_at,status")
         .order("paid_at", { ascending: false }),
     ]);
+
+    if (!isCurrent()) return;
 
     if (
       galleryResult.error ||
@@ -4060,6 +4088,13 @@ function App() {
       return;
     }
 
+    if (adminWeb) {
+      const credentials = { email: adminEmail.trim(), password: adminPassword };
+      setAdminPassword("");
+      await adminWebController.current?.login(credentials);
+      return;
+    }
+
     setAdminStatus("signing-in");
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -4086,6 +4121,7 @@ function App() {
   };
 
   const handleAdminLogout = async () => {
+    if (adminWeb) { await adminWebController.current?.logout(); return; }
     if (supabase) {
       await supabase.auth.signOut();
     }
@@ -10884,6 +10920,12 @@ function App() {
             <p className="form-error">Connect Supabase before using the admin panel.</p>
           )}
 
+          {adminWeb && adminAuthState === "AUTHENTICATING" && <p role="status">Validating admin access...</p>}
+          {adminWeb && adminAuthState === "ACCESS_DENIED" && <p role="alert">Access denied. This account is not an authorized administrator.</p>}
+          {adminWeb && adminAuthState === "LOGIN_ERROR" && <p role="alert">Sign-in failed. Check your email and password.</p>}
+          {adminWeb && adminAuthState === "NETWORK_ERROR" && <p role="alert">Unable to validate access or load data. Please retry.</p>}
+          {adminWeb && ["NETWORK_ERROR", "ACCESS_DENIED"].includes(adminAuthState) && <button type="button" onClick={() => adminWebController.current?.restore()}>Retry access</button>}
+
           {supabase && !adminSession && (
             <form className="business-form admin-login" onSubmit={handleAdminLogin}>
               <div className="business-form-heading">
@@ -10918,7 +10960,7 @@ function App() {
               {adminStatus === "login-error" && <p className="form-error">Login failed. Check your email and password.</p>}
               {adminStatus === "missing-config" && <p className="form-error">Supabase is not connected.</p>}
 
-              <button className="primary-button subscribe-button" type="submit" disabled={adminStatus === "signing-in"}>
+              <button className="primary-button subscribe-button" type="submit" disabled={adminStatus === "signing-in" || (adminWeb && adminAuthState === "AUTHENTICATING")}>
                 {adminStatus === "signing-in" ? "Signing in..." : "Open Admin"}
               </button>
             </form>
