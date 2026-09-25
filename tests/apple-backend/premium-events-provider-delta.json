@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/App.jsx",
+      "beforeSHA256": "3e5a442a772288396d898f95604bc59daee2661db22d3b67a1a59635f8da8d88",
+      "afterSHA256": "659ff00dd48dc6936d289c3fce539abeff4d899a03eb3f861371103748555371",
+      "reviewedChanges": "Shared advertiser authentication gate, claims queue, Premium Events and secured Admin Event RPC integration; public navigation, Stripe checkout invocation and Lobby styling preserved."
+    },
+    {
+      "path": "supabase/functions/stripe-webhook/index.ts",
+      "beforeSHA256": "5aa4f45f6c1fdabb986b12259de6466789df5f2b9302df86d50af7ea14e227bc",
+      "afterSHA256": "3363964718be632769eac56c2366815f5fd671aa127bd4fb41c9868a0c5c6b0d",
+      "reviewedChanges": "Previously authorized additive signed-webhook canonical subscription authority; legacy handler body, checkout and prices preserved. Job terminal cancellation restores Production hidden status; authority decisions prevent stale Job lifecycle projection and reject mismatched binding."
+    }
+  ]
+}

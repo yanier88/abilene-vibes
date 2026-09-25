@@ -1,0 +1,18 @@
+do $$ begin if not exists(select 1 from pg_roles where rolname='anon') then create role anon;create role authenticated;create role service_role;end if;end $$;
+create schema auth;
+create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+create function auth.role() returns text language sql stable as $$ select nullif(current_setting('request.jwt.claim.role',true),'') $$;
+grant usage on schema auth to anon,authenticated,service_role;
+create function public.is_service_admin() returns boolean language sql stable as $$ select coalesce(current_setting('request.jwt.claim.admin',true),'')='true' $$;
+create table business_submissions(id uuid primary key, advertiser_user_id uuid, owner_user_id text, business_name text, status text, plan text, stripe_subscription_id text, payment_status text, placement_source text, placement_expires_at timestamptz);
+create table job_listings(like business_submissions including all);
+create table rental_listings(like business_submissions including all);
+create table event_submissions(id uuid primary key default gen_random_uuid(),created_at timestamptz default now(),title text not null,place text not null,event_date date not null,event_time text not null,event_type text not null,description text,map_url text,website_url text,ticket_url text,end_date date,end_time text,image_url text,image_data text,status text not null default 'approved');
+alter table event_submissions enable row level security;
+grant select,truncate,references,trigger,maintain on event_submissions to anon;
+grant truncate,references,trigger,maintain on event_submissions to service_role;
+grant select,insert,update,delete,truncate,references,trigger,maintain on event_submissions to authenticated;
+create policy "Allow public approved event reads" on event_submissions for select to anon,authenticated using(status='approved');
+create policy "Allow authenticated event management" on event_submissions for all to authenticated using(public.is_service_admin()) with check(public.is_service_admin());
+create table listing_promotion_entitlements(id uuid primary key default gen_random_uuid(),listing_type text,listing_id uuid,provider text,provider_reference text,plan text,status text,valid_from timestamptz,valid_until timestamptz,environment text);
+create table apple_subscription_assignments(subscription_id uuid,environment text,closed_at timestamptz);

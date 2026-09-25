@@ -1,0 +1,12 @@
+import {execFileSync,spawn} from 'node:child_process';
+import {readFileSync} from 'node:fs';
+export const docker='/Applications/Docker.app/Contents/Resources/bin/docker';
+const args=['exec','-i','abilene-premium-events-local','psql','-U','postgres','-d',process.env.PREMIUM_TEST_DB || 'postgres','-XAt','-v','ON_ERROR_STOP=1'];
+export const sql=q=>execFileSync(docker,args,{input:q,encoding:'utf8',stdio:['pipe','pipe','pipe']}).trim();
+export const sqlAsync=q=>new Promise((resolve,reject)=>{const p=spawn(docker,args);let out='',err='';p.stdout.on('data',s=>out+=s);p.stderr.on('data',s=>err+=s);p.on('close',c=>c?reject(Error(err)):resolve(out.trim()));p.stdin.end(q);});
+export const file=p=>sql(readFileSync(p,'utf8'));
+export const owner='00000000-0000-0000-0000-000000000011',listing='00000000-0000-0000-0000-000000000001';
+export const auth=(q,who=owner,admin=false)=>`begin;set local role authenticated;set local request.jwt.claim.role='authenticated';set local request.jwt.claim.sub='${who}';set local request.jwt.claim.admin='${admin}';${q};commit;`;
+export const service=q=>`begin;set local role service_role;set local request.jwt.claim.role='service_role';${q};commit;`;
+export const snapshot=(patch={})=>({subscription_id:'sub_test',listing_type:'business',listing_id:listing,environment:'Production',plan:'premium',status:'active',period_end:'2099-01-01T00:00:00Z',cancel_at_period_end:false,event_created:100,event_id:'evt_100',...patch});
+export const record=p=>sql(service(`select record_stripe_authority('${JSON.stringify(p)}'::jsonb)`));

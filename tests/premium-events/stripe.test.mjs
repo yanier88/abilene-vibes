@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {subscriptionAuthority} from '../../supabase/functions/stripe-webhook/authority.mjs';
+const event={id:'evt_test',created:100,livemode:true,type:'invoice.paid',data:{object:{subscription:'sub_test'}}};
+const sub={id:'sub_test',livemode:true,status:'active',current_period_end:2000000000,cancel_at_period_end:false,metadata:{submission_id:'00000000-0000-0000-0000-000000000001',plan:'Premium',catalog:'android_v2'},items:{data:[{quantity:1,price:{unit_amount:6799,currency:'usd',recurring:{interval:'month',interval_count:1}}}]}};
+for(const [name,patch,expected] of [['active',{},'active'],['period-end cancellation',{cancel_at_period_end:true},'active'],['deleted',{status:'canceled'},'canceled'],['unpaid',{status:'unpaid'},'unpaid'],['paused',{pause_collection:{}},'unverified']]) test(name,()=>assert.equal(subscriptionAuthority(event,{...sub,...patch}).status,expected));
+test('payment failure denies until newer valid state',()=>assert.equal(subscriptionAuthority({...event,type:'invoice.payment_failed'},sub).status,'past_due'));
+test('wrong subscription rejected',()=>assert.throws(()=>subscriptionAuthority(event,{...sub,id:'sub_other'})));
+test('wrong environment rejected',()=>assert.throws(()=>subscriptionAuthority(event,{...sub,livemode:false})));
+test('invalid listing rejected',()=>assert.throws(()=>subscriptionAuthority(event,{...sub,metadata:{...sub.metadata,submission_id:'bad'}})));
+test('unknown plan denies',()=>assert.equal(subscriptionAuthority(event,{...sub,metadata:{...sub.metadata,plan:'Free'}}).status,'unverified'));
+test('tampered/mismatched price denies',()=>assert.equal(subscriptionAuthority(event,{...sub,items:{data:[{...sub.items.data[0],price:{...sub.items.data[0].price,unit_amount:1}}]}}).status,'unverified'));
+test('new API item period supported',()=>assert.equal(subscriptionAuthority(event,{...sub,current_period_end:undefined,items:{data:[{...sub.items.data[0],current_period_end:2000000000}]}}).period_end,new Date(2000000000000).toISOString()));
+test('scheduled termination caps the authorized end',()=>assert.equal(subscriptionAuthority(event,{...sub,cancel_at:1900000000}).period_end,new Date(1900000000000).toISOString()));

@@ -1,3 +1,5 @@
+import { authorityEventTypes, eventSubscription, subscriptionAuthority } from "./authority.mjs";
+
 const hex = (buffer: ArrayBuffer) =>
   [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 
@@ -424,6 +426,45 @@ Deno.serve(async (request) => {
 
   const event = JSON.parse(payload);
 
+  // Only signed webhooks reach this path. Fetch canonical subscription state;
+  // SQL serializes snapshots and rejects stale/ambiguous ordering for new benefits.
+  if (authorityEventTypes.has(event.type)) {
+    try {
+      const subscriptionId = eventSubscription(event);
+      if (!subscriptionId) throw new Error("SUBSCRIPTION_MISSING");
+      const subscription = await fetchSubscription(subscriptionId);
+      const snapshot = subscriptionAuthority(event, subscription, (name: string) => Deno.env.get(name));
+      const response = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/rpc/record_stripe_authority`, {
+        method: "POST",
+        headers: { apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ p: snapshot }),
+      });
+      if (!response.ok) throw new Error("AUTHORITY_WRITE_FAILED");
+      const authorityResult = await response.json();
+      const eventListingType = event.type.startsWith("invoice.")
+        ? invoiceListingType(event.data.object)
+        : stripeListingType(event.data.object.metadata);
+      // Job lifecycle writes must agree with the canonical subscription binding.
+      if (snapshot.listing_type === "job" || eventListingType === "job") {
+        if (snapshot.listing_type !== "job" || eventListingType !== "job") throw new Error("JOB_BINDING_MISMATCH");
+        if (!["applied", "duplicate", "ignored", "same_timestamp"].includes(authorityResult)) throw new Error("AUTHORITY_RESULT_INVALID");
+        const terminalDelete = event.type === "customer.subscription.deleted";
+        if (authorityResult === "ignored" || (!terminalDelete &&
+          (authorityResult === "same_timestamp" || snapshot.status === "canceled" ||
+           ((event.type === "invoice.paid" || event.type === "invoice.payment_succeeded" || event.type === "checkout.session.completed") && snapshot.status !== "active")))) {
+          return Response.json({ received: true });
+        }
+        const jobId = event.type === "checkout.session.completed"
+          ? (event.data.object.metadata?.job_id ?? event.data.object.client_reference_id ?? "")
+          : await fetchJobListingIdBySubscription(subscriptionId);
+        if (jobId !== snapshot.listing_id) throw new Error("JOB_BINDING_MISMATCH");
+      }
+    } catch {
+      return new Response("Stripe authority temporarily unavailable", { status: 503 });
+    }
+  }
+
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const listingType = stripeListingType(session.metadata);
@@ -628,6 +669,7 @@ Deno.serve(async (request) => {
       const jobId = await fetchJobListingIdBySubscription(subscriptionId);
       await updateJobPayment(jobId, {
         payment_status: "canceled",
+        status: "hidden",
       });
       return new Response(JSON.stringify({ received: true }), {
         headers: { "Content-Type": "application/json" },

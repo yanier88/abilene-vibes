@@ -1,0 +1,26 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {sql,file,record,snapshot,listing,owner,auth} from './pg.mjs';
+file('tests/premium-events/bootstrap.sql');file('supabase/migrations/202609240001_stripe_premium_authority.sql');
+sql(`insert into business_submissions(id,advertiser_user_id,plan,status,stripe_subscription_id) values('${listing}','${owner}','Premium','approved','sub_test')`);
+const reset=()=>sql('truncate stripe_promotion_authority,stripe_authority_receipts');
+const state=()=>sql('select status||\':\'||ambiguous from stripe_promotion_authority');
+test('active snapshot persists',()=>{reset();record(snapshot());assert.equal(state(),'active:false');});
+test('duplicate paid does not extend period',()=>{reset();record(snapshot());record(snapshot({period_end:'2100-01-01T00:00:00Z'}));assert.equal(sql("select extract(year from period_end) from stripe_promotion_authority"),'2099');});
+test('deleted followed by older paid stays deleted',()=>{reset();record(snapshot({event_created:200,event_id:'evt_deleted',status:'canceled'}));record(snapshot());assert.equal(state(),'canceled:false');});
+test('same subscription cannot resurrect even with newer active',()=>{reset();record(snapshot({status:'canceled'}));record(snapshot({event_created:300,event_id:'evt_new'}));assert.equal(state(),'canceled:false');});
+test('newer authoritative recovery from past_due allowed',()=>{reset();record(snapshot({status:'past_due'}));record(snapshot({event_created:101,event_id:'evt_recovered'}));assert.equal(state(),'active:false');});
+test('out-of-order active cannot overwrite newer unpaid',()=>{reset();record(snapshot({status:'unpaid',event_created:110,event_id:'evt_unpaid'}));record(snapshot());assert.equal(state(),'unpaid:false');});
+test('same timestamp conflicting events fail closed',()=>{reset();record(snapshot());record(snapshot({status:'past_due',event_id:'evt_tie'}));assert.equal(state(),'active:true');});
+test('same timestamp deletion is terminal',()=>{reset();record(snapshot());record(snapshot({status:'canceled',event_id:'evt_tie'}));assert.equal(state(),'canceled:true');});
+test('duplicate deletion idempotent',()=>{reset();record(snapshot({status:'canceled'}));record(snapshot({status:'canceled'}));assert.equal(sql('select count(*) from stripe_authority_receipts'),'1');});
+test('wrong subscription fails',()=>{reset();assert.throws(()=>record(snapshot({subscription_id:'sub_other'})));});
+test('wrong listing fails',()=>{reset();assert.throws(()=>record(snapshot({listing_id:'00000000-0000-0000-0000-000000000099'})));});
+test('authenticated client cannot forge authority',()=>{assert.throws(()=>sql(auth(`select record_stripe_authority('${JSON.stringify(snapshot())}')`)));});
+test('Job authority rejects wrong subscription binding and never revives terminal ID',()=>{
+ reset();sql(`insert into job_listings(id,stripe_subscription_id,status,plan) values('${listing}','sub_job_actual','approved','Premium')`);
+ assert.throws(()=>record(snapshot({listing_type:'job',subscription_id:'sub_wrong'})),/SUBSCRIPTION_MISMATCH/);
+ record(snapshot({listing_type:'job',subscription_id:'sub_job_actual',status:'canceled',event_id:'evt_job_deleted',event_created:200}));
+ record(snapshot({listing_type:'job',subscription_id:'sub_job_actual',status:'active',event_id:'evt_job_old',event_created:100}));
+ record(snapshot({listing_type:'job',subscription_id:'sub_job_actual',status:'active',event_id:'evt_job_new',event_created:300}));
+ assert.equal(state(),'canceled:false');
+});

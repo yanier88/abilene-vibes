@@ -11,6 +11,9 @@ import { canManageListing } from "./auth/ownership";
 import { withApplePromotions } from "./billing/appleProjection.mjs";
 import { promotionPlansFor, promotionPriceFor, promotionCheckoutPayload } from "./billing/promotionCatalog.mjs";
 import Promo3DIcon from "./components/Promo3DIcon";
+import AdvertiserAccount from "./components/AdvertiserAccount.jsx";
+import { verifiedAdvertiser } from "./auth/advertiserSession.mjs";
+import PremiumEvents, { EventFields } from "./components/PremiumEvents.jsx";
 import ApplePromotionPurchase from "./components/ApplePromotionPurchase";
 import "./App.css";
 
@@ -2383,6 +2386,9 @@ function App({ adminWeb = false } = {}) {
   const [editJobPage, setEditJobPage] = useState(false);
   const [editingRental, setEditingRental] = useState(null);
   const [editRentalPage, setEditRentalPage] = useState(false);
+  const [pendingClaims, setPendingClaims] = useState([]);
+  const [advertiserAuthRequired, setAdvertiserAuthRequired] = useState(false);
+  const [pendingEvents, setPendingEvents] = useState([]);
   const [publishedEvents, setPublishedEvents] = useState([]);
   const [hiddenEvents, setHiddenEvents] = useState([]);
   const [deletedStaticItems, setDeletedStaticItems] = useState([]);
@@ -3262,6 +3268,8 @@ function App({ adminWeb = false } = {}) {
   const handleBusinessSubmit = async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
+    try { await verifiedAdvertiser(supabase); setAdvertiserAuthRequired(false); }
+    catch { setAdvertiserAuthRequired(true); return; }
     const formData = new FormData(form);
     const requiredFields = ["businessName", "contactName", "contactEmail", "phone"];
     const isMissingRequiredField = requiredFields.some((fieldName) => !String(formData.get(fieldName) ?? "").trim());
@@ -3633,6 +3641,10 @@ function App({ adminWeb = false } = {}) {
     setReviewSubmissionStatus((currentStatus) => ({ ...currentStatus, [business.id]: "saved" }));
   };
 
+  const adminEventWrite = (action, id, fields = {}) => supabase.rpc("admin_write_event", {
+    p_action: action, p_event: id, p_fields: fields,
+  });
+
   const handleEventSubmit = async (event) => {
     event.preventDefault();
 
@@ -3653,7 +3665,7 @@ function App({ adminWeb = false } = {}) {
     const imageFile = formData.get("eventImage");
     const imageData = imageFile && imageFile.size ? await optimizeGalleryImage(imageFile) : "";
 
-    const { error } = await supabase.from("event_submissions").insert({
+    const { error } = await adminEventWrite("create", null, {
       title: formData.get("title").trim(),
       place: formData.get("place").trim(),
       description: formData.get("description").trim(),
@@ -3741,6 +3753,8 @@ function App({ adminWeb = false } = {}) {
       adminMarketplaceResult,
       adminRentalResult,
       paymentRecordsResult,
+      pendingEventsResult,
+      pendingClaimsResult,
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
@@ -3806,11 +3820,15 @@ function App({ adminWeb = false } = {}) {
         .from("payment_records")
         .select("id,created_at,business_submission_id,stripe_session_id,stripe_payment_intent_id,stripe_charge_id,stripe_balance_transaction_id,currency,gross_amount,stripe_fee,net_amount,paid_at,status")
         .order("paid_at", { ascending: false }),
+      supabase.from("event_submissions").select("*").eq("status", "pending").order("created_at", { ascending: true }),
+      supabase.from("business_ownership_claims").select("id,business_id,claimant,evidence,created_at").eq("status", "pending").order("created_at"),
     ]);
 
     if (!isCurrent()) return;
 
     if (
+      pendingClaimsResult.error ||
+      pendingEventsResult.error ||
       galleryResult.error ||
       publishedGalleryResult.error ||
       businessResult.error ||
@@ -3844,6 +3862,8 @@ function App({ adminWeb = false } = {}) {
     setPendingReviews(reviewResult.data ?? []);
     setAdminJobListings(jobListingsResult.data ?? []);
     setAdminMarketplaceListings((adminMarketplaceResult.data ?? []).map(mapListingFromDb));
+    setPendingClaims(pendingClaimsResult.data ?? []);
+    setPendingEvents(pendingEventsResult.data ?? []);
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
     setLikeCounts(
@@ -3983,7 +4003,7 @@ function App({ adminWeb = false } = {}) {
 
     const eventFields =
       "id,created_at,title,place,description,map_url,website_url,ticket_url,event_date,end_date,event_time,end_time,event_type,image_url,image_data,status";
-    const [publishedEventResult, hiddenEventResult] = await Promise.all([
+    const [publishedEventResult, hiddenEventResult, pendingEventsResult] = await Promise.all([
       supabase
         .from("event_submissions")
         .select(eventFields)
@@ -3994,13 +4014,15 @@ function App({ adminWeb = false } = {}) {
         .select(eventFields)
         .eq("status", "hidden")
         .order("event_date", { ascending: true }),
+      supabase.from("event_submissions").select("*").eq("status", "pending").order("created_at", { ascending: true }),
     ]);
 
-    if (publishedEventResult.error || hiddenEventResult.error) {
+    if (pendingEventsResult.error || publishedEventResult.error || hiddenEventResult.error) {
       setAdminStatus("error");
       return;
     }
 
+    setPendingEvents(pendingEventsResult.data ?? []);
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
     setAdminStatus("ready");
@@ -4133,6 +4155,8 @@ function App({ adminWeb = false } = {}) {
     setPublishedBusinesses([]);
     setHiddenBusinesses([]);
     setPendingReviews([]);
+    setPendingClaims([]);
+    setPendingEvents([]);
     setPublishedEvents([]);
     setHiddenEvents([]);
     setDeletedStaticItems([]);
@@ -4909,7 +4933,7 @@ function App({ adminWeb = false } = {}) {
     }
 
     setAdminStatus("saving");
-    const { error } = await supabase.from("event_submissions").delete().eq("id", id);
+    const { error } = await adminEventWrite("delete", id);
 
     if (error) {
       setAdminStatus("error");
@@ -5018,7 +5042,7 @@ function App({ adminWeb = false } = {}) {
     }
 
     setAdminStatus("saving");
-    const { error } = await supabase.from("event_submissions").update({ status: "hidden" }).eq("id", id);
+    const { error } = await adminEventWrite("hide", id);
 
     if (error) {
       setAdminStatus("error");
@@ -5035,7 +5059,7 @@ function App({ adminWeb = false } = {}) {
     }
 
     setAdminStatus("saving");
-    const { error } = await supabase.from("event_submissions").update({ status: "approved" }).eq("id", id);
+    const { error } = await adminEventWrite("restore", id);
 
     if (error) {
       setAdminStatus("error");
@@ -5082,9 +5106,7 @@ function App({ adminWeb = false } = {}) {
     if (endTime === null) return;
 
     setAdminStatus("saving");
-    const { error } = await supabase
-      .from("event_submissions")
-      .update({
+    const { error } = await adminEventWrite("edit", event.id, {
         title: title.trim(),
         place: place.trim(),
         description: description.trim(),
@@ -5095,8 +5117,7 @@ function App({ adminWeb = false } = {}) {
         end_date: endDate.trim() || null,
         event_time: formatEventTime(eventTime),
         end_time: formatEventTime(endTime),
-      })
-      .eq("id", event.id);
+      });
 
     if (error) {
       setAdminStatus("error");
@@ -5121,13 +5142,10 @@ function App({ adminWeb = false } = {}) {
 
     try {
       const imageData = await optimizeGalleryImage(file);
-      const { error } = await supabase
-        .from("event_submissions")
-        .update({
+      const { error } = await adminEventWrite("edit", eventId, {
           image_data: imageData,
           image_url: "",
-        })
-        .eq("id", eventId);
+        });
 
       if (error) {
         setAdminStatus("error");
@@ -5148,7 +5166,7 @@ function App({ adminWeb = false } = {}) {
 
     const [eventDate, eventTime = ""] = event.date.split(" - ");
     const imageData = overrides.image_data ?? "";
-    const { error: eventError } = await supabase.from("event_submissions").insert({
+    const { error: eventError } = await adminEventWrite("create", null, {
       title: overrides.title ?? event.title,
       place: overrides.place ?? event.place,
       event_date: eventDateInputValue(overrides.event_date ?? eventDate),
@@ -6898,6 +6916,9 @@ function App({ adminWeb = false } = {}) {
             </p>
           </section>
 
+          <AdvertiserAccount client={supabase} />
+          <PremiumEvents client={supabase} onUpgrade={() => navigateTo("promote")} optimizeImage={optimizeGalleryImage} />
+
           <section className="event-list" aria-label="Featured Abilene events">
             {allEvents.length === 0 && (
               <div className="events-empty-state">
@@ -7191,6 +7212,7 @@ function App({ adminWeb = false } = {}) {
             ))}
           </section>
 
+          {advertiserAuthRequired && <AdvertiserAccount client={supabase} />}
           <form className="business-form" onSubmit={handleBusinessSubmit} noValidate>
             <div className="business-form-heading">
               <p className="eyebrow">{selectedPlan} plan</p>
@@ -10301,7 +10323,8 @@ function App({ adminWeb = false } = {}) {
                 ))}
               </section>
 
-              <form className="business-form" onSubmit={handleBusinessSubmit} noValidate>
+              {advertiserAuthRequired && <AdvertiserAccount client={supabase} />}
+          <form className="business-form" onSubmit={handleBusinessSubmit} noValidate>
                 <input
                   type="hidden"
                   name="categoryOverride"
@@ -11009,53 +11032,7 @@ function App({ adminWeb = false } = {}) {
                 </div>
 
                 <form className="gallery-form" onSubmit={handleEventSubmit}>
-                  <div className="form-grid">
-                    <label className="form-field">
-                      <span>Title</span>
-                      <input name="title" type="text" placeholder="Live music, market, party..." required />
-                    </label>
-                    <label className="form-field">
-                      <span>Place</span>
-                      <input name="place" type="text" placeholder="Venue or area" required />
-                    </label>
-                    <label className="form-field form-field-full">
-                      <span>Description</span>
-                      <textarea name="description" rows={3} placeholder="What should people know about this event?" required />
-                    </label>
-                    <label className="form-field form-field-full">
-                      <span>Event Address</span>
-                      <input name="eventAddress" type="text" placeholder="202 Pine St #201, Abilene, TX 79601" required />
-                    </label>
-                    <label className="form-field form-field-full">
-                      <span>Website URL</span>
-                      <input name="websiteUrl" type="url" placeholder="Optional event website link" />
-                    </label>
-                    <label className="form-field form-field-full">
-                      <span>Ticket URL</span>
-                      <input name="ticketUrl" type="url" placeholder="Optional ticket link" />
-                    </label>
-                    <label className="form-field">
-                      <span>Start Date</span>
-                      <input name="eventDate" type="date" required />
-                    </label>
-                    <label className="form-field">
-                      <span>End Date</span>
-                      <input name="endDate" type="date" />
-                    </label>
-                    <label className="form-field">
-                      <span>Start Time</span>
-                      <input name="eventTime" type="text" placeholder="8:00 PM" required />
-                    </label>
-                    <label className="form-field">
-                      <span>End Time</span>
-                      <input name="endTime" type="text" placeholder="2:00 AM" />
-                    </label>
-                    <label className="form-field">
-                      <span>Photo</span>
-                      <input name="eventImage" type="file" accept="image/*" />
-                    </label>
-                  </div>
-
+                  <EventFields />
                   <button className="primary-button subscribe-button" type="submit" disabled={eventSubmissionStatus === "saving"}>
                     {eventSubmissionStatus === "saving" ? "Saving..." : "Publish Event"}
                   </button>
@@ -11070,6 +11047,44 @@ function App({ adminWeb = false } = {}) {
                     </p>
                   )}
                 </form>
+              </section>
+
+              <section className="admin-section admin-tab-businesses" aria-label="Pending business claims">
+                <h2>Pending Business Claims</h2>
+                <p>Approve only after independently verifying the claimant's authority. Matching contact details alone do not prove ownership.</p>
+                {pendingClaims.map(claim => <article className="admin-card" key={claim.id}>
+                  <h3>{publishedBusinesses.find(b => b.id === claim.business_id)?.business_name || claim.business_id}</h3>
+                  <p>Advertiser: {claim.claimant}</p><p>{claim.evidence}</p>
+                  {["approved", "rejected"].map(status => <button key={status} type="button" disabled={adminStatus === "saving"} onClick={async () => {
+                    const note = window.prompt("Record verification performed / reason (minimum 10 characters). Do not include secrets.");
+                    if (!note || note.trim().length < 10) return;
+                    setAdminStatus("saving");
+                    try {
+                      const { error } = await supabase.rpc("review_business_claim", { p_claim: claim.id, p_status: status, p_note: note });
+                      if (error) { setAdminStatus("error"); return; }
+                      await loadAdminData();
+                    } catch { setAdminStatus("error"); }
+                  }}>{status === "approved" ? "Approve Claim" : "Reject Claim"}</button>)}
+                </article>)}
+                {!pendingClaims.length && <p>No pending business claims.</p>}
+              </section>
+
+              <section className="admin-section admin-tab-events" aria-label="Pending business events">
+                <h2>Pending Events</h2>
+                {pendingEvents.map(event => <article className="admin-card" key={event.id}>
+                  <h3>{event.title}</h3><p>{event.place}</p><p>{event.description}</p>
+                  <p>{event.event_date} {event.event_time} — {event.end_date || event.event_date} {event.end_time || event.event_time}</p>
+                  {event.image_data && <img src={event.image_data} alt="" />}
+                  {["approved", "rejected"].map(status => <button type="button" key={status} disabled={adminStatus === "saving"} onClick={async () => {
+                    setAdminStatus("saving");
+                    try {
+                      const { error } = await supabase.rpc("moderate_premium_event", { p_event: event.id, p_status: status });
+                      if (error) { setAdminStatus("error"); return; }
+                      await loadAdminData(); loadEventsPublic();
+                    } catch { setAdminStatus("error"); }
+                  }}>{status === "approved" ? "Approve" : "Reject"}</button>)}
+                </article>)}
+                {!pendingEvents.length && <p>No pending events.</p>}
               </section>
 
               <section className="admin-section admin-tab-events" aria-labelledby="admin-published-event-title">

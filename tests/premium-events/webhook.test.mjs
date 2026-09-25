@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {createHmac} from 'node:crypto';
+let handler,calls=[],rpcStatus=200;
+const env={STRIPE_WEBHOOK_SECRET:'unit-test-only-secret',STRIPE_SECRET_KEY:'unit-test-only-key',SUPABASE_URL:'https://unit-test.invalid',SUPABASE_SERVICE_ROLE_KEY:'unit-test-only-role'};
+globalThis.Deno={env:{get:k=>env[k]},serve:h=>{handler=h;}};
+const subscription={id:'sub_unit',livemode:true,status:'active',current_period_end:2000000000,metadata:{submission_id:'00000000-0000-0000-0000-000000000001',plan:'Premium',catalog:'android_v2'},items:{data:[{quantity:1,price:{currency:'usd',unit_amount:6799,recurring:{interval:'month',interval_count:1}}}]}};
+globalThis.fetch=async(url,options={})=>{calls.push({url:String(url),method:options.method??'GET',body:options.body});if(String(url).includes('api.stripe.com'))return Response.json(subscription);if(String(url).includes('record_stripe_authority'))return new Response('"applied"',{status:rpcStatus});return new Response('{}');};
+await import('../../supabase/functions/stripe-webhook/index.ts');
+function request(type='customer.subscription.updated',valid=true){const payload=JSON.stringify({id:'evt_unit',created:100,livemode:true,type,data:{object:subscription}});const t=String(Math.floor(Date.now()/1000));const sig=createHmac('sha256',env.STRIPE_WEBHOOK_SECRET).update(`${t}.${payload}`).digest('hex');return new Request('https://unit-test.invalid',{method:'POST',headers:{'stripe-signature':`t=${t},v1=${valid?sig:'bad'}`},body:payload});}
+test('signed subscription update retrieves current state and persists authority',async()=>{calls=[];rpcStatus=200;const r=await handler(request());assert.equal(r.status,200);assert.equal(calls[0].method,'GET');const rpc=calls.find(x=>x.url.includes('record_stripe_authority'));assert.equal(JSON.parse(rpc.body).p.status,'active');});
+test('invalid signature never retrieves or records authority',async()=>{calls=[];const r=await handler(request(undefined,false));assert.equal(r.status,400);assert.equal(calls.length,0);});
+test('authority persistence failure returns retryable error',async()=>{calls=[];rpcStatus=503;const r=await handler(request());assert.equal(r.status,503);});
