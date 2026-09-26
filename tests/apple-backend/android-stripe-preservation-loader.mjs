@@ -31,6 +31,14 @@ export function verifyAndroidStripeBaseline(root,raw=fs.readFileSync(manifestUrl
   const premium=JSON.parse(premiumBytes);
   const premiumPaths=['src/App.jsx','supabase/functions/stripe-webhook/index.ts'];
   if(premium.schemaVersion!==1||premium.entries.length!==2||new Set(premium.entries.map(e=>e.path)).size!==2||premium.entries.some(e=>!premiumPaths.includes(e.path)))reject();
+  const compBytes=fs.readFileSync(new URL('./admin-comp-provider-delta.json',import.meta.url));
+  if(digest(compBytes)!=='43110f6a34f75baeeab2f38061885f6165deb468f432b9b5c85ff90e4aabe136')reject();
+  const comp=JSON.parse(compBytes);
+  if(comp.schemaVersion!==1||comp.entries.length!==1||comp.entries[0].path!=='src/App.jsx')reject();
+  const commonBytes=fs.readFileSync(new URL('./common-lock-provider-delta.json',import.meta.url));
+  if(digest(commonBytes)!=='3cfc37da562c3aa0f39a258e1a76d37b463a9b4e2d549b8ec9b909dff596918d')reject();
+  const common=JSON.parse(commonBytes);
+  if(common.schemaVersion!==1||common.entries.length!==1||common.entries[0].path!=='supabase/functions/stripe-webhook/index.ts')reject();
   for(const e of m.entries){
    const approved=delta.entries.find(d=>d.path===e.path);
    if(approved&&(e.baselineType!=='PRESERVED_HASH'||approved.beforeSHA256!==e.sha256||!['supabase/functions/_shared/apple/domain.mjs','supabase/functions/_shared/apple/backend.mjs','supabase/functions/_shared/apple/repository.mjs'].includes(e.path)))reject();
@@ -40,7 +48,13 @@ export function verifyAndroidStripeBaseline(root,raw=fs.readFileSync(manifestUrl
    const addition=premium.entries.find(d=>d.path===e.path);
    const prior=update?.afterSHA256??previous;
    if(addition&&addition.beforeSHA256!==prior)reject();
-   if(!e.provenance||digest(read(e.path))!==(addition?.afterSHA256??prior))reject();
+   const compChange=comp.entries.find(d=>d.path===e.path);
+   const premiumHash=addition?.afterSHA256??prior;
+   if(compChange&&compChange.beforeSHA256!==premiumHash)reject();
+   const priorCommon=compChange?.afterSHA256??premiumHash;
+   const commonChange=common.entries.find(d=>d.path===e.path);
+   if(commonChange&&commonChange.beforeSHA256!==priorCommon)reject();
+   if(!e.provenance||digest(read(e.path))!==(commonChange?.afterSHA256??priorCommon))reject();
    if(e.baselineType==='GIT_BLOB'){
     const b=execFileSync('git',['cat-file','blob',e.gitBlob],{cwd:root});
     if(digest(b)!==e.sha256)reject();

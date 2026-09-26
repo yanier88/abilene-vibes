@@ -44,7 +44,20 @@ for(const [name,options,error] of [['revoked',{status:'revoked'},'REJECT_REVOKED
 test('replacement OCSP diagnostic valid pair verifies',async()=>{const d=diagnostic(101);assert.equal((await verifyOcsp({...d.context,responseDer:d.response,evaluationTime:NOW})).status,'GOOD');});
 test('replacement OCSP rejects trailing DER',async()=>assert.rejects(verifyOcsp({...contexts[0],responseDer:Buffer.concat([responses[0],Buffer.from([0])]),evaluationTime:NOW}),e=>e.code==='REJECT_PARSE'));
 test('replacement OCSP rejects future and just-stale signed responses',async()=>{const r=await verifyOcsp({...contexts[0],responseDer:responses[0],evaluationTime:NOW});for(const evaluationTime of [r.thisUpdate-61000,r.nextUpdate+61000])await assert.rejects(verifyOcsp({...contexts[0],responseDer:responses[0],evaluationTime}));});
-test('replacement OCSP x32 pending bound and x33 eviction',async()=>{const ds=Array.from({length:33},(_,i)=>diagnostic(200+i)),c=new VerifiedCache(()=>NOW);let release;const gate=new Promise(r=>release=r);const jobs=ds.slice(0,32).map(d=>c.getOrRefresh(d.context,()=>gate.then(()=>d.response)));await Promise.resolve();assert.equal(c.pendingCount,32);await assert.rejects(c.getOrRefresh(ds[32].context,()=>ds[32].response),e=>e.code==='PENDING_CAPACITY');release();await Promise.all(jobs);await c.getOrRefresh(ds[32].context,()=>ds[32].response);assert.equal(c.size,32);assert.equal(c.read(ds[0].context),null);});
+test('replacement OCSP x32 pending bound and x33 eviction',async()=>{
+ const ds=Array.from({length:33},(_,i)=>diagnostic(200+i)),c=new VerifiedCache(()=>NOW);
+ let releaseFirst,releaseRest;
+ const first=new Promise(r=>releaseFirst=r),rest=new Promise(r=>releaseRest=r);
+ const jobs=ds.slice(0,32).map((d,i)=>c.getOrRefresh(d.context,()=> (i===0?first:rest).then(()=>d.response)));
+ await Promise.resolve();assert.equal(c.pendingCount,32);
+ await assert.rejects(c.getOrRefresh(ds[32].context,()=>ds[32].response),e=>e.code==='PENDING_CAPACITY');
+ // FIFO is verification-completion order, not parallel request-start order.
+ // Force entry 0 to finish first without changing crypto or cache behavior.
+ releaseFirst();await jobs[0];assert.equal(c.size,1);
+ releaseRest();await Promise.all(jobs);
+ await c.getOrRefresh(ds[32].context,()=>ds[32].response);
+ assert.equal(c.size,32);assert.equal(c.read(ds[0].context),null);
+});
 test('replacement JWS root policy never accepts synthetic PKI',async()=>{const d=diagnostic(301);await assert.rejects(verifyAppleJws(f.transactionJws,{rootDer:d.context.issuerDer,now:NOW}));});
 test('authentic AppTransaction bootstrap is crypto/OCSP verified',async()=>{const v=verifier(),r=await v.verifyAppTransaction(f.appTransactionJws);assert.equal(r.environment,'Sandbox');assert(r.notAfter>NOW);});
 // Payload-policy tests inject already-verified mock envelopes. Crypto tests above

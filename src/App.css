@@ -4529,3 +4529,10 @@ html.capacitor-ios-safe-area :is(.groceries-page, .dealers-page, .rentals-page:n
 html.capacitor-ios-safe-area .rentals-page.rental-detail-page::before {
   background-size: 100% auto;
 }
+
+/* Ownership review has an explicit category and an always-visible toolbar entry. */
+.admin-panel-view-claims .admin-tab-claims { display: grid; }
+.admin-toolbar { flex-wrap: wrap; }
+.admin-claim-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.admin-claim-actions button { min-height: 44px; }
+.admin-tab-claims .admin-card { overflow-wrap: anywhere; }

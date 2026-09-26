@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/App.jsx",
+      "beforeSHA256": "659ff00dd48dc6936d289c3fce539abeff4d899a03eb3f861371103748555371",
+      "afterSHA256": "9a34ca7d7cdad283bb669813ccb355415ebb10e6b6ace2b1b18726269f1f796a",
+      "reviewedChanges": "Existing local Premium Events UX entry, ownership claims component/navigation, COMP direct commercial writes replaced by grant/revoke RPCs. Entire diff reviewed against main 9d54e515. No Stripe checkout, Apple purchase, Lobby, Featured star, Jobs or Rentals code changed. This closes the test dependency only; not a deployment authorization. Publication closure: Claims/Events moderation now waits for a fresh authorized post-mutation read. No additional visual or commercial logic changes."
+    }
+  ]
+}

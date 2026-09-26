@@ -1,3 +1,5 @@
+import { moderateAndReload } from "./auth/adminModeration.mjs";
+import AdminOwnershipClaims from "./components/AdminOwnershipClaims.jsx";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { websiteUrl as iosWebsiteUrl, directionsUrl as iosDirectionsUrl, openBusinessUrl } from "./ios/businessLinks";
@@ -1291,6 +1293,7 @@ const adminTabs = [
   { id: "events", label: "Events" },
   { id: "gallery", label: "Gallery" },
   { id: "businesses", label: "Businesses" },
+  { id: "claims", label: "Ownership Claims" },
   { id: "payments", label: "Payments" },
   { id: "reviews", label: "Reviews" },
   { id: "jobs", label: "Jobs & Hiring" },
@@ -3724,7 +3727,8 @@ function App({ adminWeb = false } = {}) {
 
   const businessDisplayImage = (business) => business.image || business.image_data || businessImageForCategory(business.category);
 
-  async function loadAdminData(sessionOverride = adminSession, showRefreshSuccess = false) {
+  async function loadAdminData(sessionOverride = adminSession, showRefreshSuccess = false, afterMutation = false) {
+    if (adminWeb && afterMutation) return adminWebController.current?.refreshAfterMutation();
     if (adminWeb) return adminWebController.current?.refresh();
     return performAdminDataLoad(sessionOverride, showRefreshSuccess);
   }
@@ -4773,23 +4777,14 @@ function App({ adminWeb = false } = {}) {
 
     const cleanPlan = plan.trim() === "Premium" ? "Premium" : "Featured";
     const durationDays = Math.max(1, Number.parseInt(days, 10) || 30);
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + durationDays);
 
     setAdminBusinessActionKey(`${business.id}:${cleanPlan === "Premium" ? "comp-premium" : "comp-featured"}`);
     setAdminStatus("saving");
 
     try {
-      const { error } = await supabase
-        .from("business_submissions")
-        .update({
-          plan: cleanPlan,
-          status: "approved",
-          payment_status: "not_required",
-          placement_source: "comp",
-          placement_expires_at: expiresAt.toISOString(),
-        })
-        .eq("id", business.id);
+      const { error } = await supabase.rpc("grant_admin_comp", {
+        p_business: business.id, p_plan: cleanPlan.toLowerCase(), p_days: durationDays, p_key: crypto.randomUUID(),
+      });
 
       if (error) {
         setAdminStatus("error");
@@ -4901,14 +4896,12 @@ function App({ adminWeb = false } = {}) {
     setAdminStatus("saving");
 
     try {
-      const { error } = await supabase
-        .from("business_submissions")
-        .update({
-          plan: "Free",
-          placement_source: "paid",
-          placement_expires_at: null,
-        })
-        .eq("id", business.id);
+      const { data: grants, error: grantError } = await supabase.from("admin_comp_authority")
+        .select("id").eq("business_id", business.id).eq("status", "active");
+      if (grantError || !grants || grants.length > 1) {
+        setAdminStatus("error"); return; // Fail closed; no local fallback writes.
+      }
+      const { error } = await supabase.rpc("revoke_admin_comp", { p_business: business.id, p_grant: grants[0]?.id ?? null });
 
       if (error) {
         setAdminStatus("error");
@@ -6916,8 +6909,7 @@ function App({ adminWeb = false } = {}) {
             </p>
           </section>
 
-          <AdvertiserAccount client={supabase} />
-          <PremiumEvents client={supabase} onUpgrade={() => navigateTo("promote")} optimizeImage={optimizeGalleryImage} />
+          <PremiumEvents client={supabase} onUpgrade={() => navigateTo("promote")} onAddBusiness={() => navigateTo("promote")} optimizeImage={optimizeGalleryImage} />
 
           <section className="event-list" aria-label="Featured Abilene events">
             {allEvents.length === 0 && (
@@ -10993,6 +10985,9 @@ function App({ adminWeb = false } = {}) {
             <>
               {renderAdminBusinessDeleteModal()}
               <div className="admin-toolbar">
+                <button className="directory-link" type="button" onClick={() => setAdminTab("claims")}>
+                  OWNERSHIP CLAIMS ({pendingClaims.length} pending)
+                </button>
                 <button
                   className="directory-link"
                   type="button"
@@ -11019,7 +11014,7 @@ function App({ adminWeb = false } = {}) {
                     key={tab.id}
                     onClick={() => setAdminTab(tab.id)}
                   >
-                    {tab.label}
+                    {tab.label}{tab.id === "claims" ? ` (${pendingClaims.length})` : ""}
                   </button>
                 ))}
               </nav>
@@ -11049,25 +11044,18 @@ function App({ adminWeb = false } = {}) {
                 </form>
               </section>
 
-              <section className="admin-section admin-tab-businesses" aria-label="Pending business claims">
-                <h2>Pending Business Claims</h2>
-                <p>Approve only after independently verifying the claimant's authority. Matching contact details alone do not prove ownership.</p>
-                {pendingClaims.map(claim => <article className="admin-card" key={claim.id}>
-                  <h3>{publishedBusinesses.find(b => b.id === claim.business_id)?.business_name || claim.business_id}</h3>
-                  <p>Advertiser: {claim.claimant}</p><p>{claim.evidence}</p>
-                  {["approved", "rejected"].map(status => <button key={status} type="button" disabled={adminStatus === "saving"} onClick={async () => {
+              <AdminOwnershipClaims claims={pendingClaims} businesses={publishedBusinesses} busy={adminStatus === "saving"}
+                onReview={async (claim, status) => {
                     const note = window.prompt("Record verification performed / reason (minimum 10 characters). Do not include secrets.");
                     if (!note || note.trim().length < 10) return;
                     setAdminStatus("saving");
                     try {
-                      const { error } = await supabase.rpc("review_business_claim", { p_claim: claim.id, p_status: status, p_note: note });
-                      if (error) { setAdminStatus("error"); return; }
-                      await loadAdminData();
+                      await moderateAndReload(
+                        () => supabase.rpc("review_business_claim", { p_claim: claim.id, p_status: status, p_note: note }),
+                        () => loadAdminData(adminSession, false, true),
+                      );
                     } catch { setAdminStatus("error"); }
-                  }}>{status === "approved" ? "Approve Claim" : "Reject Claim"}</button>)}
-                </article>)}
-                {!pendingClaims.length && <p>No pending business claims.</p>}
-              </section>
+                }} />
 
               <section className="admin-section admin-tab-events" aria-label="Pending business events">
                 <h2>Pending Events</h2>
@@ -11078,9 +11066,11 @@ function App({ adminWeb = false } = {}) {
                   {["approved", "rejected"].map(status => <button type="button" key={status} disabled={adminStatus === "saving"} onClick={async () => {
                     setAdminStatus("saving");
                     try {
-                      const { error } = await supabase.rpc("moderate_premium_event", { p_event: event.id, p_status: status });
-                      if (error) { setAdminStatus("error"); return; }
-                      await loadAdminData(); loadEventsPublic();
+                      await moderateAndReload(
+                        () => supabase.rpc("moderate_premium_event", { p_event: event.id, p_status: status }),
+                        () => loadAdminData(adminSession, false, true),
+                      );
+                      await loadEventsPublic();
                     } catch { setAdminStatus("error"); }
                   }}>{status === "approved" ? "Approve" : "Reject"}</button>)}
                 </article>)}

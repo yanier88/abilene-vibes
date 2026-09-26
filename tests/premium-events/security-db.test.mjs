@@ -131,3 +131,12 @@ test('client may not approve a business on insert and cannot tamper claim target
  assert.throws(()=>sql(auth(`update business_ownership_claims set claimant='${B}'`,A)),/permission denied/);
  for(const role of ['anon','authenticated'])assert.throws(()=>sql(`set role ${role};truncate business_submissions cascade`),/permission denied/);
 });
+
+for (const [i,plan] of [[14,'Free'],[15,'Featured'],[16,'Premium']]) test(`approved claim ${plan} without authority never grants Events`,()=>{
+ const id=legacy(i);sql(`update business_submissions set plan='${plan}' where id='${id}'`);
+ const claim=request(id,A);sql(auth(`select review_business_claim('${claim}','approved','Independently verified representative')`,admin));
+ assert.equal(sql(`select advertiser_user_id='${A}' from business_submissions where id='${id}'`),'t');
+ assert.match(sql(auth(`select coalesce(premium_event_provider('${id}'),'DENY')`,A)),/DENY/);
+ assert.throws(()=>sql(auth(`select submit_premium_event('${id}','${randomUUID()}','{"title":"Synthetic event","place":"Synthetic venue","event_date":"2099-01-01","event_time":"10:00 AM"}')`,A)));
+ assert.equal(sql(`select count(*) from listing_promotion_entitlements where listing_id='${id}'`),'0');
+});

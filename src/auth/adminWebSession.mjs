@@ -46,6 +46,14 @@ export function createAdminWebSession(client, { onState, load }) {
   return {
     apply, restore,
     refresh: () => session ? apply(session, true) : restore(),
+    async refreshAfterMutation() {
+      // A read started before the mutation may contain stale rows. Wait for it,
+      // then reauthorize and read again; never reuse that in-flight snapshot.
+      const r = revision;
+      if (pending) await pending;
+      if (!valid(r) || !session) return;
+      return apply(session, true);
+    },
     async login(credentials) {
       clear('AUTHENTICATING');
       const r = revision;

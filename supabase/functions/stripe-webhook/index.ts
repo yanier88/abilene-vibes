@@ -72,16 +72,12 @@ const updateBusinessPayment = async (submissionId: string, updates: Record<strin
     return;
   }
 
-  await fetch(`${supabaseUrl}/rest/v1/business_submissions?id=eq.${submissionId}`, {
-    method: "PATCH",
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(updates),
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/stripe_patch_business`, {
+    method: "POST",
+    headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ p_id: submissionId, p_subscription: null, p_changes: updates }),
   });
+  if (!response.ok) throw new Error("BUSINESS_PAYMENT_PERSISTENCE_FAILED");
 };
 
 const updateJobPayment = async (jobId: string, updates: Record<string, unknown>) => {
@@ -387,7 +383,7 @@ const savePaymentRecord = async ({
   }
   const transaction = balanceTransaction as Record<string, unknown>;
 
-  await fetch(`${supabaseUrl}/rest/v1/payment_records?on_conflict=stripe_charge_id`, {
+  const response = await fetch(`${supabaseUrl}/rest/v1/payment_records?on_conflict=stripe_charge_id`, {
     method: "POST",
     headers: {
       apikey: serviceRoleKey,
@@ -409,6 +405,7 @@ const savePaymentRecord = async ({
       status,
     }),
   });
+  if (!response.ok) throw new Error("PAYMENT_RECORD_PERSISTENCE_FAILED");
 };
 
 Deno.serve(async (request) => {
@@ -586,16 +583,12 @@ Deno.serve(async (request) => {
     }
 
     if (supabaseUrl && serviceRoleKey && subscriptionId) {
-      await fetch(`${supabaseUrl}/rest/v1/business_submissions?stripe_subscription_id=eq.${subscriptionId}`, {
-        method: "PATCH",
-        headers: {
-          apikey: serviceRoleKey,
-          Authorization: `Bearer ${serviceRoleKey}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({ payment_status: "failed" }),
+      const response = await fetch(`${supabaseUrl}/rest/v1/rpc/stripe_patch_business`, {
+        method: "POST",
+        headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_id: null, p_subscription: subscriptionId, p_changes: { payment_status: "failed" } }),
       });
+      if (!response.ok) throw new Error("BUSINESS_PAYMENT_PERSISTENCE_FAILED");
     }
   }
 
@@ -687,18 +680,12 @@ Deno.serve(async (request) => {
     }
 
     if (supabaseUrl && serviceRoleKey && subscriptionId) {
-      await fetch(`${supabaseUrl}/rest/v1/business_submissions?stripe_subscription_id=eq.${subscriptionId}`, {
-        method: "PATCH",
-        headers: {
-          apikey: serviceRoleKey,
-          Authorization: `Bearer ${serviceRoleKey}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({
-          payment_status: "canceled",
-        }),
+      const response = await fetch(`${supabaseUrl}/rest/v1/rpc/stripe_patch_business`, {
+        method: "POST",
+        headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_id: null, p_subscription: subscriptionId, p_changes: { payment_status: "canceled" } }),
       });
+      if (!response.ok) throw new Error("BUSINESS_PAYMENT_PERSISTENCE_FAILED");
     }
   }
 

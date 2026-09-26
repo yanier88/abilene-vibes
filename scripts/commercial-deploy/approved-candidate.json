@@ -1,0 +1,8 @@
+{
+  "supabase/migrations/202609250002_commercial_listing_protocol.sql": "8566b6a7e07bf8857990de77af78aa35b348a29ae9e282194484c63a213af712",
+  "supabase/migrations/202609250003_admin_comp_protocol_activation.sql": "47847aa19c277e8c99906e8a61c9f429eb952b474f43e60ee0a05961e5050f29",
+  "supabase/migrations/202609250001_admin_comp_authority.sql": "86b804b89d0398df8e7691224fbc2460f67e035ae5e0dc7d4443ca147a32107b",
+  "supabase/functions/stripe-webhook/index.ts": "3ae8080d872ff607efbcb04e0c787fe69da1b57103ce9f9d1d11a9c10ef66da6",
+  "supabase/functions/stripe-webhook/authority.mjs": "8f1b1e9102448982bffc5c5336f160c24061f769c7de05e3641f50c52a9a6035",
+  "supabase/functions/create-checkout-session/pricing.mjs": "633cd5837a35cdad43bc717201fde2eff5d089b26f31a5723bc9d6465d982153"
+}

@@ -1,0 +1,52 @@
+.premium-event-flow { margin: 24px 0; color: #fff; }
+.premium-event-flow .pe-entry { width: 100%; min-height: 56px; letter-spacing: .08em; }
+.premium-event-flow .pe-panel { padding: clamp(20px, 5vw, 32px); padding-bottom: max(24px, env(safe-area-inset-bottom)); background: linear-gradient(145deg, rgba(29, 17, 49, .97), rgba(10, 21, 35, .98)); border: 1px solid rgba(159, 113, 229, .5); border-radius: 24px; box-shadow: 0 12px 32px #09051466; overflow-wrap: anywhere; }
+.premium-event-flow .pe-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+.premium-event-flow .pe-eyebrow { color: #bdebf6; font-size: 12px; letter-spacing: .12em; font-weight: 700; }
+.premium-event-flow h2 { color: #fff; font-size: clamp(22px, 6vw, 30px); line-height: 1.2; margin: 0 0 16px; }
+.premium-event-flow p { color: #ece6f4; font-size: 16px; line-height: 1.6; margin: 0 0 22px; }
+.premium-event-flow .pe-detail { color: #cebedc; font-size: 14px; }
+.premium-event-flow button { font: inherit; font-weight: 700; cursor: pointer; min-height: 48px; white-space: normal; }
+.premium-event-flow .pe-primary { border: 1px solid #d38df3; border-radius: 16px; background: linear-gradient(110deg, #91329e, #5934ab 65%, #195f7f); color: #fff; padding: 15px 22px; box-shadow: 0 3px 14px #a32ac52b; }
+.premium-event-flow .pe-secondary, .premium-event-flow .pe-close { background: #ffffff09; color: #f6ebff; border: 1px solid #ffffff38; border-radius: 14px; padding: 12px 16px; }
+.premium-event-flow .pe-close { min-height: 44px; font-size: 14px; }
+.premium-event-flow .pe-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+.premium-event-flow .pe-actions > button { flex: 1 1 140px; }
+.premium-event-flow .pe-panel > .pe-secondary { margin-top: 16px; margin-right: 10px; }
+.premium-event-flow label { display: grid; gap: 9px; font-size: 15px; color: #f2eaf8; margin-bottom: 20px; min-width: 0; }
+.premium-event-flow input, .premium-event-flow select, .premium-event-flow textarea { box-sizing: border-box; width: 100%; min-width: 0; min-height: 50px; border: 1px solid #a69bbb80; border-radius: 12px; background: #101523; color: #fff; padding: 12px; font: inherit; font-size: 16px; color-scheme: dark; }
+.premium-event-flow textarea { min-height: 110px; resize: vertical; }
+.premium-event-flow .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.premium-event-flow button:disabled { opacity: .55; cursor: default; }
+.premium-event-flow :focus-visible { outline: 2px solid #70e4ee; outline-offset: 4px; }
+.premium-event-flow .pe-message { margin-top: 20px; padding: 14px; border-radius: 12px; background: #ffffff0d; }
+.premium-event-flow .pe-submission { border-top: 1px solid #ffffff25; padding: 18px 0; }
+@media (max-width: 600px) { .premium-event-flow .form-grid { grid-template-columns: minmax(0, 1fr); } .premium-event-flow form > .pe-primary { width: 100%; } }
+.premium-event-flow .pe-password-field { position: relative; display: block; }
+.premium-event-flow .pe-password-field input { padding-right: 56px; }
+.premium-event-flow .pe-password-toggle { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 44px; min-height: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #dce9ff; }
+
+.premium-event-flow .pe-signed-in { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; font-size: 14px; }
+.premium-event-flow .pe-claim-warning { font-size: 13px; margin: -8px 0 16px; }
+
+.premium-event-flow .pe-signed-in > span { color: #85d7aa; font-weight: 700; }
+.premium-event-flow .pe-business-selector { margin-bottom: 20px; }
+.premium-event-flow .pe-business-label { display: block; margin-bottom: 9px; font-size: 15px; }
+.premium-event-flow .pe-business-trigger { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 50px; text-align: left; border: 1px solid #a69bbb80; border-radius: 12px; background: #101523; color: #fff; padding: 12px; }
+.premium-event-flow .pe-business-menu { margin-top: 10px; padding: 16px; border-radius: 16px; border: 1px solid #b8cbd8; border-top: 3px solid #8274a8; background: #fffefa; color: #24213b; }
+.premium-event-flow .pe-business-menu h3 { color: #30274c; font-size: 16px; margin: 0 0 14px; letter-spacing: .04em; }
+.premium-event-flow .pe-business-search { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.premium-event-flow .pe-business-search input { flex: 1 1 160px; background: #fff; color: #24213b; border-color: #747287; color-scheme: light; }
+.premium-event-flow .pe-business-search input::placeholder { color: #626075; opacity: 1; }
+.premium-event-flow .pe-business-search button, .premium-event-flow .pe-business-cancel { background: #f0edf7; color: #30274c; border: 1px solid #aaa3bc; border-radius: 10px; padding: 10px 14px; min-height: 44px; }
+.premium-event-flow .pe-business-list { max-height: min(40dvh, 320px); overflow-y: auto; overscroll-behavior: contain; }
+.premium-event-flow .pe-business-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 13px 10px; border: 0; border-bottom: 1px solid #e3ddec; background: transparent; color: #24213b; text-align: left; }
+.premium-event-flow .pe-business-row > span:first-child { min-width: 0; }
+.premium-event-flow .pe-business-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.premium-event-flow .pe-business-row[aria-pressed="true"] { background: #edf5f6; }
+.premium-event-flow .pe-business-check { color: #237449; font-size: 22px; flex-shrink: 0; }
+.premium-event-flow .pe-business-row:disabled { opacity: 1; color: #555168; cursor: not-allowed; }
+.premium-event-flow .pe-business-lock { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; }
+.premium-event-flow .pe-business-menu p { color: #24213b; }
+.premium-event-flow .pe-business-cancel { margin-top: 14px; }
+.premium-event-flow .pe-business-menu :focus-visible { outline: 2px solid #51407c; outline-offset: -2px; }

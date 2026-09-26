@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "supabase/functions/stripe-webhook/index.ts",
+      "beforeSHA256": "3363964718be632769eac56c2366815f5fd671aa127bd4fb41c9868a0c5c6b0d",
+      "afterSHA256": "3ae8080d872ff607efbcb04e0c787fe69da1b57103ce9f9d1d11a9c10ef66da6",
+      "reviewedChanges": "Common listing protocol: Business patches use narrow ordered-lock RPC, payment-record and projection errors are no longer silently acknowledged. Signature validation, authority/subscription ordering, amounts, Jobs and Rentals branches unchanged. Local candidate only; deploy requires provider migration before Edge, COMP activation last."
+    }
+  ]
+}

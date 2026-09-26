@@ -8,3 +8,18 @@ for(const path of ['authority-db','events-db'])execFileSync(process.execPath,['-
 
 execFileSync(docker,['exec','-i','abilene-premium-events-local','psql','-U','postgres','-v','ON_ERROR_STOP=1'],{input:'DROP DATABASE IF EXISTS premium_security_test; CREATE DATABASE premium_security_test;',stdio:['pipe','inherit','inherit']});
 execFileSync(process.execPath,['--test','tests/premium-events/security-db.test.mjs'],{env:{...process.env,PREMIUM_TEST_DB:'premium_security_test'},stdio:'inherit'});
+
+execFileSync(docker,['exec','-i','abilene-premium-events-local','psql','-U','postgres','-v','ON_ERROR_STOP=1'],{input:'DROP DATABASE IF EXISTS premium_comp_test; CREATE DATABASE premium_comp_test;',stdio:['pipe','inherit','inherit']});
+execFileSync(process.execPath,['--test','tests/premium-events/comp-db.test.mjs'],{env:{...process.env,PREMIUM_TEST_DB:'premium_comp_test'},stdio:'inherit'});
+
+execFileSync(docker,['exec','-i','abilene-premium-events-local','psql','-U','postgres','-v','ON_ERROR_STOP=1'],{input:'DROP DATABASE IF EXISTS premium_comp_isolation_test; CREATE DATABASE premium_comp_isolation_test;',stdio:['pipe','inherit','inherit']});
+execFileSync(process.execPath,['--test','tests/premium-events/comp-isolation.test.mjs'],{env:{...process.env,PREMIUM_TEST_DB:'premium_comp_isolation_test'},stdio:'inherit'});
+
+execFileSync(docker,['exec','-i','abilene-premium-events-local','psql','-U','postgres','-v','ON_ERROR_STOP=1'],{input:'DROP DATABASE IF EXISTS premium_common_lock_test; CREATE DATABASE premium_common_lock_test;',stdio:['pipe','inherit','inherit']});
+execFileSync(process.execPath,['--test','tests/premium-events/common-lock.test.mjs'],{env:{...process.env,PREMIUM_TEST_DB:'premium_common_lock_test'},stdio:'inherit'});
+
+execFileSync(docker,['exec','-i','abilene-premium-events-local','psql','-U','postgres','-v','ON_ERROR_STOP=1'],{input:'DROP DATABASE IF EXISTS premium_deploy_safety_test; CREATE DATABASE premium_deploy_safety_test;',stdio:['pipe','inherit','inherit']});
+execFileSync(process.execPath,['--test','tests/premium-events/deploy-safety.test.mjs'],{env:{...process.env,PREMIUM_TEST_DB:'premium_deploy_safety_test'},stdio:'inherit'});
+
+execFileSync(docker,['exec','-i','abilene-premium-events-local','psql','-U','postgres','-v','ON_ERROR_STOP=1'],{input:'DROP DATABASE IF EXISTS premium_deploy_compat_test; CREATE DATABASE premium_deploy_compat_test;',stdio:['pipe','inherit','inherit']});
+execFileSync(process.execPath,['--test','tests/premium-events/deploy-compatibility.test.mjs'],{env:{...process.env,PREMIUM_TEST_DB:'premium_deploy_compat_test'},stdio:'inherit'});

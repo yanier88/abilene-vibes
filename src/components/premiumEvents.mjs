@@ -1,5 +1,5 @@
 export function eventEligibility(option) {
-  const premium = ["stripe", "apple"].includes(option?.provider);
+  const premium = ["stripe", "apple", "admin_comp"].includes(option?.provider);
   const full = premium && Number(option.occupied) >= 3;
   return {
     premium,
