@@ -1,10 +1,13 @@
-// Web-admin orchestration only. Authorization remains enforced by Supabase/RLS.
-export function createAdminWebSession(client, { onState, load }) {
-  let revision = 0, disposed = false, session = null, pending = null, key = null;
+// Supabase validates identity and role; request generations protect every web-admin read.
+export function createAdminWebSession(client, { onState, load, onLoading = () => {} }) {
+  let revision = 0, disposed = false, session = null, candidateSession = null;
+  let pending = null, pendingKind = null, key = null, signingOut = false;
   const emit = (state, value = null) => { if (!disposed) onState(state, value); };
-  const valid = (r) => !disposed && r === revision;
+  const valid = r => !disposed && r === revision;
   function clear(state) {
-    revision++; session = null; key = null; pending = null; emit(state);
+    revision++; session = null; candidateSession = null; key = null; pending = null; pendingKind = null;
+    if (!disposed) onLoading(false);
+    emit(state);
   }
   async function authorize(candidate) {
     const user = await client.auth.getUser(candidate.access_token);
@@ -13,25 +16,38 @@ export function createAdminWebSession(client, { onState, load }) {
     if (admin.error) throw new Error('Authorization unavailable');
     return admin.data === true ? 'AUTHORIZED_ADMIN' : 'ACCESS_DENIED';
   }
-  function apply(candidate, refresh = false) {
-    if (disposed) return Promise.resolve(false);
-    if (!candidate) { clear('NOT_AUTHENTICATED'); return Promise.resolve(false); }
-    if (candidate.access_token === key && pending) return pending;
-    if (candidate.access_token === key && session && !refresh) return Promise.resolve();
+  function apply(candidate, refresh = false, fresh = false) {
+    if (disposed || signingOut) return Promise.resolve(false);
+    if (!candidate?.access_token || !candidate?.user?.id) { clear('NOT_AUTHENTICATED'); return Promise.resolve(false); }
+    if (candidate.access_token === key && pending && !fresh) return pending;
+    if (candidate.access_token === key && session && !refresh) return Promise.resolve(true);
+    const sameAuthorizedSession = session?.access_token === candidate.access_token;
     const r = ++revision;
-    key = candidate.access_token; session = null; emit('AUTHENTICATING');
+    candidateSession = candidate; key = candidate.access_token;
+    if (!sameAuthorizedSession) { session = null; emit('AUTHENTICATING'); }
+    onLoading(true);
+    pendingKind = refresh ? 'refresh' : 'restore';
     const work = (async () => {
       try {
         const state = await authorize(candidate);
         if (!valid(r)) return false;
         if (state !== 'AUTHORIZED_ADMIN') { clear(state); return false; }
         session = candidate; emit('AUTHORIZED_ADMIN', session);
-        const loaded = await load(session, refresh, () => valid(r));
-        return valid(r) && loaded !== false;
       } catch {
         if (valid(r)) clear('NETWORK_ERROR');
         return false;
-      } finally { if (valid(r)) pending = null; }
+      }
+      try {
+        const loaded = await load(candidate, refresh, () => valid(r));
+        if (!valid(r)) return false;
+        if (loaded === false) emit('DATA_ERROR', session);
+        return loaded !== false;
+      } catch {
+        if (valid(r)) emit('DATA_ERROR', session);
+        return false;
+      } finally {
+        if (valid(r)) { pending = null; pendingKind = null; onLoading(false); }
+      }
     })();
     pending = work;
     return work;
@@ -40,36 +56,40 @@ export function createAdminWebSession(client, { onState, load }) {
     const r = revision;
     try {
       const { data, error } = await client.auth.getSession();
-      if (!valid(r)) return;
-      if (error) { clear('NOT_AUTHENTICATED'); return; }
+      if (!valid(r)) return false;
+      if (error) { clear('NOT_AUTHENTICATED'); return false; }
       return apply(data.session);
-    } catch { if (valid(r)) clear('NETWORK_ERROR'); }
+    } catch { if (valid(r)) clear('NETWORK_ERROR'); return false; }
   }
   return {
     apply, restore,
-    refresh: () => session ? apply(session, true) : restore(),
-    async refreshAfterMutation() {
-      // A read started before the mutation may contain stale rows. Wait for it,
-      // then reauthorize and read again; never reuse that in-flight snapshot.
-      const r = revision;
-      if (pending) await pending;
-      if (!valid(r) || !session) return false;
-      return apply(session, true);
+    refresh() {
+      if (pendingKind === 'refresh' && pending) return pending;
+      return candidateSession ? apply(candidateSession, true, true) : restore();
+    },
+    refreshAfterMutation() {
+      // A mutation/realtime invalidation starts a new generation immediately.
+      // Older reads may finish, but their isCurrent guard cannot publish state.
+      return candidateSession ? apply(candidateSession, true, true) : Promise.resolve(false);
     },
     async login(credentials) {
       clear('AUTHENTICATING');
       const r = revision;
       try {
         const { data, error } = await client.auth.signInWithPassword(credentials);
-        if (!valid(r)) return;
-        if (error) { clear('LOGIN_ERROR'); return; }
-        await apply(data.session);
-      } catch { if (valid(r)) clear('NETWORK_ERROR'); }
+        if (!valid(r)) return false;
+        if (error) { clear('LOGIN_ERROR'); return false; }
+        return apply(data.session);
+      } catch { if (valid(r)) clear('NETWORK_ERROR'); return false; }
     },
     async logout() {
-      clear('NOT_AUTHENTICATED');
-      try { await client.auth.signOut(); } catch { emit('NETWORK_ERROR'); }
+      signingOut = true; clear('NOT_AUTHENTICATED');
+      try {
+        const result = await client.auth.signOut();
+        if (result?.error) emit('NETWORK_ERROR');
+      } catch { emit('NETWORK_ERROR'); }
+      finally { signingOut = false; }
     },
-    dispose() { disposed = true; revision++; session = null; },
+    dispose() { disposed = true; revision++; session = null; candidateSession = null; },
   };
 }

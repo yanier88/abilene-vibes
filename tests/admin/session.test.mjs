@@ -9,7 +9,7 @@ function setup({ current = session, admin = true, invalid = false, wrong = false
       getSession: async () => ({ data: { session: current } }),
       getUser: async () => ({ data: { user: invalid ? null : session.user }, error: invalid ? {} : null }),
       signInWithPassword: async () => ({ data: { session }, error: wrong ? {} : null }),
-      signOut: async () => {},
+      signOut: async () => { current = null; },
     },
     rpc: async () => { if (network) throw Error('network'); return { data: admin }; },
   };
@@ -24,8 +24,11 @@ test('reload restores valid authorized session and loads', async () => { const x
 test('Refresh uses same loader and revalidates authorization', async () => { const x=setup(); await x.controller.restore(); await x.controller.refresh(); assert.equal(x.loads.length,2); x.client.rpc=async()=>({data:false}); await x.controller.refresh(); assert.equal(x.last(),'ACCESS_DENIED'); assert.equal(x.loads.length,2); });
 test('invalid/expired session rejected', async () => { const x=setup({invalid:true}); await x.controller.restore(); assert.equal(x.last(),'NOT_AUTHENTICATED'); assert.equal(x.loads.length,0); });
 test('authorization network failure safe and retry works', async () => { const x=setup({network:true}); await x.controller.restore(); assert.equal(x.last(),'NETWORK_ERROR'); assert.equal(x.loads.length,0); x.client.rpc=async()=>({data:true}); await x.controller.restore(); assert.equal(x.loads.length,1); });
-test('data network rejection safe and retry works', async () => { let fail=true; const x=setup({load:async()=>{if(fail)throw Error('network');}}); await x.controller.restore(); assert.equal(x.last(),'NETWORK_ERROR'); fail=false; await x.controller.restore(); assert.equal(x.last(),'AUTHORIZED_ADMIN'); });
+test('data network rejection safe and retry works', async () => { let fail=true; const x=setup({load:async()=>{if(fail)throw Error('network');}}); await x.controller.restore(); assert.equal(x.last(),'DATA_ERROR'); fail=false; await x.controller.refresh(); assert.equal(x.last(),'AUTHORIZED_ADMIN'); });
 test('duplicate auth events and concurrent refresh coalesce', async () => { const x=setup(); await Promise.all([x.controller.apply(session),x.controller.apply(session)]); assert.equal(x.loads.length,1); await x.controller.apply(session); assert.equal(x.loads.length,1); await Promise.all([x.controller.refresh(),x.controller.apply(session)]); assert.equal(x.loads.length,2); });
 test('sign-out invalidates in-flight data completion', async () => { let release, guard; const x=setup({load:async(_s,_r,current)=>{guard=current; await new Promise(r=>release=r);}}); const work=x.controller.restore(); while(!release) await new Promise(r=>setImmediate(r)); await x.controller.apply(null); assert.equal(guard(),false); release(); await work; assert.equal(x.last(),'NOT_AUTHENTICATED'); });
 test('disposed authorization cannot load or expose admin', async () => { const x=setup(); const work=x.controller.apply(session); x.controller.dispose(); await work; assert.equal(x.loads.length,0); });
 test('late login response cannot undo a sign-out', async () => { const x=setup(); let release; x.client.auth.signInWithPassword=()=>new Promise(r=>release=r); const work=x.controller.login({}); await x.controller.apply(null); release({data:{session}}); await work; assert.equal(x.last(),'NOT_AUTHENTICATED'); assert.equal(x.loads.length,0); });
+
+test('sign out and reload require login and clear authorization immediately', async()=>{const x=setup();await x.controller.restore();await x.controller.logout();assert.equal(x.last(),'NOT_AUTHENTICATED');await x.controller.restore();assert.equal(x.last(),'NOT_AUTHENTICATED');assert.equal(x.loads.length,1);});
+test('no protected session emitted before authoritative user and role resolve',async()=>{const x=setup();let release;x.client.auth.getUser=()=>new Promise(r=>release=r);const p=x.controller.restore();while(!release)await new Promise(r=>setImmediate(r));assert.ok(x.states.every(([,s])=>s===null));release({data:{user:session.user}});await p;assert.equal(x.last(),'AUTHORIZED_ADMIN');});

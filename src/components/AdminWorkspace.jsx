@@ -17,7 +17,7 @@ const paths = {
 };
 function Icon({name}) {return <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={paths[name] || paths.dashboard}/></svg>;}
 
-export default function AdminWorkspace({enabled, authorized, tabs, selected, onSelect, counts, summaries, status, onRefresh, onLogout, onBack, children}) {
+export default function AdminWorkspace({enabled, authorized, tabs, selected, onSelect, counts, summaries, status, refreshing = false, onRefresh, onLogout, onBack, children}) {
  const [open,setOpen]=useState(false);
  const menu=useRef(null), drawer=useRef(null), heading=useRef(null), content=useRef(null);
  const entries=[{id:'dashboard',label:'Dashboard'},...tabs];
@@ -39,14 +39,15 @@ export default function AdminWorkspace({enabled, authorized, tabs, selected, onS
  useEffect(()=>{if(!authorized)setOpen(false);},[authorized]);
  if(!enabled)return children;
  const choose=id=>{onSelect(id);setOpen(false);requestAnimationFrame(()=>heading.current?.focus());};
- return <div className={`admin-workspace ${authorized?'is-authorized':'is-login'} ${open?'drawer-open':''}`}>
+ return <div className={`admin-workspace ${authorized?'is-authorized':'is-login'} ${open?'drawer-open':''}`} data-module={selected}>
   <a className="aw-skip" href="#admin-main-content">Skip to content</a>
   <header className="aw-header">
    {authorized&&<button ref={menu} type="button" className="aw-menu" aria-label="Open navigation" aria-expanded={open} aria-controls="admin-navigation" onClick={()=>setOpen(true)}>☰</button>}
    <div className="aw-brand"><span className="aw-brand-mark" aria-hidden="true">AV</span><div><strong>ABILENE VIBES</strong><span>Admin Panel <small>PRIVATE</small></span></div></div>
    <div className="aw-header-actions">
+    {authorized&&<span className="aw-refresh-feedback" role="status" aria-live="polite">{refreshing?'Updating…':status==='refreshed'?'Updated just now':''}</span>}
     <button type="button" onClick={onBack} className="aw-back">Back to Lobby</button>
-    {authorized&&<><button type="button" onClick={onRefresh} disabled={status==='loading'}>{status==='loading'?'Refreshing…':'Refresh'}</button><button type="button" onClick={onLogout}>Sign Out</button></>}
+    {authorized&&<><button type="button" onClick={onRefresh} disabled={refreshing}>{refreshing?'Refreshing…':'Refresh'}</button><button type="button" onClick={onLogout}>Sign Out</button></>}
    </div>
   </header>
   {authorized&&<>

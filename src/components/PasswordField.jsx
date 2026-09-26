@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 
-export default function PasswordField({ autoComplete, disabled }) {
+export default function PasswordField({ autoComplete, disabled, inputProps = {} }) {
   const [visible, setVisible] = useState(false);
   useEffect(() => { setVisible(false); }, [autoComplete]);
   return <label>Password
     <span className="pe-password-field">
-      <input aria-label="Password" name="password" type={visible ? "text" : "password"} autoComplete={autoComplete} minLength={8} required disabled={disabled} />
+      <input aria-label="Password" name="password" type={visible ? "text" : "password"} autoComplete={autoComplete} minLength={8} required disabled={disabled} {...inputProps} />
       <button className="pe-password-toggle" type="button" disabled={disabled}
         aria-label={visible ? "Hide password" : "Show password"}
         onClick={() => setVisible(value => !value)}>

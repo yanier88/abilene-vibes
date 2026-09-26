@@ -1,3 +1,6 @@
+import AdminCardMedia from "./components/AdminCardMedia.jsx";
+import PasswordField from "./components/PasswordField.jsx";
+import { adminDate, adminBadgeText } from "./components/adminPresentation.mjs";
 import AdminWorkspace from "./components/AdminWorkspace.jsx";
 import { adminCounters } from "./components/adminDashboard.mjs";
 import { moderateAndReload } from "./auth/adminModeration.mjs";
@@ -2370,6 +2373,7 @@ function App({ adminWeb = false } = {}) {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminStatus, setAdminStatus] = useState("");
+  const [adminRefreshing, setAdminRefreshing] = useState(false);
   const [adminTab, setAdminTab] = useState(adminWeb ? "dashboard" : "events");
   const [adminBusinessActionKey, setAdminBusinessActionKey] = useState("");
   const [deletingAdminBusiness, setDeletingAdminBusiness] = useState(null);
@@ -3050,15 +3054,18 @@ function App({ adminWeb = false } = {}) {
       const controller = createAdminWebSession(supabase, {
         onState: (state, session) => {
           setAdminAuthState(state);
+          if (state === "DATA_ERROR") setAdminStatus("error");
           setAdminSession(session);
           adminSessionRef.current = session;
           setOwnerUserId(session?.user?.id ?? "");
         },
+        onLoading: setAdminRefreshing,
         load: (session, refresh, isCurrent) => performAdminDataLoad(session, refresh, isCurrent),
       });
       adminWebController.current = controller;
       const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        window.setTimeout(() => { void controller.apply(session); }, 0);
+        if (!session) controller.apply(null);
+        else window.setTimeout(() => { void controller.restore(); }, 0);
       });
       void controller.restore();
       return () => { controller.dispose(); data.subscription.unsubscribe(); };
@@ -3761,6 +3768,7 @@ function App({ adminWeb = false } = {}) {
       paymentRecordsResult,
       pendingEventsResult,
       pendingClaimsResult,
+      itemInteractionResult,
     ] = await Promise.all([
       supabase
         .from("gallery_submissions")
@@ -3828,9 +3836,10 @@ function App({ adminWeb = false } = {}) {
         .order("paid_at", { ascending: false }),
       supabase.from("event_submissions").select("*").eq("status", "pending").order("created_at", { ascending: true }),
       supabase.from("business_ownership_claims").select("id,business_id,claimant,evidence,created_at").eq("status", "pending").order("created_at"),
+      supabase.from("public_item_interactions").select("created_at,item_type,item_key,item_name,action_type"),
     ]);
 
-    if (!isCurrent()) return;
+    if (!isCurrent()) return false;
 
     if (
       pendingClaimsResult.error ||
@@ -3848,38 +3857,12 @@ function App({ adminWeb = false } = {}) {
       publishedEventResult.error ||
       hiddenEventResult.error ||
       jobListingsResult.error ||
-      adminMarketplaceResult.error
+      adminMarketplaceResult.error ||
+      (adminWeb && (adminRentalResult.error || paymentRecordsResult.error || itemInteractionResult.error))
     ) {
       setAdminStatus("error");
       return false;
     }
-    // rental_listings may not exist yet — fail gracefully without blocking other admin data
-    setAdminRentalListings(adminRentalResult.error ? [] : (adminRentalResult.data ?? []));
-    setPaymentRecords(paymentRecordsResult.error ? [] : (paymentRecordsResult.data ?? []));
-
-    setPendingGalleryPhotos(galleryResult.data ?? []);
-    setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
-    setPendingBusinesses(businessResult.data ?? []);
-    setPublishedBusinesses(publishedBusinessResult.data ?? []);
-    setBusinesses((publishedBusinessResult.data ?? []).map(businessSubmissionToBusiness));
-    setHiddenBusinesses(hiddenBusinessResult.data ?? []);
-    setHiddenStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type !== "deleted").map((item) => item.item_key));
-    setDeletedStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type === "deleted").map((item) => item.item_key));
-    setPendingReviews(reviewResult.data ?? []);
-    setAdminJobListings(jobListingsResult.data ?? []);
-    setAdminMarketplaceListings((adminMarketplaceResult.data ?? []).map(mapListingFromDb));
-    setPendingClaims(pendingClaimsResult.data ?? []);
-    setPendingEvents(pendingEventsResult.data ?? []);
-    setPublishedEvents(publishedEventResult.data ?? []);
-    setHiddenEvents(hiddenEventResult.data ?? []);
-    setLikeCounts(
-      (likeResult.data ?? []).reduce((counts, like) => {
-        const key = `${like.item_type}:${like.item_key}`;
-        counts[key] = (counts[key] ?? 0) + 1;
-        return counts;
-      }, {}),
-    );
-
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
@@ -3926,19 +3909,16 @@ function App({ adminWeb = false } = {}) {
         report[interaction.action_type] = (report[interaction.action_type] ?? 0) + 1;
       });
 
-    setBusinessReports(
+    const nextBusinessReports = (
       [...reportsByBusiness.values()]
         .map((report) => ({
           ...report,
           averageRating: report.reviews ? (report.ratingTotal / report.reviews).toFixed(1) : "No reviews",
         }))
-        .sort((a, b) => b.likes + b.reviews + b.calls + b.directions + b.visits - (a.likes + a.reviews + a.calls + a.directions + a.visits)),
+        .sort((a, b) => b.likes + b.reviews + b.calls + b.directions + b.visits - (a.likes + a.reviews + a.calls + a.directions + a.visits))
     );
 
-    const itemInteractionResult = await supabase
-      .from("public_item_interactions")
-      .select("created_at,item_type,item_key,item_name,action_type");
-
+    let nextItemReports = null;
     if (!itemInteractionResult.error) {
       const itemReportsByKey = new Map();
 
@@ -3962,14 +3942,45 @@ function App({ adminWeb = false } = {}) {
           itemReportsByKey.get(reportKey).clicks += 1;
         });
 
-      setItemReports([...itemReportsByKey.values()].sort((a, b) => b.clicks - a.clicks));
+      nextItemReports = [...itemReportsByKey.values()].sort((a, b) => b.clicks - a.clicks);
     }
+
+    // rental_listings may not exist yet — fail gracefully without blocking other admin data
+    setAdminRentalListings(adminRentalResult.error ? [] : (adminRentalResult.data ?? []));
+    setPaymentRecords(paymentRecordsResult.error ? [] : (paymentRecordsResult.data ?? []));
+
+    setPendingGalleryPhotos(galleryResult.data ?? []);
+    setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
+    setPendingBusinesses(businessResult.data ?? []);
+    setPublishedBusinesses(publishedBusinessResult.data ?? []);
+    setBusinesses((publishedBusinessResult.data ?? []).map(businessSubmissionToBusiness));
+    setHiddenBusinesses(hiddenBusinessResult.data ?? []);
+    setHiddenStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type !== "deleted").map((item) => item.item_key));
+    setDeletedStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type === "deleted").map((item) => item.item_key));
+    setPendingReviews(reviewResult.data ?? []);
+    setAdminJobListings(jobListingsResult.data ?? []);
+    setAdminMarketplaceListings((adminMarketplaceResult.data ?? []).map(mapListingFromDb));
+    setPendingClaims(pendingClaimsResult.data ?? []);
+    setPendingEvents(pendingEventsResult.data ?? []);
+    setPublishedEvents(publishedEventResult.data ?? []);
+    setHiddenEvents(hiddenEventResult.data ?? []);
+    setLikeCounts(
+      (likeResult.data ?? []).reduce((counts, like) => {
+        const key = `${like.item_type}:${like.item_key}`;
+        counts[key] = (counts[key] ?? 0) + 1;
+        return counts;
+      }, {}),
+    );
+
+    setBusinessReports(nextBusinessReports);
+    if (nextItemReports) setItemReports(nextItemReports);
 
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
     return true;
   }
 
   async function loadAdminJobs(sessionOverride = adminSession) {
+    if (adminWeb) return adminWebController.current?.refreshAfterMutation();
     if (!supabase || !sessionOverride) {
       return;
     }
@@ -3989,6 +4000,7 @@ function App({ adminWeb = false } = {}) {
   }
 
   async function loadAdminRentals(sessionOverride = adminSession) {
+    if (adminWeb) return adminWebController.current?.refreshAfterMutation();
     if (!supabase || !sessionOverride) {
       return;
     }
@@ -4008,6 +4020,7 @@ function App({ adminWeb = false } = {}) {
   }
 
   async function loadAdminEvents(sessionOverride = adminSession) {
+    if (adminWeb) return adminWebController.current?.refreshAfterMutation();
     if (!supabase || !sessionOverride) {
       return;
     }
@@ -4042,6 +4055,7 @@ function App({ adminWeb = false } = {}) {
   }
 
   async function loadAdminBusinesses(sessionOverride = adminSession, showRefreshSuccess = false) {
+    if (adminWeb) return adminWebController.current?.refreshAfterMutation();
     if (!supabase || !sessionOverride) {
       return;
     }
@@ -4081,6 +4095,7 @@ function App({ adminWeb = false } = {}) {
   }
 
   async function loadAdminGallery(sessionOverride = adminSession) {
+    if (adminWeb) return adminWebController.current?.refreshAfterMutation();
     if (!supabase || !sessionOverride) {
       return;
     }
@@ -4912,7 +4927,7 @@ function App({ adminWeb = false } = {}) {
         return;
       }
 
-      await loadAdminData(undefined, true);
+      await loadAdminData(undefined, true, true);
     } catch {
       setAdminStatus("error");
     } finally {
@@ -6486,7 +6501,7 @@ function App({ adminWeb = false } = {}) {
 
     return (
       <>
-        {adminWeb && <div className="aw-promotion-meta"><strong>{business.plan || "Free"}</strong><span>{business.placement_source === "comp" ? "Admin Promo / COMP" : ["paid", "cancel_pending"].includes(business.payment_status) ? "Paid" : "No paid promotion"}</span>{business.placement_expires_at && <time dateTime={business.placement_expires_at}>Expires {new Date(business.placement_expires_at).toLocaleString()}</time>}</div>}
+        {adminWeb && <div className="aw-promotion-meta"><strong>{business.plan || "Free"}</strong><span>{business.placement_source === "comp" ? "Admin Promo / COMP" : ["paid", "cancel_pending"].includes(business.payment_status) ? "Paid" : "No paid promotion"}</span>{business.placement_expires_at && <time dateTime={business.placement_expires_at}>Expires {adminDate(business.placement_expires_at)}</time>}</div>}
         {(options.showEdit !== false || options.showCategoryPhoto) && (
           <div className="admin-business-action-group">
             <span className="admin-business-action-label">Edit</span>
@@ -10976,7 +10991,7 @@ function App({ adminWeb = false } = {}) {
       <main className={`app admin-page ${adminWeb ? "admin-web-dashboard" : ""}`}>
         <div className="admin-shell">
           <AdminWorkspace enabled={adminWeb} authorized={Boolean(supabase && adminSession)} tabs={adminTabs}
-            selected={adminTab} onSelect={setAdminTab} status={adminStatus}
+            selected={adminTab} onSelect={setAdminTab} status={adminStatus} refreshing={adminRefreshing}
             counts={adminCounters({pendingEvents, pendingBusinesses, pendingClaims, pendingGalleryPhotos, pendingReviews, adminMarketplaceListings, adminJobListings, adminRentalListings})}
             summaries={[
               {label: "Published businesses", value: publishedBusinesses.length, module: "businesses"},
@@ -11010,7 +11025,8 @@ function App({ adminWeb = false } = {}) {
             <form className="business-form admin-login" onSubmit={handleAdminLogin}>
               <div className="business-form-heading">
                 <p className="eyebrow">Owner login</p>
-                <h2>Sign in</h2>
+                <h2>Abilene Vibes</h2>
+                <p>Private Admin · Sign in</p>
               </div>
 
               <div className="form-grid">
@@ -11025,23 +11041,15 @@ function App({ adminWeb = false } = {}) {
                   />
                 </label>
 
-                <label className="form-field">
-                  <span>Password</span>
-                  <input
-                    type="password"
-                    value={adminPassword}
-                    onChange={(event) => setAdminPassword(event.target.value)}
-                    placeholder="Password"
-                    required
-                  />
-                </label>
+                <PasswordField autoComplete="current-password" disabled={adminWeb && adminAuthState === "AUTHENTICATING"}
+                  inputProps={{value: adminPassword, onChange: event => setAdminPassword(event.target.value), placeholder: "Password", minLength: undefined}} />
               </div>
 
               {adminStatus === "login-error" && <p className="form-error">Login failed. Check your email and password.</p>}
               {adminStatus === "missing-config" && <p className="form-error">Supabase is not connected.</p>}
 
               <button className="primary-button subscribe-button" type="submit" disabled={adminStatus === "signing-in" || (adminWeb && adminAuthState === "AUTHENTICATING")}>
-                {adminStatus === "signing-in" ? "Signing in..." : "Open Admin"}
+                {adminStatus === "signing-in" ? "Signing in..." : "Sign In"}
               </button>
             </form>
           )}
@@ -11066,9 +11074,9 @@ function App({ adminWeb = false } = {}) {
                 </button>
               </div>}
 
-              {adminStatus === "error" && <p className="form-error">Could not update admin data. Check Supabase policies.</p>}
-              {adminStatus === "loading" && <p className="form-success">Refreshing admin data...</p>}
-              {adminStatus === "refreshed" && <p className="form-success">Admin data updated.</p>}
+              {adminStatus === "error" && <p className="form-error">Could not refresh or save admin data. Please try again.</p>}
+              {!adminWeb && adminStatus === "loading" && <p className="form-success">Refreshing admin data...</p>}
+              {!adminWeb && adminStatus === "refreshed" && <p className="form-success">Admin data updated.</p>}
               {adminStatus === "saving" && <p className="form-success">Saving...</p>}
 
               {!adminWeb && <nav className="admin-tabs" aria-label="Admin categories">
@@ -11632,16 +11640,13 @@ function App({ adminWeb = false } = {}) {
 
                       return (
                       <article className="admin-card" key={job.id}>
-                        <span className="event-type">{job.plan} — {job.status}</span>
-                        <span className={`event-type payment-status payment-${job.payment_status ?? "unknown"}`}>
-                          Payment: {job.payment_status ?? "unknown"}
-                        </span>
-                        {isJobCompPromo && <span className="event-type payment-status payment-comp">Comp promo</span>}
+                        {adminWeb && <AdminCardMedia src={job.image_data} />}
+                        <div className="aw-badges">
+                          {[job.plan || "free", job.status || "pending", job.payment_status || "unknown"].map((value, index) => <span key={index} className="aw-badge" data-status={String(value).toLowerCase()}>{adminBadgeText(value)}</span>)}
+                          {isJobCompPromo && <span className="aw-badge" data-status="comp">Admin Promo / COMP</span>}
+                        </div>
                         <h3>{job.title}</h3>
                         <p>{job.company}</p>
-                        <p>
-                          Status: {job.status ?? "pending"} · Plan: {job.plan ?? "free"} · Payment: {job.payment_status ?? "unknown"}
-                        </p>
                         {job.category && <p>Category: {job.category}</p>}
                         {job.job_type && <p>Type: {job.job_type}</p>}
                         {job.pay_label && <p>Pay: {job.pay_label}</p>}
@@ -11651,13 +11656,10 @@ function App({ adminWeb = false } = {}) {
                         {job.email && <p>Email: {job.email}</p>}
                         {job.app_method && <p>Apply via: {job.app_method}</p>}
                         {job.duration && <p>Duration: {job.duration}</p>}
-                        <p style={{ fontWeight: 900, color: "#fbbf24", margin: "10px 0 6px" }}>
-                          Payment: {job.payment_status ?? "unknown"}
-                        </p>
                         {job.description && <p style={{ fontSize: "0.85em", opacity: 0.8 }}>{job.description.slice(0, 120)}{job.description.length > 120 ? "…" : ""}</p>}
                         <p style={{ fontSize: "0.8em", opacity: 0.6 }}>
-                          Posted: {new Date(job.created_at).toLocaleDateString()}
-                          {job.expires_at ? ` · Expires: ${new Date(job.expires_at).toLocaleDateString()}` : ""}
+                          Posted: {adminDate(job.created_at)}
+                          {job.expires_at ? ` · Expires: ${adminDate(job.expires_at)}` : ""}
                         </p>
                         <div className="directory-actions">
                           {job.status === "pending" && (
@@ -11891,7 +11893,7 @@ function App({ adminWeb = false } = {}) {
                             style={{ width: "100%", maxHeight: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }}
                           />
                         )}
-                        <span className={`event-type marketplace-admin-status marketplace-status-${marketplaceAdminDisplayStatus(listing)}`}>
+                        <span data-status={marketplaceAdminDisplayStatus(listing)} className={`event-type marketplace-admin-status marketplace-status-${marketplaceAdminDisplayStatus(listing)}`}>
                           {marketplaceAdminDisplayStatus(listing).toUpperCase()}
                         </span>
                         <h3>{listing.title}</h3>
