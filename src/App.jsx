@@ -2367,6 +2367,7 @@ function App({ adminWeb = false } = {}) {
   const [gallerySubmissionError, setGallerySubmissionError] = useState("");
   const [galleryOwnerDeleteStatus, setGalleryOwnerDeleteStatus] = useState("");
   const adminWebController = useRef(null);
+  const adminLoginInFlight = useRef(false);
   const [adminAuthState, setAdminAuthState] = useState("AUTHENTICATING");
   const [adminSession, setAdminSession] = useState(null); // Only set after server authorization.
   const adminSessionRef = useRef(null); // keeps current value without triggering Realtime re-sub
@@ -3063,8 +3064,8 @@ function App({ adminWeb = false } = {}) {
         load: (session, refresh, isCurrent) => performAdminDataLoad(session, refresh, isCurrent),
       });
       adminWebController.current = controller;
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (!session) controller.apply(null);
+      const { data } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "SIGNED_OUT") controller.apply(null);
         else window.setTimeout(() => { void controller.restore(); }, 0);
       });
       void controller.restore();
@@ -4141,9 +4142,18 @@ function App({ adminWeb = false } = {}) {
     }
 
     if (adminWeb) {
-      const credentials = { email: adminEmail.trim(), password: adminPassword };
-      setAdminPassword("");
-      await adminWebController.current?.login(credentials);
+      if (adminLoginInFlight.current || !adminEmail.trim() || !adminPassword) return;
+      const controller = adminWebController.current;
+      if (!controller) return;
+      adminLoginInFlight.current = true;
+      setAdminStatus("signing-in");
+      try {
+        await controller.login({ email: adminEmail.trim(), password: adminPassword });
+        if (adminSessionRef.current) setAdminPassword("");
+      } finally {
+        adminLoginInFlight.current = false;
+        setAdminStatus(status => status === "signing-in" ? "" : status);
+      }
       return;
     }
 
@@ -11035,6 +11045,7 @@ function App({ adminWeb = false } = {}) {
                   <input
                     type="email"
                     value={adminEmail}
+                    disabled={adminWeb && adminStatus === "signing-in"}
                     onChange={(event) => setAdminEmail(event.target.value)}
                     placeholder="you@example.com"
                     required
@@ -11048,7 +11059,7 @@ function App({ adminWeb = false } = {}) {
               {adminStatus === "login-error" && <p className="form-error">Login failed. Check your email and password.</p>}
               {adminStatus === "missing-config" && <p className="form-error">Supabase is not connected.</p>}
 
-              <button className="primary-button subscribe-button" type="submit" disabled={adminStatus === "signing-in" || (adminWeb && adminAuthState === "AUTHENTICATING")}>
+              <button className="primary-button subscribe-button" type="submit" disabled={adminStatus === "signing-in" || (adminWeb && (!adminEmail.trim() || !adminPassword))}>
                 {adminStatus === "signing-in" ? "Signing in..." : "Sign In"}
               </button>
             </form>

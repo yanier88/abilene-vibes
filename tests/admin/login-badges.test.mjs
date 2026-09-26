@@ -9,11 +9,11 @@ const css=readFileSync('src/components/AdminWorkspace.css','utf8');
 const source=readFileSync('src/components/PasswordField.jsx','utf8');
 const {code}=await transformWithOxc('import React from "react";\n'+source,'PasswordField.jsx',{jsx:{runtime:'classic'}});
 const {default:Password}=await import('data:text/javascript;base64,'+Buffer.from(code.replaceAll('from "react"',`from "${import.meta.resolve('react')}"`)).toString('base64'));
-test('session restoration cannot disable typing, but still gates login submission',()=>{
+test('visible login form must be fully actionable after session restoration',()=>{
  const field=app.match(/<PasswordField autoComplete="current-password" disabled=\{([^}]+)\}/)[1];
  assert.doesNotMatch(field,/adminAuthState/);
  assert.match(field,/adminStatus === "signing-in"/);
- assert.match(app,/type="submit" disabled=\{adminStatus === "signing-in" \|\| \(adminWeb && adminAuthState === "AUTHENTICATING"\)\}/);
+ assert.match(app,/type="submit" disabled=\{adminStatus === "signing-in" \|\| \(adminWeb && \(!adminEmail.trim\(\) \|\| !adminPassword\)\)\}/);
 });
 test('controlled Admin password preserves input contract, masking, and non-submit eye',()=>{
  const html=renderToStaticMarkup(React.createElement(Password,{autoComplete:'current-password',disabled:false,inputProps:{value:'synthetic-only',onChange(){},minLength:undefined,placeholder:'Password'}}));

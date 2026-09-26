@@ -1,7 +1,16 @@
 // Supabase validates identity and role; request generations protect every web-admin read.
-export function createAdminWebSession(client, { onState, load, onLoading = () => {} }) {
+export function createAdminWebSession(client, { onState, load, onLoading = () => {}, authTimeoutMs = 20000 }) {
   let revision = 0, disposed = false, session = null, candidateSession = null;
   let pending = null, pendingKind = null, key = null, signingOut = false;
+  let loginPending = null;
+  async function authDeadline(operation) {
+    let timer;
+    try {
+      return await Promise.race([operation, new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Authentication unavailable')), authTimeoutMs);
+      })]);
+    } finally { clearTimeout(timer); }
+  }
   const emit = (state, value = null) => { if (!disposed) onState(state, value); };
   const valid = r => !disposed && r === revision;
   function clear(state) {
@@ -29,7 +38,7 @@ export function createAdminWebSession(client, { onState, load, onLoading = () =>
     pendingKind = refresh ? 'refresh' : 'restore';
     const work = (async () => {
       try {
-        const state = await authorize(candidate);
+        const state = await authDeadline(authorize(candidate));
         if (!valid(r)) return false;
         if (state !== 'AUTHORIZED_ADMIN') { clear(state); return false; }
         session = candidate; emit('AUTHORIZED_ADMIN', session);
@@ -53,9 +62,11 @@ export function createAdminWebSession(client, { onState, load, onLoading = () =>
     return work;
   }
   async function restore() {
+    // SDK auth events must not supersede an explicit sign-in in progress.
+    if (loginPending) return loginPending;
     const r = revision;
     try {
-      const { data, error } = await client.auth.getSession();
+      const { data, error } = await authDeadline(client.auth.getSession());
       if (!valid(r)) return false;
       if (error) { clear('NOT_AUTHENTICATED'); return false; }
       return apply(data.session);
@@ -72,15 +83,22 @@ export function createAdminWebSession(client, { onState, load, onLoading = () =>
       // Older reads may finish, but their isCurrent guard cannot publish state.
       return candidateSession ? apply(candidateSession, true, true) : Promise.resolve(false);
     },
-    async login(credentials) {
+    login(credentials) {
+      if (loginPending) return loginPending;
+      if (disposed || signingOut) return Promise.resolve(false);
       clear('AUTHENTICATING');
       const r = revision;
-      try {
-        const { data, error } = await client.auth.signInWithPassword(credentials);
-        if (!valid(r)) return false;
-        if (error) { clear('LOGIN_ERROR'); return false; }
-        return apply(data.session);
-      } catch { if (valid(r)) clear('NETWORK_ERROR'); return false; }
+      const work = (async () => {
+        try {
+          const { data, error } = await authDeadline(client.auth.signInWithPassword(credentials));
+          if (!valid(r)) return false;
+          if (error) { clear('LOGIN_ERROR'); return false; }
+          return await apply(data.session);
+        } catch { if (valid(r)) clear('NETWORK_ERROR'); return false; }
+      })();
+      loginPending = work;
+      void work.finally(() => { if (loginPending === work) loginPending = null; });
+      return work;
     },
     async logout() {
       signingOut = true; clear('NOT_AUTHENTICATED');
