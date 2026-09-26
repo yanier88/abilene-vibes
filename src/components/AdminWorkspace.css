@@ -47,7 +47,7 @@
 .admin-workspace[data-module=jobs] {--aw-accent:#83bbff;--aw-accent-secondary:#365994;}
 .admin-workspace[data-module=rentals] {--aw-accent:#be9cff;--aw-accent-secondary:#69509c;}
 .admin-workspace[data-module=payments] {--aw-accent:#78e5bd;--aw-accent-secondary:#347d81;}
-.admin-web-dashboard .admin-card {border-color:color-mix(in srgb,var(--aw-accent) 32%,#28344e);border-top:3px solid var(--aw-accent);background:linear-gradient(150deg,color-mix(in srgb,var(--aw-accent-secondary) 24%,#142035),#121c30 60%);box-shadow:0 9px 24px #03081533;}
+.admin-web-dashboard .admin-card {border-color:color-mix(in srgb,var(--aw-accent) 46%,#28344e);border-top:3px solid var(--aw-accent);background:linear-gradient(150deg,color-mix(in srgb,var(--aw-accent-secondary) 24%,#142035),#121c30 60%);box-shadow:0 9px 24px #03081533;}
 .aw-page-heading h1 {text-decoration:underline;text-decoration-color:var(--aw-accent);text-underline-offset:12px;text-decoration-thickness:2px;margin-bottom:22px;}
 .aw-badges {display:flex;flex-wrap:wrap;gap:7px;}
 .admin-web-dashboard .aw-badge,.admin-web-dashboard .event-type {font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.4;padding:5px 8px;border:1px solid #58769a;border-radius:6px;background:#20334b;color:#c2e7ff;width:fit-content;}
@@ -59,7 +59,7 @@
 .admin-web-dashboard [data-status=hidden],.admin-web-dashboard [data-status=not_required] {background:#243247;color:#c5d1e6;border-color:#50627b;}
 .aw-refresh-feedback {align-self:center;color:#91dccc;font-size:11px;white-space:nowrap;}
 .admin-web-dashboard .admin-login .pe-password-field {display:block;position:relative;margin-top:8px;}
-.admin-web-dashboard .admin-login .pe-password-field input {padding-right:56px;}
+.admin-web-dashboard .admin-login .pe-password-field input {min-height:48px;padding-right:56px;cursor:text;}
 .admin-web-dashboard .admin-login .pe-password-toggle {position:absolute;right:3px;top:50%;transform:translateY(-50%);width:44px;height:44px;min-height:44px;padding:0;display:grid;place-items:center;color:#c9eafb;background:transparent;border:0;}
 @media (max-width:999px) {
  .aw-header,.is-login .aw-header {height:108px;padding:6px 16px;gap:4px 10px;}
@@ -70,3 +70,10 @@
 .admin-web-dashboard .admin-card > img {order:-1;}
 .admin-web-dashboard .marketplace-admin-action {height:auto;min-height:48px;aspect-ratio:auto;align-self:start;}
 .admin-web-dashboard .marketplace-admin-modal-actions {align-items:start;align-content:start;}
+
+/* Plan identity is independent of moderation/payment status. */
+.admin-web-dashboard :is(.aw-badge,.event-type,.aw-promotion-meta strong)[data-plan=premium] {background:#3b301d;border-color:#b18a45;color:#f4d28b;}
+.admin-web-dashboard :is(.aw-badge,.event-type,.aw-promotion-meta strong)[data-plan=featured] {background:#143b39;border-color:#459e91;color:#9aefdb;}
+.admin-web-dashboard :is(.aw-badge,.event-type,.aw-promotion-meta strong)[data-plan=free] {background:#283343;border-color:#72849c;color:#d3dfed;}
+
+.admin-web-dashboard .admin-login .pe-password-field:focus-within {border-radius:8px;outline:2px solid #83ccdf;outline-offset:2px;}

@@ -6501,7 +6501,7 @@ function App({ adminWeb = false } = {}) {
 
     return (
       <>
-        {adminWeb && <div className="aw-promotion-meta"><strong>{business.plan || "Free"}</strong><span>{business.placement_source === "comp" ? "Admin Promo / COMP" : ["paid", "cancel_pending"].includes(business.payment_status) ? "Paid" : "No paid promotion"}</span>{business.placement_expires_at && <time dateTime={business.placement_expires_at}>Expires {adminDate(business.placement_expires_at)}</time>}</div>}
+        {adminWeb && <div className="aw-promotion-meta"><strong data-plan={String(business.plan || "free").toLowerCase()}>{business.plan || "Free"}</strong><span>{business.placement_source === "comp" ? "Admin Promo / COMP" : ["paid", "cancel_pending"].includes(business.payment_status) ? "Paid" : "No paid promotion"}</span>{business.placement_expires_at && <time dateTime={business.placement_expires_at}>Expires {adminDate(business.placement_expires_at)}</time>}</div>}
         {(options.showEdit !== false || options.showCategoryPhoto) && (
           <div className="admin-business-action-group">
             <span className="admin-business-action-label">Edit</span>
@@ -11041,7 +11041,7 @@ function App({ adminWeb = false } = {}) {
                   />
                 </label>
 
-                <PasswordField autoComplete="current-password" disabled={adminWeb && adminAuthState === "AUTHENTICATING"}
+                <PasswordField autoComplete="current-password" disabled={adminWeb && adminStatus === "signing-in"}
                   inputProps={{value: adminPassword, onChange: event => setAdminPassword(event.target.value), placeholder: "Password", minLength: undefined}} />
               </div>
 
@@ -11378,7 +11378,7 @@ function App({ adminWeb = false } = {}) {
                   <div className="admin-grid">
                     {pendingBusinesses.map((business) => (
                       <article className="admin-card" key={business.id}>
-                        <span className="event-type">{business.plan} - {business.payment_status}</span>
+                        <span className="event-type" data-plan={adminWeb ? String(business.plan || "free").toLowerCase() : undefined}>{business.plan} - {business.payment_status}</span>
                         {business.placement_source === "comp" && <span className="event-type">Comp promo</span>}
                         {business.placement_expires_at && (
                           <p>Promo expires: {new Date(business.placement_expires_at).toLocaleDateString()}</p>
@@ -11642,7 +11642,7 @@ function App({ adminWeb = false } = {}) {
                       <article className="admin-card" key={job.id}>
                         {adminWeb && <AdminCardMedia src={job.image_data} />}
                         <div className="aw-badges">
-                          {[job.plan || "free", job.status || "pending", job.payment_status || "unknown"].map((value, index) => <span key={index} className="aw-badge" data-status={String(value).toLowerCase()}>{adminBadgeText(value)}</span>)}
+                          {[job.plan || "free", job.status || "pending", job.payment_status || "unknown"].map((value, index) => <span key={index} className="aw-badge" data-status={String(value).toLowerCase()} data-plan={index === 0 ? String(value).toLowerCase() : undefined}>{adminBadgeText(value)}</span>)}
                           {isJobCompPromo && <span className="aw-badge" data-status="comp">Admin Promo / COMP</span>}
                         </div>
                         <h3>{job.title}</h3>
@@ -12380,7 +12380,7 @@ function App({ adminWeb = false } = {}) {
                   <div className="admin-grid">
                     {publishedBusinesses.map((business) => (
                       <article className="admin-card" key={business.id}>
-                        <span className="event-type">{business.plan} - {business.payment_status}</span>
+                        <span className="event-type" data-plan={adminWeb ? String(business.plan || "free").toLowerCase() : undefined}>{business.plan} - {business.payment_status}</span>
                         {business.placement_source === "comp" && <span className="event-type">Comp promo</span>}
                         {business.placement_expires_at && (
                           <p>Promo expires: {new Date(business.placement_expires_at).toLocaleDateString()}</p>
@@ -12435,7 +12435,7 @@ function App({ adminWeb = false } = {}) {
                   <div className="admin-grid">
                     {hiddenBusinesses.map((business) => (
                       <article className="admin-card" key={business.id}>
-                        <span className="event-type">{business.plan} - {business.payment_status}</span>
+                        <span className="event-type" data-plan={adminWeb ? String(business.plan || "free").toLowerCase() : undefined}>{business.plan} - {business.payment_status}</span>
                         {business.placement_source === "comp" && <span className="event-type">Comp promo</span>}
                         {business.placement_expires_at && (
                           <p>Promo expires: {new Date(business.placement_expires_at).toLocaleDateString()}</p>
