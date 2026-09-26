@@ -1,3 +1,5 @@
+import AdminWorkspace from "./components/AdminWorkspace.jsx";
+import { adminCounters } from "./components/adminDashboard.mjs";
 import { moderateAndReload } from "./auth/adminModeration.mjs";
 import AdminOwnershipClaims from "./components/AdminOwnershipClaims.jsx";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -1410,7 +1412,7 @@ const businessPromotionStatus = (business) => {
   const expiresAt = businessPlacementExpiresAt(business);
 
   if (hasActiveBusinessPromotion(business)) {
-    return paymentStatus === "cancel_pending" ? "Canceling - active until expiration" : "Active paid promotion";
+    return paymentStatus === "cancel_pending" ? "Canceling - active until expiration" : (business.placement_source ?? business.placementSource) === "comp" ? "Active Admin Promo / COMP" : "Active paid promotion";
   }
 
   if (business.plan === "Free") {
@@ -2368,7 +2370,7 @@ function App({ adminWeb = false } = {}) {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminStatus, setAdminStatus] = useState("");
-  const [adminTab, setAdminTab] = useState("events");
+  const [adminTab, setAdminTab] = useState(adminWeb ? "dashboard" : "events");
   const [adminBusinessActionKey, setAdminBusinessActionKey] = useState("");
   const [deletingAdminBusiness, setDeletingAdminBusiness] = useState(null);
   const [adminGalleryActionKey, setAdminGalleryActionKey] = useState("");
@@ -3728,7 +3730,7 @@ function App({ adminWeb = false } = {}) {
   const businessDisplayImage = (business) => business.image || business.image_data || businessImageForCategory(business.category);
 
   async function loadAdminData(sessionOverride = adminSession, showRefreshSuccess = false, afterMutation = false) {
-    if (adminWeb && afterMutation) return adminWebController.current?.refreshAfterMutation();
+    if (adminWeb && (afterMutation || !showRefreshSuccess)) return adminWebController.current?.refreshAfterMutation();
     if (adminWeb) return adminWebController.current?.refresh();
     return performAdminDataLoad(sessionOverride, showRefreshSuccess);
   }
@@ -3849,7 +3851,7 @@ function App({ adminWeb = false } = {}) {
       adminMarketplaceResult.error
     ) {
       setAdminStatus("error");
-      return;
+      return false;
     }
     // rental_listings may not exist yet — fail gracefully without blocking other admin data
     setAdminRentalListings(adminRentalResult.error ? [] : (adminRentalResult.data ?? []));
@@ -3964,6 +3966,7 @@ function App({ adminWeb = false } = {}) {
     }
 
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
+    return true;
   }
 
   async function loadAdminJobs(sessionOverride = adminSession) {
@@ -3971,6 +3974,7 @@ function App({ adminWeb = false } = {}) {
       return;
     }
 
+    try {
     const jobListingsResult = await supabase.rpc("admin_list_job_listings");
 
     if (jobListingsResult.error) {
@@ -3981,6 +3985,7 @@ function App({ adminWeb = false } = {}) {
     setAdminJobListings(jobListingsResult.data ?? []);
     setAdminStatus("ready");
     return true;
+    } catch { setAdminStatus("error"); return false; }
   }
 
   async function loadAdminRentals(sessionOverride = adminSession) {
@@ -3988,6 +3993,7 @@ function App({ adminWeb = false } = {}) {
       return;
     }
 
+    try {
     const adminRentalResult = await supabase.rpc("admin_list_rental_listings");
 
     if (adminRentalResult.error) {
@@ -3998,6 +4004,7 @@ function App({ adminWeb = false } = {}) {
     setAdminRentalListings(adminRentalResult.data ?? []);
     setAdminStatus("ready");
     return true;
+    } catch { setAdminStatus("error"); return false; }
   }
 
   async function loadAdminEvents(sessionOverride = adminSession) {
@@ -4005,6 +4012,7 @@ function App({ adminWeb = false } = {}) {
       return;
     }
 
+    try {
     const eventFields =
       "id,created_at,title,place,description,map_url,website_url,ticket_url,event_date,end_date,event_time,end_time,event_type,image_url,image_data,status";
     const [publishedEventResult, hiddenEventResult, pendingEventsResult] = await Promise.all([
@@ -4030,6 +4038,7 @@ function App({ adminWeb = false } = {}) {
     setPublishedEvents(publishedEventResult.data ?? []);
     setHiddenEvents(hiddenEventResult.data ?? []);
     setAdminStatus("ready");
+    } catch { setAdminStatus("error"); return false; }
   }
 
   async function loadAdminBusinesses(sessionOverride = adminSession, showRefreshSuccess = false) {
@@ -4037,6 +4046,7 @@ function App({ adminWeb = false } = {}) {
       return;
     }
 
+    try {
     const businessFields =
       "id,created_at,business_name,contact_name,contact_email,category,plan,phone,address,social,description,image_data,payment_status,placement_source,placement_expires_at,stripe_subscription_id,status,owner_user_id";
     const [pendingBusinessResult, publishedBusinessResult, hiddenBusinessResult] = await Promise.all([
@@ -4067,6 +4077,7 @@ function App({ adminWeb = false } = {}) {
     setHiddenBusinesses(hiddenBusinessResult.data ?? []);
     setBusinesses((publishedBusinessResult.data ?? []).map(businessSubmissionToBusiness));
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
+    } catch { setAdminStatus("error"); return false; }
   }
 
   async function loadAdminGallery(sessionOverride = adminSession) {
@@ -4177,6 +4188,7 @@ function App({ adminWeb = false } = {}) {
     }
 
     setAdminStatus("saving");
+    try {
     const { error } = await supabase.from(table).update({ status }).eq("id", id);
 
     if (error) {
@@ -4185,6 +4197,7 @@ function App({ adminWeb = false } = {}) {
     }
 
     await loadAdminData();
+    } catch { setAdminStatus("error"); }
   };
 
   const moderateBusiness = async (business, status) => {
@@ -4204,6 +4217,8 @@ function App({ adminWeb = false } = {}) {
       }
 
       await loadAdminBusinesses();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4226,6 +4241,8 @@ function App({ adminWeb = false } = {}) {
       }
 
       await loadAdminGallery();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminGalleryActionKey("");
     }
@@ -4270,6 +4287,8 @@ function App({ adminWeb = false } = {}) {
 
       setApprovedGalleryPhotos((currentPhotos) => currentPhotos.filter((photo) => photo.id !== id));
       await loadAdminGallery();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminGalleryActionKey("");
     }
@@ -4284,6 +4303,8 @@ function App({ adminWeb = false } = {}) {
       const { data, error } = await supabase.rpc("admin_delete_job_listing", { listing_id: id });
       if (error || data !== true) { setAdminStatus("error"); return; }
       await loadAdminData();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminJobActionKey("");
     }
@@ -4364,6 +4385,8 @@ function App({ adminWeb = false } = {}) {
       });
       if (error || data !== true) { setAdminStatus("error"); return; }
       await loadAdminData();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminJobActionKey("");
     }
@@ -4414,6 +4437,8 @@ function App({ adminWeb = false } = {}) {
       });
       if (error || data !== true) { setAdminStatus("error"); return; }
       await loadAdminRentals();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminRentalActionKey("");
     }
@@ -4514,6 +4539,8 @@ function App({ adminWeb = false } = {}) {
       });
       if (error || data !== true) { setAdminStatus("error"); return; }
       await loadAdminRentals();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminRentalActionKey("");
     }
@@ -4593,6 +4620,8 @@ function App({ adminWeb = false } = {}) {
       }
 
       await loadAdminRentals();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminRentalActionKey("");
     }
@@ -4642,6 +4671,8 @@ function App({ adminWeb = false } = {}) {
 
       setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
       await loadAdminBusinesses();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4727,6 +4758,8 @@ function App({ adminWeb = false } = {}) {
       }
 
       await loadAdminBusinesses();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4792,6 +4825,8 @@ function App({ adminWeb = false } = {}) {
       }
 
       await loadAdminBusinesses();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4831,6 +4866,8 @@ function App({ adminWeb = false } = {}) {
       }
 
       await loadAdminBusinesses();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4876,6 +4913,8 @@ function App({ adminWeb = false } = {}) {
       }
 
       await loadAdminData(undefined, true);
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4909,6 +4948,8 @@ function App({ adminWeb = false } = {}) {
       }
 
       await loadAdminBusinesses();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4961,6 +5002,8 @@ function App({ adminWeb = false } = {}) {
 
       setBusinesses((currentBusinesses) => currentBusinesses.filter((business) => business.id !== id));
       await loadAdminBusinesses();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -4984,6 +5027,8 @@ function App({ adminWeb = false } = {}) {
 
       setBusinesses((currentBusinesses) => [businessSubmissionToBusiness(business), ...currentBusinesses]);
       await loadAdminBusinesses();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminBusinessActionKey("");
     }
@@ -5309,6 +5354,8 @@ function App({ adminWeb = false } = {}) {
 
       setHiddenStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
       await loadAdminData();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminGalleryActionKey("");
     }
@@ -5333,6 +5380,8 @@ function App({ adminWeb = false } = {}) {
 
       setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
       await loadAdminData();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminGalleryActionKey("");
     }
@@ -5368,6 +5417,8 @@ function App({ adminWeb = false } = {}) {
       setHiddenStaticItems((currentItems) => currentItems.filter((item) => item !== itemKey));
       setDeletedStaticItems((currentItems) => [...new Set([...currentItems, itemKey])]);
       await loadAdminData();
+    } catch {
+      setAdminStatus("error");
     } finally {
       setAdminGalleryActionKey("");
     }
@@ -5568,6 +5619,7 @@ function App({ adminWeb = false } = {}) {
     setMarketplaceActionKey(actionKey);
     setAdminStatus("saving");
 
+    try {
     const update = {
       moderation_status: moderationStatus,
       reviewed_by_admin: true,
@@ -5593,9 +5645,10 @@ function App({ adminWeb = false } = {}) {
       setSelectedListing((prev) => (prev ? { ...prev, ...update, moderationStatus } : null));
     }
     await loadMarketplacePublic();
-    await loadAdminData();
+    if (await loadAdminData() === false) return;
     setAdminStatus(moderationStatus === "approved" ? "marketplace-approved" : "marketplace-rejected");
-    setMarketplaceActionKey("");
+    } catch { setAdminStatus("error"); }
+    finally { setMarketplaceActionKey(""); }
   };
 
   const confirmDeleteListing = async (e) => {
@@ -6433,6 +6486,7 @@ function App({ adminWeb = false } = {}) {
 
     return (
       <>
+        {adminWeb && <div className="aw-promotion-meta"><strong>{business.plan || "Free"}</strong><span>{business.placement_source === "comp" ? "Admin Promo / COMP" : ["paid", "cancel_pending"].includes(business.payment_status) ? "Paid" : "No paid promotion"}</span>{business.placement_expires_at && <time dateTime={business.placement_expires_at}>Expires {new Date(business.placement_expires_at).toLocaleString()}</time>}</div>}
         {(options.showEdit !== false || options.showCategoryPhoto) && (
           <div className="admin-business-action-group">
             <span className="admin-business-action-label">Edit</span>
@@ -10919,8 +10973,18 @@ function App({ adminWeb = false } = {}) {
 
   if (page === "admin") {
     return withSplash(
-      <main className="app admin-page">
+      <main className={`app admin-page ${adminWeb ? "admin-web-dashboard" : ""}`}>
         <div className="admin-shell">
+          <AdminWorkspace enabled={adminWeb} authorized={Boolean(supabase && adminSession)} tabs={adminTabs}
+            selected={adminTab} onSelect={setAdminTab} status={adminStatus}
+            counts={adminCounters({pendingEvents, pendingBusinesses, pendingClaims, pendingGalleryPhotos, pendingReviews, adminMarketplaceListings, adminJobListings, adminRentalListings})}
+            summaries={[
+              {label: "Published businesses", value: publishedBusinesses.length, module: "businesses"},
+              {label: "Active business promotions", value: publishedBusinesses.filter(hasActiveBusinessPromotion).length, module: "businesses"},
+              {label: "Published events", value: publishedEvents.length, module: "events"},
+            ]}
+            onRefresh={() => loadAdminData(adminSession, true)} onLogout={handleAdminLogout} onBack={backToLobby}>
+          {!adminWeb && <>
           <button className="back-button" onClick={backToLobby}>
             Back to lobby
           </button>
@@ -10930,6 +10994,7 @@ function App({ adminWeb = false } = {}) {
             <h1 id="admin-title">Admin Panel</h1>
             <p className="events-intro">Review submitted photos and businesses before they appear in Abilene Vibes.</p>
           </section>
+          </>}
 
           {!supabase && (
             <p className="form-error">Connect Supabase before using the admin panel.</p>
@@ -10984,7 +11049,7 @@ function App({ adminWeb = false } = {}) {
           {supabase && adminSession && (
             <>
               {renderAdminBusinessDeleteModal()}
-              <div className="admin-toolbar">
+              {!adminWeb && <div className="admin-toolbar">
                 <button className="directory-link" type="button" onClick={() => setAdminTab("claims")}>
                   OWNERSHIP CLAIMS ({pendingClaims.length} pending)
                 </button>
@@ -10999,14 +11064,14 @@ function App({ adminWeb = false } = {}) {
                 <button className="directory-link" type="button" onClick={handleAdminLogout}>
                   Sign out
                 </button>
-              </div>
+              </div>}
 
               {adminStatus === "error" && <p className="form-error">Could not update admin data. Check Supabase policies.</p>}
               {adminStatus === "loading" && <p className="form-success">Refreshing admin data...</p>}
               {adminStatus === "refreshed" && <p className="form-success">Admin data updated.</p>}
               {adminStatus === "saving" && <p className="form-success">Saving...</p>}
 
-              <nav className="admin-tabs" aria-label="Admin categories">
+              {!adminWeb && <nav className="admin-tabs" aria-label="Admin categories">
                 {adminTabs.map((tab) => (
                   <button
                     className={adminTab === tab.id ? "is-active" : ""}
@@ -11017,7 +11082,7 @@ function App({ adminWeb = false } = {}) {
                     {tab.label}{tab.id === "claims" ? ` (${pendingClaims.length})` : ""}
                   </button>
                 ))}
-              </nav>
+              </nav>}
 
               <div className={`admin-panel-view admin-panel-view-${adminTab}`}>
               <section className="admin-section admin-tab-events" id="admin-events" aria-labelledby="admin-event-form-title">
@@ -11060,7 +11125,9 @@ function App({ adminWeb = false } = {}) {
               <section className="admin-section admin-tab-events" aria-label="Pending business events">
                 <h2>Pending Events</h2>
                 {pendingEvents.map(event => <article className="admin-card" key={event.id}>
-                  <h3>{event.title}</h3><p>{event.place}</p><p>{event.description}</p>
+                  <h3>{event.title}</h3>
+                  <p>Business: {[...publishedBusinesses, ...pendingBusinesses, ...hiddenBusinesses].find(b => b.id === event.business_id)?.business_name || "Business unavailable"}</p>
+                  <p>{event.place}</p><p>{event.description}</p>
                   <p>{event.event_date} {event.event_time} — {event.end_date || event.event_date} {event.end_time || event.event_time}</p>
                   {event.image_data && <img src={event.image_data} alt="" />}
                   {["approved", "rejected"].map(status => <button type="button" key={status} disabled={adminStatus === "saving"} onClick={async () => {
@@ -12482,6 +12549,7 @@ function App({ adminWeb = false } = {}) {
               </div>
             </>
           )}
+          </AdminWorkspace>
         </div>
       </main>,
     );

@@ -14,8 +14,8 @@ export function createAdminWebSession(client, { onState, load }) {
     return admin.data === true ? 'AUTHORIZED_ADMIN' : 'ACCESS_DENIED';
   }
   function apply(candidate, refresh = false) {
-    if (disposed) return Promise.resolve();
-    if (!candidate) { clear('NOT_AUTHENTICATED'); return Promise.resolve(); }
+    if (disposed) return Promise.resolve(false);
+    if (!candidate) { clear('NOT_AUTHENTICATED'); return Promise.resolve(false); }
     if (candidate.access_token === key && pending) return pending;
     if (candidate.access_token === key && session && !refresh) return Promise.resolve();
     const r = ++revision;
@@ -23,12 +23,14 @@ export function createAdminWebSession(client, { onState, load }) {
     const work = (async () => {
       try {
         const state = await authorize(candidate);
-        if (!valid(r)) return;
-        if (state !== 'AUTHORIZED_ADMIN') { clear(state); return; }
+        if (!valid(r)) return false;
+        if (state !== 'AUTHORIZED_ADMIN') { clear(state); return false; }
         session = candidate; emit('AUTHORIZED_ADMIN', session);
-        await load(session, refresh, () => valid(r));
+        const loaded = await load(session, refresh, () => valid(r));
+        return valid(r) && loaded !== false;
       } catch {
         if (valid(r)) clear('NETWORK_ERROR');
+        return false;
       } finally { if (valid(r)) pending = null; }
     })();
     pending = work;
@@ -51,7 +53,7 @@ export function createAdminWebSession(client, { onState, load }) {
       // then reauthorize and read again; never reuse that in-flight snapshot.
       const r = revision;
       if (pending) await pending;
-      if (!valid(r) || !session) return;
+      if (!valid(r) || !session) return false;
       return apply(session, true);
     },
     async login(credentials) {

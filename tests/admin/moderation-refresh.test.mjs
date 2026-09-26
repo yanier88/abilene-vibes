@@ -39,3 +39,10 @@ test('both real handlers use post-mutation loader and retain safe errors and man
  assert.match(s,/onClick=\{\(\) => loadAdminData\(adminSession, true\)\}/);
 });
 test('reload failure never fabricates success',async()=>{await assert.rejects(moderateAndReload(async()=>({}),async()=>{throw Error('reload unavailable');}),/reload unavailable/);});
+test('post-mutation loader returns failure for failed reads or lost authorization',async()=>{
+ let authorized=true,readOK=true;
+ const controller=createAdminWebSession({auth:{getUser:async()=>({data:{user:session.user}})},rpc:async()=>({data:authorized})},{onState:()=>{},load:async()=>readOK});
+ assert.equal(await controller.apply(session),true);
+ readOK=false;assert.equal(await controller.refreshAfterMutation(),false);
+ authorized=false;assert.equal(await controller.refreshAfterMutation(),false);
+});
