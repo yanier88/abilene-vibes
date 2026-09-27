@@ -1,3 +1,6 @@
+import AdminMarketplacePage from "./components/AdminMarketplacePage.jsx";
+import { MARKETPLACE_METADATA } from "./components/adminMarketplace.mjs";
+import { settleAdminReads } from "./auth/adminModuleReads.mjs";
 import AdminCardMedia from "./components/AdminCardMedia.jsx";
 import PasswordField from "./components/PasswordField.jsx";
 import { adminDate, adminBadgeText } from "./components/adminPresentation.mjs";
@@ -5,7 +8,7 @@ import AdminWorkspace from "./components/AdminWorkspace.jsx";
 import { adminCounters } from "./components/adminDashboard.mjs";
 import { moderateAndReload } from "./auth/adminModeration.mjs";
 import AdminOwnershipClaims from "./components/AdminOwnershipClaims.jsx";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import { websiteUrl as iosWebsiteUrl, directionsUrl as iosDirectionsUrl, openBusinessUrl } from "./ios/businessLinks";
 import { createWeatherLoader } from "./ios/weather";
@@ -2374,6 +2377,7 @@ function App({ adminWeb = false } = {}) {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminStatus, setAdminStatus] = useState("");
+  const [adminModuleErrors, setAdminModuleErrors] = useState([]);
   const [adminRefreshing, setAdminRefreshing] = useState(false);
   const [adminTab, setAdminTab] = useState(adminWeb ? "dashboard" : "events");
   const [adminBusinessActionKey, setAdminBusinessActionKey] = useState("");
@@ -2781,7 +2785,7 @@ function App({ adminWeb = false } = {}) {
   }, []);
 
   const loadMarketplacePublic = useCallback(() => {
-    if (!supabase) return;
+    if (adminWeb || !supabase) return;
     supabase.rpc("expire_marketplace_listings").then(() => {
       supabase
         .rpc("list_marketplace_listings", { owner_id: "" })
@@ -3770,7 +3774,7 @@ function App({ adminWeb = false } = {}) {
       pendingEventsResult,
       pendingClaimsResult,
       itemInteractionResult,
-    ] = await Promise.all([
+    ] = await settleAdminReads([
       supabase
         .from("gallery_submissions")
         .select("id,created_at,contributor_name,title,image_data,status,owner_user_id")
@@ -3828,7 +3832,7 @@ function App({ adminWeb = false } = {}) {
       supabase.rpc("admin_list_job_listings"),
       supabase
         .from("marketplace_listings")
-        .select("id,created_at,expires_at,sold_at,deleted_at,title,price,category,location,contact,description,image_data,status,owner_user_id,moderation_status,moderation_reason,moderation_score,moderation_flags,moderation_input_types,moderation_model,moderated_at,reviewed_by_admin,reviewed_at,reviewed_by")
+        .select(adminWeb ? MARKETPLACE_METADATA : `${MARKETPLACE_METADATA},image_data`)
         .order("created_at", { ascending: false }),
       supabase.rpc("admin_list_rental_listings"),
       supabase
@@ -3842,28 +3846,27 @@ function App({ adminWeb = false } = {}) {
 
     if (!isCurrent()) return false;
 
-    if (
-      pendingClaimsResult.error ||
-      pendingEventsResult.error ||
-      galleryResult.error ||
-      publishedGalleryResult.error ||
-      businessResult.error ||
-      publishedBusinessResult.error ||
-      hiddenBusinessResult.error ||
-      hiddenStaticResult.error ||
-      reviewResult.error ||
-      likeResult.error ||
-      approvedReviewResult.error ||
-      interactionResult.error ||
-      publishedEventResult.error ||
-      hiddenEventResult.error ||
-      jobListingsResult.error ||
-      adminMarketplaceResult.error ||
-      (adminWeb && (adminRentalResult.error || paymentRecordsResult.error || itemInteractionResult.error))
-    ) {
-      setAdminStatus("error");
-      return false;
-    }
+    setAdminModuleErrors([
+      ['Gallery pending', galleryResult],
+      ['Gallery published', publishedGalleryResult],
+      ['Businesses pending', businessResult],
+      ['Businesses published', publishedBusinessResult],
+      ['Businesses hidden', hiddenBusinessResult],
+      ['Hidden items', hiddenStaticResult],
+      ['Reviews pending', reviewResult],
+      ['Analytics likes', likeResult],
+      ['Analytics reviews', approvedReviewResult],
+      ['Analytics business activity', interactionResult],
+      ['Events published', publishedEventResult],
+      ['Events hidden', hiddenEventResult],
+      ['Jobs & Hiring', jobListingsResult],
+      ['Marketplace', adminMarketplaceResult],
+      ['Rent & Housing', adminRentalResult],
+      ['Payments', paymentRecordsResult],
+      ['Events pending', pendingEventsResult],
+      ['Ownership Claims', pendingClaimsResult],
+      ['Analytics item activity', itemInteractionResult],
+    ].filter(([, result]) => result.error).map(([label]) => label));
     const monthStart = new Date();
     monthStart.setDate(1);
     monthStart.setHours(0, 0, 0, 0);
@@ -3946,26 +3949,24 @@ function App({ adminWeb = false } = {}) {
       nextItemReports = [...itemReportsByKey.values()].sort((a, b) => b.clicks - a.clicks);
     }
 
-    // rental_listings may not exist yet — fail gracefully without blocking other admin data
-    setAdminRentalListings(adminRentalResult.error ? [] : (adminRentalResult.data ?? []));
-    setPaymentRecords(paymentRecordsResult.error ? [] : (paymentRecordsResult.data ?? []));
-
-    setPendingGalleryPhotos(galleryResult.data ?? []);
-    setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
-    setPendingBusinesses(businessResult.data ?? []);
-    setPublishedBusinesses(publishedBusinessResult.data ?? []);
-    setBusinesses((publishedBusinessResult.data ?? []).map(businessSubmissionToBusiness));
-    setHiddenBusinesses(hiddenBusinessResult.data ?? []);
-    setHiddenStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type !== "deleted").map((item) => item.item_key));
-    setDeletedStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type === "deleted").map((item) => item.item_key));
-    setPendingReviews(reviewResult.data ?? []);
-    setAdminJobListings(jobListingsResult.data ?? []);
-    setAdminMarketplaceListings((adminMarketplaceResult.data ?? []).map(mapListingFromDb));
-    setPendingClaims(pendingClaimsResult.data ?? []);
-    setPendingEvents(pendingEventsResult.data ?? []);
-    setPublishedEvents(publishedEventResult.data ?? []);
-    setHiddenEvents(hiddenEventResult.data ?? []);
-    setLikeCounts(
+    if (!adminRentalResult.error) setAdminRentalListings(adminRentalResult.data ?? []);
+    if (!paymentRecordsResult.error) setPaymentRecords(paymentRecordsResult.data ?? []);
+    if (!galleryResult.error) setPendingGalleryPhotos(galleryResult.data ?? []);
+    if (!publishedGalleryResult.error) setPublishedGalleryPhotos(publishedGalleryResult.data ?? []);
+    if (!businessResult.error) setPendingBusinesses(businessResult.data ?? []);
+    if (!publishedBusinessResult.error) setPublishedBusinesses(publishedBusinessResult.data ?? []);
+    if (!publishedBusinessResult.error) setBusinesses((publishedBusinessResult.data ?? []).map(businessSubmissionToBusiness));
+    if (!hiddenBusinessResult.error) setHiddenBusinesses(hiddenBusinessResult.data ?? []);
+    if (!hiddenStaticResult.error) setHiddenStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type !== "deleted").map((item) => item.item_key));
+    if (!hiddenStaticResult.error) setDeletedStaticItems((hiddenStaticResult.data ?? []).filter((item) => item.item_type === "deleted").map((item) => item.item_key));
+    if (!reviewResult.error) setPendingReviews(reviewResult.data ?? []);
+    if (!jobListingsResult.error) setAdminJobListings(jobListingsResult.data ?? []);
+    if (!adminMarketplaceResult.error) setAdminMarketplaceListings((adminMarketplaceResult.data ?? []).map(mapListingFromDb));
+    if (!pendingClaimsResult.error) setPendingClaims(pendingClaimsResult.data ?? []);
+    if (!pendingEventsResult.error) setPendingEvents(pendingEventsResult.data ?? []);
+    if (!publishedEventResult.error) setPublishedEvents(publishedEventResult.data ?? []);
+    if (!hiddenEventResult.error) setHiddenEvents(hiddenEventResult.data ?? []);
+    if (!likeResult.error) setLikeCounts(
       (likeResult.data ?? []).reduce((counts, like) => {
         const key = `${like.item_type}:${like.item_key}`;
         counts[key] = (counts[key] ?? 0) + 1;
@@ -3973,7 +3974,10 @@ function App({ adminWeb = false } = {}) {
       }, {}),
     );
 
-    setBusinessReports(nextBusinessReports);
+    // Derived reports require every input; retain the previous report if any input failed.
+    if (![publishedBusinessResult, likeResult, approvedReviewResult, interactionResult].some(result => result.error)) {
+      setBusinessReports(nextBusinessReports);
+    }
     if (nextItemReports) setItemReports(nextItemReports);
 
     setAdminStatus(showRefreshSuccess ? "refreshed" : "ready");
@@ -5512,7 +5516,7 @@ function App({ adminWeb = false } = {}) {
     },
     { all: 0, pending: 0, approved: 0, rejected: 0, active: 0, hidden: 0, sold: 0 },
   );
-  const adminMarketplaceVisibleListings = adminMarketplaceListings.filter((listing) => {
+  const adminMarketplaceVisibleListings = useMemo(() => adminMarketplaceListings.filter((listing) => {
     const status = listing.status ?? "active";
     const moderationStatus = getMarketplaceModerationStatus(listing);
     if (status === "deleted") return false;
@@ -5521,7 +5525,7 @@ function App({ adminWeb = false } = {}) {
       return moderationStatus === marketplaceAdminStatusFilter;
     }
     return status === marketplaceAdminStatusFilter;
-  });
+  }), [adminMarketplaceListings, marketplaceAdminStatusFilter]);
   const marketplaceAdminDisplayStatus = (listing) => {
     const status = String(listing?.status ?? "active").trim().toLowerCase();
     const moderationStatus = getMarketplaceModerationStatus(listing);
@@ -11086,6 +11090,7 @@ function App({ adminWeb = false } = {}) {
               </div>}
 
               {adminStatus === "error" && <p className="form-error">Could not refresh or save admin data. Please try again.</p>}
+              {adminModuleErrors.length > 0 && <p className="form-error" role="status">Could not refresh: {adminModuleErrors.join(", ")}. Previous data, if available, is retained. Use Refresh to retry.</p>}
               {!adminWeb && adminStatus === "loading" && <p className="form-success">Refreshing admin data...</p>}
               {!adminWeb && adminStatus === "refreshed" && <p className="form-success">Admin data updated.</p>}
               {adminStatus === "saving" && <p className="form-success">Saving...</p>}
@@ -11893,14 +11898,19 @@ function App({ adminWeb = false } = {}) {
                   </div>
                 )}
 
-                {adminMarketplaceVisibleListings.length ? (
+                <AdminMarketplacePage listings={adminMarketplaceVisibleListings} active={adminTab === "marketplace" && Boolean(adminSession)} client={supabase} enabled={adminWeb}>
+                  {(pageListings, imagesReady) => <>
+                {pageListings.length ? (
                   <div className="admin-grid">
-                    {adminMarketplaceVisibleListings.map((listing) => (
+                    {pageListings.map((listing) => (
                       <article className="admin-card" key={listing.id}>
                         {parseListingImages(listing.image_data)[0] && (
                           <img
+                            key={parseListingImages(listing.image_data)[0]}
                             src={parseListingImages(listing.image_data)[0]}
                             alt={listing.title}
+                            loading="lazy"
+                            onError={(event) => { event.currentTarget.style.display = "none"; }}
                             style={{ width: "100%", maxHeight: "140px", objectFit: "cover", borderRadius: "8px", marginBottom: "8px" }}
                           />
                         )}
@@ -11964,7 +11974,7 @@ function App({ adminWeb = false } = {}) {
                             className="directory-link marketplace-admin-action"
                             type="button"
                             onClick={(e) => openOwnerEditListing(e, { ...mapListingFromDb(listing), _origStatus: listing.status })}
-                            disabled={Boolean(marketplaceActionKey)}
+                            disabled={Boolean(marketplaceActionKey) || !imagesReady(listing)}
                           >
                             Edit
                           </button>
@@ -12021,6 +12031,8 @@ function App({ adminWeb = false } = {}) {
                 ) : (
                   <p className="legal-disclaimer">No marketplace listings for this filter.</p>
                 )}
+                  </>}
+                </AdminMarketplacePage>
               </section>
 
               <section className="admin-section admin-tab-rentals" aria-labelledby="admin-rentals-title">

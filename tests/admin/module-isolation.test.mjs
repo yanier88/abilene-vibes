@@ -1,0 +1,29 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { settleAdminReads } from '../../src/auth/adminModuleReads.mjs';
+import { createAdminWebSession } from '../../src/auth/adminWebSession.mjs';
+const app=readFileSync('src/App.jsx','utf8');
+const source=app.slice(app.indexOf('  async function performAdminDataLoad'),app.indexOf('  async function loadAdminJobs'));
+const setters=[...new Set(source.match(/(?<!\.)\bset[A-Z]\w+/g))];
+const session={access_token:'synthetic',user:{id:'synthetic'}};
+function harness() {
+ const state=Object.fromEntries(setters.map(s=>[s,['previous']]));let calls=0;let failure=-1;let reject=false;let hold=null;
+ const supabase={from:query,rpc:query};
+ function query(){const i=calls++%19;const failed=i===failure;const wait=hold;const q={select:()=>q,eq:()=>q,order:()=>q,then(resolve,rejected){return Promise.resolve(wait).then(()=>{if(failed&&reject)throw Error('private diagnostic');return failed?{error:{message:'private diagnostic'}}:{data:[],error:null};}).then(resolve,rejected);}};return q;}
+ const deps={supabase,adminWeb:true,MARKETPLACE_METADATA:"id,status",adminSession:session,settleAdminReads,initialBusinesses:[],businessSubmissionToBusiness:x=>x,mapListingFromDb:x=>x,...Object.fromEntries(setters.map(s=>[s,v=>state[s]=v]))};
+ const load=new Function(...Object.keys(deps),`${source}; return performAdminDataLoad;`)(...Object.values(deps));
+ return {state,load,get calls(){return calls;},fail(i,throws=false){failure=i;reject=throws;},hold(p){hold=p;}};
+}
+test('19 successful real loader reads publish all slices and clear errors',async()=>{const h=harness();assert.equal(await h.load(),true);assert.equal(h.calls,19);assert.deepEqual(h.state.setAdminModuleErrors,[]);for(const s of setters.filter(s=>!['setAdminStatus','setLikeCounts'].includes(s)))assert.deepEqual(h.state[s],[],s);assert.deepEqual(h.state.setLikeCounts,{});});
+for(const reject of [false,true]) for(const [index,label,setter] of [[13,'Marketplace','setAdminMarketplaceListings'],[18,'Analytics item activity','setItemReports']]) test(`${label} ${reject?'rejection':'error'} retains previous data while other 18 reads succeed`,async()=>{const h=harness();h.fail(index,reject);assert.equal(await h.load(),true);assert.equal(h.calls,19);assert.deepEqual(h.state[setter],['previous']);assert.deepEqual(h.state.setPendingClaims,[]);assert.deepEqual(h.state.setPublishedEvents,[]);assert.deepEqual(h.state.setAdminModuleErrors,[label]);assert.equal(h.state.setAdminStatus,'ready');});
+test('failed Analytics input preserves derived reports without blocking independent slices',async()=>{const h=harness();h.fail(9);await h.load();assert.deepEqual(h.state.setBusinessReports,['previous']);assert.deepEqual(h.state.setItemReports,[]);assert.deepEqual(h.state.setPublishedBusinesses,[]);});
+test('stale real loader publishes no data or module errors',async()=>{const h=harness();assert.equal(await h.load(session,true,()=>false),false);assert.deepEqual(h.state.setPendingClaims,['previous']);assert.deepEqual(h.state.setAdminModuleErrors,['previous']);});
+function controller(h,authorized=true){const states=[];const c=createAdminWebSession({auth:{getUser:async()=>({data:{user:session.user}})},rpc:async()=>({data:authorized})},{onState:s=>states.push(s),load:h.load});return {c,states};}
+test('initial secondary failure leaves Admin authorized and healthy queues loaded',async()=>{const h=harness();h.fail(13);const {c,states}=controller(h);assert.equal(await c.apply(session),true);assert.equal(states.at(-1),'AUTHORIZED_ADMIN');assert.deepEqual(h.state.setPendingClaims,[]);});
+test('Refresh updates successful slices in first cycle and later retry clears module error',async()=>{const h=harness();const {c}=controller(h);await c.apply(session);h.state.setAdminMarketplaceListings=['saved'];h.state.setPendingClaims=['stale'];h.fail(13);assert.equal(await c.refresh(),true);assert.deepEqual(h.state.setAdminMarketplaceListings,['saved']);assert.deepEqual(h.state.setPendingClaims,[]);h.fail(-1);await c.refresh();assert.deepEqual(h.state.setAdminModuleErrors,[]);assert.deepEqual(h.state.setAdminMarketplaceListings,[]);});
+test('mutation reload X succeeds independently of failed Y',async()=>{const h=harness();const {c}=controller(h);await c.apply(session);h.state.setPendingClaims=['approved-but-stale'];h.fail(13);assert.equal(await c.refreshAfterMutation(),true);assert.deepEqual(h.state.setPendingClaims,[]);assert.deepEqual(h.state.setAdminModuleErrors,['Marketplace']);});
+test('authorization failure prevents all 19 data requests',async()=>{const h=harness();const {c,states}=controller(h,false);assert.equal(await c.apply(session),false);assert.equal(h.calls,0);assert.equal(states.at(-1),'ACCESS_DENIED');});
+test('new generation succeeds before old failed generation and old error is discarded',async()=>{const h=harness();const {c}=controller(h);let release;h.fail(13);h.hold(new Promise(r=>release=r));const old=c.apply(session);while(h.calls<19)await new Promise(r=>setImmediate(r));h.hold(null);h.fail(-1);assert.equal(await c.refresh(),true);release();await old;assert.deepEqual(h.state.setAdminModuleErrors,[]);assert.deepEqual(h.state.setAdminMarketplaceListings,[]);});
+test('rapid refresh coalesces real requests with partial failure',async()=>{const h=harness();const {c}=controller(h);await c.apply(session);h.fail(13);await Promise.all([c.refresh(),c.refresh(),c.refresh()]);assert.equal(h.calls,38);assert.deepEqual(h.state.setAdminModuleErrors,['Marketplace']);});
+test('module error UI is safe and offers existing Refresh retry',()=>{assert.match(app,/role="status">Could not refresh: \{adminModuleErrors.join/);assert.match(app,/Use Refresh to retry/);assert.doesNotMatch(source,/\.error\.message/);});
