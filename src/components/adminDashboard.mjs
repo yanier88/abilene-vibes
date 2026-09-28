@@ -1,7 +1,7 @@
 export const adminGroups = [
   {label: 'Workspace', ids: ['dashboard']},
   {label: 'Content', ids: ['events', 'gallery', 'businesses']},
-  {label: 'Moderation', ids: ['claims', 'marketplace', 'jobs', 'rentals', 'reviews']},
+  {label: 'Moderation', ids: ['reports', 'claims', 'marketplace', 'jobs', 'rentals', 'reviews']},
   {label: 'Commerce', ids: ['payments']},
   {label: 'Insights', ids: ['analytics']},
 ];
@@ -16,6 +16,7 @@ export function adminCounters(data) {
   };
 }
 export const adminDescriptions = {
+  reports: 'Review content concerns and use existing moderation controls.',
   dashboard: 'Your workspace at a glance. Review what needs attention.',
   events: 'Review submissions, manage published events and add new listings.',
   gallery: 'Review community photos and curate the published gallery.',
